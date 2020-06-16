@@ -10,7 +10,10 @@ import org.edu_sharing.elasticsearch.alfresco.client.NodeMetadata;
 import org.edu_sharing.elasticsearch.alfresco.client.Reader;
 import org.edu_sharing.elasticsearch.tools.Constants;
 import org.edu_sharing.elasticsearch.tools.Tools;
+import org.elasticsearch.action.DocWriteRequest;
 import org.elasticsearch.action.DocWriteResponse;
+import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
+import org.elasticsearch.action.admin.indices.get.GetIndexRequest;
 import org.elasticsearch.action.delete.DeleteRequest;
 import org.elasticsearch.action.delete.DeleteResponse;
 import org.elasticsearch.action.get.GetRequest;
@@ -22,11 +25,10 @@ import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.support.replication.ReplicationResponse;
 import org.elasticsearch.action.update.UpdateRequest;
 import org.elasticsearch.action.update.UpdateResponse;
-import org.elasticsearch.client.RequestOptions;
+
+import org.elasticsearch.client.Response;
 import org.elasticsearch.client.RestClient;
 import org.elasticsearch.client.RestHighLevelClient;
-import org.elasticsearch.client.indices.CreateIndexRequest;
-import org.elasticsearch.client.indices.GetIndexRequest;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.index.mapper.MapperParsingException;
@@ -69,6 +71,7 @@ public class ElasticsearchClient {
 
     final static String ID_ACL_CHANGESET = "2";
 
+   // final static String TYPE = "doc";
 
     @PostConstruct
     public void init() throws IOException {
@@ -77,13 +80,31 @@ public class ElasticsearchClient {
     }
 
     private void createIndexIfNotExists(String index) throws IOException{
-        GetIndexRequest request = new GetIndexRequest(index);
         RestHighLevelClient client = getClient();
-        if(!client.indices().exists(request,RequestOptions.DEFAULT)){
+
+        if(!indexExists(index)){
             CreateIndexRequest createIndexRequest = new CreateIndexRequest(index);
-            client.indices().create(createIndexRequest, RequestOptions.DEFAULT);
+            client.indices().create(createIndexRequest);
         }
         client.close();
+    }
+
+    private boolean indexExists(String index){
+
+        Response response = null;
+        try {
+            response = getClient().getLowLevelClient().performRequest("HEAD", "/"+index);
+
+            int statusCode = response.getStatusLine().getStatusCode();
+            if (statusCode == 404) {
+               return false;
+            } else {
+                return true;
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return false;
     }
 
     public void updateReader(long dbid, Reader reader) throws IOException {
@@ -97,11 +118,13 @@ public class ElasticsearchClient {
             builder.endObject();
         }
         builder.endObject();
-        UpdateRequest request = new UpdateRequest(
-                INDEX_WORKSPACE,
-                Long.toString(dbid)).doc(builder);
+        UpdateRequest request = new UpdateRequest();
+        request.index(INDEX_WORKSPACE);
+        request.id(Long.toString(dbid));
+        request.doc(builder);
+
         UpdateResponse updateResponse = client.update(
-                request, RequestOptions.DEFAULT);
+                request);
         String index = updateResponse.getIndex();
         String id = updateResponse.getId();
         long version = updateResponse.getVersion();
@@ -260,10 +283,10 @@ public class ElasticsearchClient {
                 builder.endObject();
 
 
-                IndexRequest indexRequest = new IndexRequest(INDEX_WORKSPACE)
+                IndexRequest indexRequest = new IndexRequest(INDEX_WORKSPACE).type(TYPE)
                         .id(Long.toString(node.getId())).source(builder);
 
-                IndexResponse indexResponse = client.index(indexRequest, RequestOptions.DEFAULT);
+                IndexResponse indexResponse = client.index(indexRequest);
                 String index = indexResponse.getIndex();
                 String id = indexResponse.getId();
                 if (indexResponse.getResult() == DocWriteResponse.Result.CREATED) {
@@ -330,10 +353,20 @@ public class ElasticsearchClient {
 
     private void setNode(String index, String id, XContentBuilder builder) throws IOException {
         RestHighLevelClient client = getClient();
-        IndexRequest indexRequest = new IndexRequest(index)
+
+        IndexRequest.OpType type = null;
+        GetRequest getRequest = new GetRequest().index(index).id(id);
+        if(client.exists(getRequest)){
+            type = IndexRequest.OpType.INDEX;
+        }else{
+            type = IndexRequest.OpType.CREATE;
+        }
+        IndexRequest indexRequest = new IndexRequest().index(index).type(TYPE)
                 .id(id).source(builder);
 
-        IndexResponse indexResponse = client.index(indexRequest, RequestOptions.DEFAULT);
+
+
+        IndexResponse indexResponse = client.index(indexRequest);
 
         if (indexResponse.getResult() == DocWriteResponse.Result.CREATED) {
             logger.debug("created node in elastic:" + builder);
@@ -356,8 +389,10 @@ public class ElasticsearchClient {
 
     private GetResponse get(String index, String id) throws IOException {
         RestHighLevelClient client = getClient();
-        GetRequest getRequest = new GetRequest(index,id);
-        GetResponse resp = client.get(getRequest,RequestOptions.DEFAULT);
+        GetRequest getRequest = new GetRequest();
+        getRequest.index(index);
+        getRequest.id(id);
+        GetResponse resp = client.get(getRequest);
         client.close();
         return resp;
     }
@@ -407,12 +442,13 @@ public class ElasticsearchClient {
         RestHighLevelClient client = getClient();
 
         for(Node node : nodes){
+            DeleteRequest request = new DeleteRequest();
+            request.index(INDEX_WORKSPACE);
+            request.type(TYPE);
+            request.id(Long.toString(node.getId()));
 
-            DeleteRequest request = new DeleteRequest(
-                    INDEX_WORKSPACE,
-                    Long.toString(node.getId()));
             DeleteResponse deleteResponse = client.delete(
-                    request, RequestOptions.DEFAULT);
+                    request);
 
             String index = deleteResponse.getIndex();
             String id = deleteResponse.getId();
@@ -464,7 +500,7 @@ public class ElasticsearchClient {
             }
             builder.endObject();
 
-            indexRequest.mapping(builder);
+            indexRequest.mapping(null,builder);
 
 
 
@@ -486,7 +522,7 @@ public class ElasticsearchClient {
         searchSourceBuilder.from(from);
         searchSourceBuilder.size(size);
         searchRequest.source(searchSourceBuilder);
-        SearchResponse searchResponse = client.search(searchRequest, RequestOptions.DEFAULT);
+        SearchResponse searchResponse = client.search(searchRequest);
         client.close();
         return searchResponse.getHits();
     }
