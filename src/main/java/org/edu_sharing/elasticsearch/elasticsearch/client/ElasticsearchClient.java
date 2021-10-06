@@ -1285,7 +1285,7 @@ public class ElasticsearchClient {
                                 .startObject("sys:node-uuid").field("type","keyword").endObject()
                                 .startObject("cclom:format").field("type","keyword").endObject()
                                 .startObject("cm:versionLabel").field("type","keyword").endObject()
-                                .startObject("ccm:taxonid").field("type","keyword").endObject()
+                                .startObject("ccm:taxonid").field("type","text").endObject()
                                 //the others are default
                             .endObject()
                     .endObject();
