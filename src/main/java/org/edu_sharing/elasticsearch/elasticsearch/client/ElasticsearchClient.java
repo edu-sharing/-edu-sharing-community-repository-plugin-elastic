@@ -1285,7 +1285,16 @@ public class ElasticsearchClient {
                                 .startObject("sys:node-uuid").field("type","keyword").endObject()
                                 .startObject("cclom:format").field("type","keyword").endObject()
                                 .startObject("cm:versionLabel").field("type","keyword").endObject()
-                                .startObject("ccm:taxonid").field("type","text").endObject()
+                                .startObject("ccm:taxonid")
+                                    .field("type","text")
+                                    .startObject("fields")
+                                        .startObject("keyword")
+                                            .field("type","keyword")
+                                            .field("ignore_above",256)
+                                        .endObject()
+                                    .endObject()
+                                    .array("copy_to","properties_aggregated.ccm:taxonid")
+                                .endObject()
                                 //the others are default
                             .endObject()
                     .endObject();
