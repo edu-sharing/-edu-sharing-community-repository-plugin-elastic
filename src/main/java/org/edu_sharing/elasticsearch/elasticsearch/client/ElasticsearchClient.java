@@ -136,7 +136,7 @@ public class ElasticsearchClient {
         settingsRequest.settings(Settings.builder().put("index.mapping.total_fields.limit", 5000).build());
         client.indices().putSettings(settingsRequest, RequestOptions.DEFAULT);
     }
-    private void deleteIndex(String index) throws IOException{
+    public void deleteIndex(String index) throws IOException{
         DeleteIndexRequest request = new DeleteIndexRequest(index);
         client.indices().delete(request, RequestOptions.DEFAULT);
     }
@@ -1169,6 +1169,23 @@ public class ElasticsearchClient {
                                     .startObject("mapping")
                                         .field("type", "keyword")
                                         .field("store", true)
+                                    .endObject()
+                                .endObject()
+                            .endObject()
+                            .startObject()
+                                .startObject("convert_date")
+                                    .field("match_mapping_type","date")
+                                    .field("path_match","*properties.*")
+                                    .startObject("mapping")
+                                        .field("type", "text")
+                                        .field("store", true)
+                                        .startObject("fields")
+                                            .startObject("keyword").field("type", "keyword").field("ignore_above", 256).endObject()
+                                            .startObject("date").
+                                                field("type", "date").
+                                                field("ignore_malformed", true)
+                                            .endObject()
+                                        .endObject()
                                     .endObject()
                                 .endObject()
                             .endObject()
