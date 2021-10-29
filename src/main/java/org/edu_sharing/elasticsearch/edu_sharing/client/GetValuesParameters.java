@@ -6,7 +6,7 @@ public class GetValuesParameters {
 
     ValueParameters valueParameters;
 
-    List<Criterias> criterias;
+    List<Criterias> criteria;
 
     public ValueParameters getValueParameters() {
         return valueParameters;
@@ -16,12 +16,12 @@ public class GetValuesParameters {
         this.valueParameters = valueParameters;
     }
 
-    public List<Criterias> getCriterias() {
-        return criterias;
+    public List<Criterias> getCriteria() {
+        return criteria;
     }
 
-    public void setCriterias(List<Criterias> criterias) {
-        this.criterias = criterias;
+    public void setCriteria(List<Criterias> criteria) {
+        this.criteria = criteria;
     }
 
     public static class ValueParameters {
