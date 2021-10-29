@@ -19,8 +19,8 @@ public class Test {
     static String HOST = "http://localhost:8080";
 
    // static String HOST = "https://redaktion.openeduhub.net";
-    static  String URL_MDS_VALUES = HOST + "/edu-sharing/rest/mds/v1/metadatasetsV2/-home-/${mds}/values";
-    static String URL_MDS = HOST + "/edu-sharing/rest/mds/v1/metadatasetsV2/-home-/${mds}";
+    static  String URL_MDS_VALUES = HOST + "/edu-sharing/rest/mds/v1/metadatasets/-home-/${mds}/values";
+    static String URL_MDS = HOST + "/edu-sharing/rest/mds/v1/metadatasets/-home-/${mds}";
 
     String user = "admin";
     String password = "admin";
