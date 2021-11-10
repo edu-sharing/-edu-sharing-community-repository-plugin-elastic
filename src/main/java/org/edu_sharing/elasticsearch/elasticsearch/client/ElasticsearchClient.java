@@ -34,9 +34,11 @@ import org.elasticsearch.action.update.UpdateResponse;
 import org.elasticsearch.client.*;
 import org.elasticsearch.client.indices.CreateIndexRequest;
 import org.elasticsearch.client.indices.GetIndexRequest;
+import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentFactory;
+import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.index.mapper.MapperParsingException;
 import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
@@ -92,6 +94,12 @@ public class ElasticsearchClient {
 
     @Value("${statistic.historyInDays}")
     int statisticHistoryInDays;
+
+    @Value("${elastic.index.number_of_shards}")
+    int indexNumberOfShards;
+
+    @Value("${elastic.index.number_of_replicas}")
+    int indexNumberOfReplicas;
 
     Logger logger = LogManager.getLogger(ElasticsearchClient.class);
 
@@ -1125,6 +1133,28 @@ public class ElasticsearchClient {
 
             CreateIndexRequest indexRequest = new CreateIndexRequest(INDEX_WORKSPACE);
 
+            indexRequest.settings(Settings.builder()
+                    .put("index.number_of_shards", indexNumberOfShards)
+                    .put("index.number_of_replicas", indexNumberOfReplicas)
+                    .loadFromSource(Strings.toString(jsonBuilder()
+                            .startObject()
+                                .startObject("analysis")
+                                    .startObject("analyzer")
+                                        .startObject("trigram")
+                                            .field("type", "custom")
+                                            .field("tokenizer", "standard")
+                                            .field("filter", new String[]{"lowercase", "shingle"})
+                                        .endObject()
+                                        .startObject("reverse")
+                                            .field("type", "custom")
+                                            .field("tokenizer", "standard")
+                                            .field("filter", new String[]{"lowercase", "reverse"})
+                                        .endObject()
+                                    .endObject()
+                                .endObject()
+                            .endObject()), XContentType.JSON)
+            );
+
             XContentBuilder builder = XContentFactory.jsonBuilder();
             builder.startObject();
             {
@@ -1311,6 +1341,24 @@ public class ElasticsearchClient {
                                         .endObject()
                                     .endObject()
                                     .array("copy_to","properties_aggregated.ccm:taxonid")
+                                .endObject()
+                                .startObject("cclom:title")
+                                    .field("type","text")
+                                    .startObject("fields")
+                                        .startObject("keyword")
+                                            .field("type","keyword")
+                                            .field("ignore_above",256)
+                                        .endObject()
+                                        .startObject("trigram")
+                                            .field("type","text")
+                                            .field("analyzer","trigram")
+                                        .endObject()
+                                        .startObject("reverse")
+                                            .field("type","text")
+                                            .field("analyzer","reverse")
+                                        .endObject()
+                                    .endObject()
+                                    .array("copy_to","properties_aggregated.cclom:title")
                                 .endObject()
                                 //the others are default
                             .endObject()
