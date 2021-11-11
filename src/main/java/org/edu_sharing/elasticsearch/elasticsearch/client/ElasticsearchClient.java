@@ -101,6 +101,12 @@ public class ElasticsearchClient {
     @Value("${statistic.historyInDays}")
     int statisticHistoryInDays;
 
+    @Value("${elastic.index.number_of_shards}")
+    int indexNumberOfShards;
+
+    @Value("${elastic.index.number_of_replicas}")
+    int indexNumberOfReplicas;
+
     Logger logger = LogManager.getLogger(ElasticsearchClient.class);
 
     public static String INDEX_WORKSPACE = "workspace";
@@ -1074,6 +1080,11 @@ public class ElasticsearchClient {
             }
 
             CreateIndexRequest indexRequest = new CreateIndexRequest(INDEX_WORKSPACE);
+
+            indexRequest.settings(Settings.builder()
+                    .put("index.number_of_shards", indexNumberOfShards)
+                    .put("index.number_of_replicas", indexNumberOfReplicas)
+            );
 
             XContentBuilder builder = XContentFactory.jsonBuilder();
             builder.startObject();
