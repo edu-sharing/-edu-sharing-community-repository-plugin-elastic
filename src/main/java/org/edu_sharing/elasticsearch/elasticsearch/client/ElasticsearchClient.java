@@ -1151,6 +1151,13 @@ public class ElasticsearchClient {
                                             .field("filter", new String[]{"lowercase", "reverse"})
                                         .endObject()
                                     .endObject()
+                                    .startObject("filter")
+                                        .startObject("shingle")
+                                            .field("type","shingle")
+                                            .field("min_shingle_size",2)
+                                            .field("max_shingle_size",3)
+                                        .endObject()
+                                    .endObject()
                                 .endObject()
                             .endObject()), XContentType.JSON)
             );
