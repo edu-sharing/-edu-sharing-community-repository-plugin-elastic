@@ -1370,6 +1370,19 @@ public class ElasticsearchClient {
                                 //the others are default
                             .endObject()
                     .endObject();
+                    builder.startObject("properties_aggregated")
+                            .startObject("properties")
+                                .startObject("ccm:taxonid")
+                                    .field("type","text")
+                                        .startObject("fields")
+                                            .startObject("keyword")
+                                                .field("type","keyword")
+                                                .field("ignore_above",256)
+                                            .endObject()
+                                        .endObject()
+                                .endObject()
+                            .endObject()
+                    .endObject();
                     builder.startObject("children")
                             .field("type", "object")
                             .startObject("properties")
