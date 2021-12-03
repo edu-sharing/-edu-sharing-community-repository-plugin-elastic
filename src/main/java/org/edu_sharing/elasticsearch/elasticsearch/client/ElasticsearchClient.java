@@ -644,8 +644,23 @@ public class ElasticsearchClient {
                 }
             }
         }
+        if(nodeData instanceof NodeDataProposal) {
+            builder = getProposalData((NodeDataProposal) nodeData, builder);
+        }
 
         builder.endObject();
+        return builder;
+    }
+
+    private XContentBuilder getProposalData(NodeDataProposal nodeData, XContentBuilder builder) throws IOException {
+        if(nodeData.getCollection() != null) {
+            builder.startArray("collections");
+            builder = get(nodeData.getCollection(), builder);
+            builder.endArray();
+        }
+        if(nodeData.getOriginal() != null) {
+            builder = get(nodeData.getOriginal(), builder, "original");
+        }
         return builder;
     }
 

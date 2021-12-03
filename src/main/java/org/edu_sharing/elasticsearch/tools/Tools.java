@@ -27,7 +27,7 @@ public class Tools {
     }
 
     public static String getUUID(String nodeRef){
-        return nodeRef.split("://")[1].split("/")[1];
+        return nodeRef.split("://")[1].split("(/|\\|)")[1];
     }
 
     public static void main(String[] args) {

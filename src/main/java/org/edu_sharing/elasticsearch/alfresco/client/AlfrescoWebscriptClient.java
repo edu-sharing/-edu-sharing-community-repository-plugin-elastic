@@ -2,8 +2,8 @@ package org.edu_sharing.elasticsearch.alfresco.client;
 
 import com.fasterxml.jackson.jaxrs.json.JacksonJsonProvider;
 import org.apache.cxf.feature.LoggingFeature;
-import org.apache.cxf.transport.http.asyncclient.AsyncHTTPConduitFactory;
 import org.edu_sharing.elasticsearch.tools.Constants;
+import org.edu_sharing.elasticsearch.tools.Tools;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -15,6 +15,7 @@ import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.ResponseProcessingException;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
+import java.io.Serializable;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -33,11 +34,19 @@ public class AlfrescoWebscriptClient {
     @Value("${log.requests}")
     String logRequests;
 
+    @Value("${alfresco.username}")
+    String alfrescoUsername;
+
+    @Value("${alfresco.password}")
+    String alfrescoPassword;
+
     String URL_TRANSACTIONS = "/alfresco/service/api/solr/transactions";
 
     String URL_NODES_TRANSACTION = "/alfresco/s/api/solr/nodes";
 
     String URL_NODE_METADATA = "/alfresco/s/api/solr/metadata";
+
+    String URL_NODE_METADATA_UUID = "/alfresco/s/api/solr/metadata/uuid?uuid={{uuid}}";
 
     String URL_ACL_READERS ="/alfresco/s/api/solr/aclsReaders";
 
@@ -114,6 +123,17 @@ public class AlfrescoWebscriptClient {
             }
         }
     }
+    public NodeMetadata getNodeMetadataUUID(String uuid){
+        String url = getUrl(URL_NODE_METADATA_UUID.replace(
+                "{{uuid}}", uuid
+        ));
+        Response resp = client.target(url)
+                .request(MediaType.APPLICATION_JSON)
+                .get();
+
+        NodeMetadataWrapper data = resp.readEntity(NodeMetadataWrapper.class);
+        return data.getNode();
+    }
     public List<NodeMetadata> getNodeMetadata(List<Node> nodes){
 
         List<Long> dbnodeids = new ArrayList<>();
@@ -131,15 +151,14 @@ public class AlfrescoWebscriptClient {
 
     }
     public List<NodeData> getNodeData(List<NodeMetadata> nodes){
-
         if(nodes == null || nodes.size() == 0){
             return new ArrayList<>();
         }
 
         LinkedHashSet<Long> acls = new LinkedHashSet<>();
         for(NodeMetadata md : nodes){
-          long aclId =  md.getAclId();
-          acls.add(aclId);
+            long aclId =  md.getAclId();
+            acls.add(aclId);
         }
         GetPermissionsParam getPermissionsParam = new GetPermissionsParam();
         getPermissionsParam.setAclIds(new ArrayList<Long>(acls));
@@ -156,7 +175,32 @@ public class AlfrescoWebscriptClient {
 
             for(Reader reader : readersACL.getAclsReaders()) {
                 if (nodeMetadata.getAclId() == reader.aclId) {
-                    NodeData nodeData = new NodeData();
+                    NodeData nodeData;
+                    if(nodeMetadata.getType().equals("ccm:collection_proposal")) {
+                        NodeDataProposal nodeDataProposal = new NodeDataProposal();
+                        String parent = nodeMetadata.getParentAssocs().get(0);
+                        Serializable original = nodeMetadata.getProperties().
+                                get(Constants.getValidGlobalName(
+                                                "ccm:collection_proposal_target"
+                                        )
+                                );
+                        if(parent!=null && original != null) {
+                            // no fulltext for the original will be indexed for the proposal to save on complexity
+                            nodeDataProposal.setOriginal(
+                                    getNodeDataMinimal(getNodeMetadataUUID(Tools.getUUID((String) original)))
+                            );
+                            nodeDataProposal.setCollection(
+                                    getNodeDataMinimal(getNodeMetadataUUID(Tools.getUUID(parent)))
+                            );
+                        } else {
+                            logger.warn("Collection proposal has no parent or target: " + nodeMetadata.getNodeRef());
+                        }
+
+
+                        nodeData = nodeDataProposal;
+                    } else {
+                        nodeData = new NodeData();
+                    }
                     nodeData.setNodeMetadata(nodeMetadata);
                     nodeData.setReader(reader);
                     nodeData.setAccessControlList(permissionsMap.get(nodeMetadata.getAclId()));
@@ -166,9 +210,10 @@ public class AlfrescoWebscriptClient {
 
         }
 
+
         for(NodeData nodeData : result){
             String fullText = getTextContent(nodeData.getNodeMetadata().getId());
-            if(fullText != null) nodeData.setFullText(fullText);
+            if (fullText != null) nodeData.setFullText(fullText);
 
 
             List<String> allowedChildTypes = new ArrayList<>();
@@ -191,7 +236,7 @@ public class AlfrescoWebscriptClient {
 
                 if (children.size() > 0 && allowedChildTypes.size() > 0) {
                     List<NodeData> childrenFiltered = getNodeData(this.getNodeMetadata(children)).stream().filter((node) ->
-                        allowedChildTypes.contains("ALL") || allowedChildTypes.contains(node.getNodeMetadata().getType())
+                            allowedChildTypes.contains("ALL") || allowedChildTypes.contains(node.getNodeMetadata().getType())
                     ).collect(Collectors.toList());
                     if(childrenFiltered.size() > 0) {
                         nodeData.getChildren().addAll(childrenFiltered);
@@ -202,6 +247,36 @@ public class AlfrescoWebscriptClient {
         }
 
         return result;
+    }
+
+    /**
+     * Simple version of getNodeData to fetch a single node
+     * Will fetch
+     * - metadata (already included in param)
+     * - permissions / acls
+     * Will NOT fetch
+     * - preview
+     * - fulltext
+     */
+    private NodeData getNodeDataMinimal(NodeMetadata nodeMetadata) {
+        NodeData data = new NodeData();
+        data.setNodeMetadata(nodeMetadata);
+
+
+        LinkedHashSet<Long> acls = new LinkedHashSet<>();
+        long aclId =  nodeMetadata.getAclId();
+        acls.add(aclId);
+        GetPermissionsParam getPermissionsParam = new GetPermissionsParam();
+        getPermissionsParam.setAclIds(new ArrayList<Long>(acls));
+        ReadersACL readersACL = this.getReader(getPermissionsParam);
+        AccessControlLists permissions = this.getAccessControlLists(getPermissionsParam);
+
+        Map<Long, AccessControlList> permissionsMap = permissions.getAccessControlLists().stream()
+                .collect(Collectors.toMap(AccessControlList::getAclId, accessControlList -> accessControlList));
+
+        data.setAccessControlList(permissionsMap.get(nodeMetadata.getAclId()));
+        data.setReader(readersACL.getAclsReaders().get(0));
+        return data;
     }
 
     public ReadersACL getReader(GetPermissionsParam param){
