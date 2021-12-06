@@ -186,12 +186,20 @@ public class AlfrescoWebscriptClient {
                                 );
                         if(parent!=null && original != null) {
                             // no fulltext for the original will be indexed for the proposal to save on complexity
-                            nodeDataProposal.setOriginal(
-                                    getNodeDataMinimal(getNodeMetadataUUID(Tools.getUUID((String) original)))
-                            );
-                            nodeDataProposal.setCollection(
-                                    getNodeDataMinimal(getNodeMetadataUUID(Tools.getUUID(parent)))
-                            );
+                            try {
+                                nodeDataProposal.setOriginal(
+                                        getNodeDataMinimal(getNodeMetadataUUID(Tools.getUUID((String) original)))
+                                );
+                            } catch(Throwable t) {
+                                logger.info("Could not track original node for proposal " + nodeMetadata.getNodeRef() +", original: " + original, t);
+                            }
+                            try {
+                                nodeDataProposal.setCollection(
+                                        getNodeDataMinimal(getNodeMetadataUUID(Tools.getUUID(parent)))
+                                );
+                            }catch(Throwable t) {
+                                logger.info("Could not track parent collection for proposal " + nodeMetadata.getNodeRef() +", parent " + parent, t);
+                            }
                         } else {
                             logger.warn("Collection proposal has no parent or target: " + nodeMetadata.getNodeRef());
                         }
