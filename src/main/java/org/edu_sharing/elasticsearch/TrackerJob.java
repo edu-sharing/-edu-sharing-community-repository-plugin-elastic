@@ -7,11 +7,15 @@ import org.edu_sharing.elasticsearch.tracker.ACLTracker;
 import org.edu_sharing.elasticsearch.tracker.StatisticsTracker;
 import org.edu_sharing.elasticsearch.tracker.TransactionTracker;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 @Component
 public class TrackerJob {
+
+    @Value("${statistic.enabled}")
+    boolean statisticEnabled;
 
     @Autowired
     TransactionTracker transactionTracker;
@@ -41,6 +45,8 @@ public class TrackerJob {
      */
     @Scheduled(fixedDelayString = "${statistic.delay}")
     public void trackStatistics(){
-        statisticsTracker.track();
+        if(statisticEnabled) {
+            statisticsTracker.track();
+        }
     }
 }

@@ -40,6 +40,9 @@ public class AlfrescoWebscriptClient {
     @Value("${alfresco.password}")
     String alfrescoPassword;
 
+    @Value("${trackContent}")
+    boolean trackContent;
+
     String URL_TRANSACTIONS = "/alfresco/service/api/solr/transactions";
 
     String URL_NODES_TRANSACTION = "/alfresco/s/api/solr/nodes";
@@ -220,8 +223,10 @@ public class AlfrescoWebscriptClient {
 
 
         for(NodeData nodeData : result){
-            String fullText = getTextContent(nodeData.getNodeMetadata().getId());
-            if (fullText != null) nodeData.setFullText(fullText);
+            if(trackContent) {
+                String fullText = getTextContent(nodeData.getNodeMetadata().getId());
+                if (fullText != null) nodeData.setFullText(fullText);
+            }
 
 
             List<String> allowedChildTypes = new ArrayList<>();
