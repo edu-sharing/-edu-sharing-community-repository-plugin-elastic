@@ -73,13 +73,13 @@ public class EduSharingClient {
 
     private String authorizationHeader;
 
-    String URL_MDS_VALUES = "/edu-sharing/rest/mds/v1/metadatasetsV2/-home-/${mds}/values";
+    String URL_MDS_VALUES = "/edu-sharing/rest/mds/v1/metadatasets/-home-/${mds}/values";
 
     String URL_PREVIEW = "/edu-sharing/preview?nodeId=${nodeId}&storeProtocol=${storeProtocol}&storeId=${storeId}&crop=true&maxWidth=${width}&maxHeight=${height}&quality=${quality}";
 
-    String URL_MDS = "/edu-sharing/rest/mds/v1/metadatasetsV2/-home-/${mds}";
+    String URL_MDS = "/edu-sharing/rest/mds/v1/metadatasets/-home-/${mds}";
 
-    String URL_MDS_ALL = "/edu-sharing/rest/mds/v1/metadatasetsV2/-home-";
+    String URL_MDS_ALL = "/edu-sharing/rest/mds/v1/metadatasets/-home-";
 
     String URL_ABOUT = "/edu-sharing/rest/_about";
 
