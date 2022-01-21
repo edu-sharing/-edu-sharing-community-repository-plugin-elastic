@@ -1,0 +1,9 @@
+version: '3.7'
+
+services:
+
+  repository-search-elastic:
+    image: "${docker.registry}/${docker.repository}/edu_sharing-community-repository-plugin-elastic-deploy-docker-build-elasticsearch:${docker.tag}"
+
+  repository-search-elastic-tracker:
+    image: "${docker.registry}/${docker.repository}/edu_sharing-community-repository-plugin-elastic-deploy-docker-build-tracker:${docker.tag}"

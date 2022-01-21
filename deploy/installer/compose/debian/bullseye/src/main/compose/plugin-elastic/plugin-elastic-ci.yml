@@ -1,0 +1,8 @@
+version: '3.7'
+
+services:
+
+  repository-elastic:
+    environment:
+      MAVEN_REMOTE_USERNAME: ${MAVEN_REMOTE_USERNAME}
+      MAVEN_REMOTE_PASSWORD: ${MAVEN_REMOTE_PASSWORD}

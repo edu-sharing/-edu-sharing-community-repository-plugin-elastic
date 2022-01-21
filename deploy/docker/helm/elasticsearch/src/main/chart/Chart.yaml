@@ -1,0 +1,10 @@
+apiVersion: v2
+
+name: edusharing_community_elasticsearch
+description: edusharing_community_elasticsearch
+
+icon: ${helm.chart.icon}
+
+version: ${helm.chart.version}
+appVersion: ${docker.tag}
+kubeVersion: "${helm.kube.version}"

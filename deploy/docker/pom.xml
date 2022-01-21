@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>org.edu_sharing</groupId>
+    <artifactId>edu_sharing-community-repository-plugin-elastic-deploy</artifactId>
+    <version>git</version>
+    <relativePath>../pom.xml</relativePath>
+  </parent>
+
+  <artifactId>edu_sharing-community-repository-plugin-elastic-deploy-docker</artifactId>
+  <packaging>pom</packaging>
+
+  <name>edu_sharing-community-repository-plugin-elastic-deploy-docker</name>
+
+  <properties>
+
+    <docker.from.elasticsearch.exporter>quay.io/prometheuscommunity/elasticsearch-exporter:v1.3.0
+    </docker.from.elasticsearch.exporter>
+    <docker.from.elasticsearch.server>docker.elastic.co/elasticsearch/elasticsearch:${elasticsearch.version}
+    </docker.from.elasticsearch.server>
+    <docker.from.openjdk>docker.io/openjdk:8-jdk-bullseye</docker.from.openjdk>
+
+    <docker.repository>docker</docker.repository>
+
+  </properties>
+
+  <modules>
+    <module>build</module>
+    <module>compose</module>
+    <module>helm</module>
+  </modules>
+
+</project>

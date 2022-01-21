@@ -1,0 +1,20 @@
+version: '3.7'
+
+services:
+
+  repository-elastic:
+    image: "${docker.repository}/edu_sharing-community-repository-plugin-elastic-deploy-installer-tracker-scripts-debian-bullseye:${docker.tag}"
+    volumes:
+      - ".env.repository.elastic:/opt/edu-sharing/.env"
+    environment:
+      REPOSITORY_SERVICE_HOST: "repository"
+      REPOSITORY_SERIVCE_PORT: "80"
+    expose:
+      - 9200
+    depends_on:
+      - repository
+
+  repository:
+    environment:
+      REPOSITORY_SEARCH_ELASTIC_HOST: "repository-elastic"
+      REPOSITORY_SEARCH_ELASTIC_PORT: "9200"
