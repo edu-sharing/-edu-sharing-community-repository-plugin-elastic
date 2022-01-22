@@ -101,25 +101,25 @@ info() {
 
 ########################################################################################################################
 
-
 #if [[ -f "/etc/systemd/system/elastictracker" && "$(systemctl status elastictracker)" == "elastictracker is running"  ]] ; then
 if [[ -f "/etc/systemd/system/elastictracker" && $(systemctl is-active --quiet elastictracker) ]] ; then
 	echo ""
-	echo "You must stop the elastic tracker before you can run the installation."
+	echo "You must stop the elastictracker before you can run the installation."
 	exit 1
 fi
 
-
 ########################################################################################################################
 
-echo "- remove elastictracker"
-rm -rf /opt/edu-sharing/elastictracker
-mkdir -p /opt/edu-sharing/elastictracker
+[[ -d /opt/edu-sharing/repository/elastic/tracker ]] && {
+	echo "- remove repository plugin elastic tracker"
+	rm -rf /opt/edu-sharing/repository/elastic/tracker
+	mkdir -p /opt/edu-sharing/repository/elastic/tracker
+}
 
 ### elastic tracker - fix security issues ##############################################################################
 
 echo "- create worker user"
-id -u elastictracker &>/dev/null || adduser --home=/opt/edu-sharing/elastictracker --disabled-password --gecos "" --shell=/bin/bash elastictracker
+id -u worker &>/dev/null || adduser --home=/opt/edu-sharing/repository/elastic/tracker --disabled-password --gecos "" --shell=/bin/bash worker
 
 
 ### elastic tracker - download #########################################################################################
@@ -127,58 +127,59 @@ id -u elastictracker &>/dev/null || adduser --home=/opt/edu-sharing/elastictrack
 if [[ use_local_maven_cache -eq 1 ]] ; then
 	echo "- WARNING local maven cache is used"
 else
-	echo "- download edu-sharing elastic tracker"
+	echo "- download repository plugin elastic tracker"
 	mvn -q dependency:get \
 		-Dartifact=org.edu_sharing:edu_sharing-community-repository-plugin-elastic-tracker:${org.edu_sharing:edu_sharing-community-repository-plugin-elastic-tracker:jar.version} \
 		-DremoteRepositories=edusharing-remote::::https://artifacts.edu-sharing.com/repository/maven-remote/ \
 		-Dtransitive=false
 fi
 
-echo "- unpack edu-sharing elastic tracker"
+echo "- unpack repository plugin elastic tracker"
 mvn -q dependency:copy \
 	-Dartifact=org.edu_sharing:edu_sharing-community-repository-plugin-elastic-tracker:${org.edu_sharing:edu_sharing-community-repository-plugin-elastic-tracker:jar.version} \
-	-DoutputDirectory=/opt/edu-sharing/elastictracker
+	-DoutputDirectory=/opt/edu-sharing/repository/elastic/tracker
 
-chown -RL elastictracker:elastictracker /opt/edu-sharing/elastictracker
+chown -RL worker:worker /opt/edu-sharing/repository/elastic/tracker
 
 ###  elastic tracker ###################################################################################################
 
-echo "- update elastic tracker env"
-elasticApplicationProps="/opt/edu-sharing/elastictracker/application.properties"
-touch "${elasticApplicationProps}"
+echo "- update repository plugin elastic tracker"
 
-sed -i -r 's|^[#]*\s*server\.address=.*|server.address='"${repository_search_elastic_tracker_bind}"'|' "${elasticApplicationProps}"
-grep -q '^[#]*\s*server\.address=' "${elasticApplicationProps}" || echo "server.address=${repository_search_elastic_tracker_bind}" >>"${elasticApplicationProps}"
+props="/opt/edu-sharing/repository/elastic/tracker/application.properties"
+touch "${props}"
 
-sed -i -r 's|^[#]*\s*server\.port=.*|server.port='"${repository_search_elastic_tracker_port}"'|' "${elasticApplicationProps}"
-grep -q '^[#]*\s*server\.port=' "${elasticApplicationProps}" || echo "server.port=${repository_search_elastic_tracker_port}" >>"${elasticApplicationProps}"
+sed -i -r 's|^[#]*\s*server\.address=.*|server.address='"${repository_search_elastic_tracker_bind}"'|' "${props}"
+grep -q '^[#]*\s*server\.address=' "${props}" || echo "server.address=${repository_search_elastic_tracker_bind}" >>"${props}"
 
-sed -i -r 's|^[#]*\s*management\.server.\address=.*|management.server.address='"${repository_search_elastic_tracker_management_bind}"'|' "${elasticApplicationProps}"
-grep -q '^[#]*\s*management\.server.\address=' "${elasticApplicationProps}" || echo "management.server.address=${repository_search_elastic_tracker_management_bind}" >>"${elasticApplicationProps}"
+sed -i -r 's|^[#]*\s*server\.port=.*|server.port='"${repository_search_elastic_tracker_port}"'|' "${props}"
+grep -q '^[#]*\s*server\.port=' "${props}" || echo "server.port=${repository_search_elastic_tracker_port}" >>"${props}"
 
-sed -i -r 's|^[#]*\s*management\.server.\port=.*|management.server.port='"${repository_search_elastic_tracker_management_port}"'|' "${elasticApplicationProps}"
-grep -q '^[#]*\s*management\.server.\port=' "${elasticApplicationProps}" || echo "management.server.port=${repository_search_elastic_tracker_management_port}" >>"${elasticApplicationProps}"
+sed -i -r 's|^[#]*\s*management\.server.\address=.*|management.server.address='"${repository_search_elastic_tracker_management_bind}"'|' "${props}"
+grep -q '^[#]*\s*management\.server.\address=' "${props}" || echo "management.server.address=${repository_search_elastic_tracker_management_bind}" >>"${props}"
 
-sed -i -r 's|^[#]*\s*alfresco\.host=.*|alfresco.host='"${repository_host}"'|' "${elasticApplicationProps}"
-grep -q '^[#]*\s*alfresco\.host=' "${elasticApplicationProps}" || echo "alfresco.host=${repository_host}" >>"${elasticApplicationProps}"
+sed -i -r 's|^[#]*\s*management\.server.\port=.*|management.server.port='"${repository_search_elastic_tracker_management_port}"'|' "${props}"
+grep -q '^[#]*\s*management\.server.\port=' "${props}" || echo "management.server.port=${repository_search_elastic_tracker_management_port}" >>"${props}"
 
-sed -i -r 's|^[#]*\s*alfresco\.port=.*|alfresco.port='"${repository_port}"'|' "${elasticApplicationProps}"
-grep -q '^[#]*\s*alfresco\.port=' "${elasticApplicationProps}"|| echo "alfresco.port=${repository_port}" >>"${elasticApplicationProps}"
+sed -i -r 's|^[#]*\s*alfresco\.host=.*|alfresco.host='"${repository_host}"'|' "${props}"
+grep -q '^[#]*\s*alfresco\.host=' "${props}" || echo "alfresco.host=${repository_host}" >>"${props}"
 
-sed -i -r 's|^[#]*\s*alfresco\.password=.*|alfresco.password='"${my_admin_pass}"'|' "${elasticApplicationProps}"
-grep -q '^[#]*\s*alfresco\.password=' "${elasticApplicationProps}" || echo "alfresco.password=${my_admin_pass}" >>"${elasticApplicationProps}"
+sed -i -r 's|^[#]*\s*alfresco\.port=.*|alfresco.port='"${repository_port}"'|' "${props}"
+grep -q '^[#]*\s*alfresco\.port=' "${props}"|| echo "alfresco.port=${repository_port}" >>"${props}"
 
-sed -i -r 's|^[#]*\s*elastic\.host=.*|elastic.host='"${repository_search_elastic_host}"'|' "${elasticApplicationProps}"
-grep -q '^[#]*\s*elastic\.host=' "${elasticApplicationProps}" || echo "elastic.host=${repository_search_elastic_host}" >>"${elasticApplicationProps}"
+sed -i -r 's|^[#]*\s*alfresco\.password=.*|alfresco.password='"${my_admin_pass}"'|' "${props}"
+grep -q '^[#]*\s*alfresco\.password=' "${props}" || echo "alfresco.password=${my_admin_pass}" >>"${props}"
 
-sed -i -r 's|^[#]*\s*elastic\.port=.*|elastic.port='"${repository_search_elastic_port}"'|' "${elasticApplicationProps}"
-grep -q '^[#]*\s*elastic\.port=' "${elasticApplicationProps}" || echo "elastic.port=${repository_search_elastic_port}" >>"${elasticApplicationProps}"
+sed -i -r 's|^[#]*\s*elastic\.host=.*|elastic.host='"${repository_search_elastic_host}"'|' "${props}"
+grep -q '^[#]*\s*elastic\.host=' "${props}" || echo "elastic.host=${repository_search_elastic_host}" >>"${props}"
 
-sed -i -r 's|^[#]*\s*elastic\.index.\number_of_shards=.*|elastic.index.number_of_shards='"${repository_search_elastic_index_shards}"'|' "${elasticApplicationProps}"
- grep -q '^[#]*\s*elastic\.index.\number_of_shards=' "${elasticApplicationProps}" || echo "elastic.index.number_of_shards=${repository_search_elastic_index_shards}" >>"${elasticApplicationProps}"
+sed -i -r 's|^[#]*\s*elastic\.port=.*|elastic.port='"${repository_search_elastic_port}"'|' "${props}"
+grep -q '^[#]*\s*elastic\.port=' "${props}" || echo "elastic.port=${repository_search_elastic_port}" >>"${props}"
 
-sed -i -r 's|^[#]*\s*elastic.\index\.number_of_replicas=.*|elastic.index.number_of_replicas='"${repository_search_elastic_index_replicas}"'|' "${elasticApplicationProps}"
-grep -q '^[#]*\s*elastic.\index\.number_of_replicas=' "${elasticApplicationProps}" || echo "elastic.index.number_of_replicas=${repository_search_elastic_index_replicas}" >>"${elasticApplicationProps}"
+sed -i -r 's|^[#]*\s*elastic\.index.\number_of_shards=.*|elastic.index.number_of_shards='"${repository_search_elastic_index_shards}"'|' "${props}"
+ grep -q '^[#]*\s*elastic\.index.\number_of_shards=' "${props}" || echo "elastic.index.number_of_shards=${repository_search_elastic_index_shards}" >>"${props}"
+
+sed -i -r 's|^[#]*\s*elastic.\index\.number_of_replicas=.*|elastic.index.number_of_replicas='"${repository_search_elastic_index_replicas}"'|' "${props}"
+grep -q '^[#]*\s*elastic.\index\.number_of_replicas=' "${props}" || echo "elastic.index.number_of_replicas=${repository_search_elastic_index_replicas}" >>"${props}"
 
 ### elastic tracker - register systemd service #########################################################################
 
@@ -191,13 +192,13 @@ if [[ ! -f elastictracker.service ]]; then
 	touch elastictracker.service
 	{
 		echo "[Unit]"
-		echo "Description=edu-sharing elastic tracker"
+		echo "Description=edu-sharing repository plugin elastic tracker"
 		echo "After=syslog.target network.target elasticsearch.service"
 		echo ""
 		echo "[Service]"
-		echo "WorkingDirectory=/opt/edu-sharing/elastictracker"
-		echo "User=elastictracker"
-		echo "ExecStart=/usr/bin/java -jar /opt/edu-sharing/elastictracker/${elastic_tracker_jar}"
+		echo "WorkingDirectory=/opt/edu-sharing/repository/elastic/tracker"
+		echo "User=worker"
+		echo "ExecStart=/usr/bin/java -jar /opt/edu-sharing/repository/elastic/tracker/${elastic_tracker_jar}"
 		echo "SuccessExitStatus=143"
 		echo ""
 		echo "[Install]"
@@ -206,11 +207,11 @@ if [[ ! -f elastictracker.service ]]; then
 else
 	echo "- update systemd service"
 
-	sed -i -r 's|^WorkingDirectory=.*|WorkingDirectory='"/opt/edu-sharing/elastictracker"'|' elastictracker.service
-   grep -q '^WorkingDirectory=' elastictracker.service || echo "WorkingDirectory=/opt/edu-sharing/elastictracker" >> elastictracker.service
+	sed -i -r 's|^WorkingDirectory=.*|WorkingDirectory='"/opt/edu-sharing/repository/elastic/tracker"'|' elastictracker.service
+   grep -q '^WorkingDirectory=' elastictracker.service || echo "WorkingDirectory=/opt/edu-sharing/repository/elastic/tracker" >> elastictracker.service
 
-	sed -i -r 's|^ExecStart=.*|ExecStart='"/opt/edu-sharing/elastictracker/${elastic_tracker_jar}"'|' elastictracker.service
-   grep -q '^ExecStart=' elastictracker.service || echo "ExecStart=/usr/bin/java -jar /opt/edu-sharing/elastictracker/${elastic_tracker_jar}" >> elastictracker.service
+	sed -i -r 's|^ExecStart=.*|ExecStart='"/opt/edu-sharing/repository/elastic/tracker/${elastic_tracker_jar}"'|' elastictracker.service
+   grep -q '^ExecStart=' elastictracker.service || echo "ExecStart=/usr/bin/java -jar /opt/edu-sharing/repository/elastic/tracker/${elastic_tracker_jar}" >> elastictracker.service
 fi
 
 popd

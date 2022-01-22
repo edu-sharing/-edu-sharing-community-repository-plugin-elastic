@@ -6,10 +6,6 @@
 
 FROM docker.io/${os.distribution}:${os.codename}
 
-ENV EDU_HOME /opt/edu-sharing
-#ENV PATH $ALF_HOME/bin:$PATH
-WORKDIR $EDU_HOME
-
 RUN set -eux \
     && ln -sf /usr/share/zoneinfo/Europe/Berlin /etc/localtime
 
@@ -28,19 +24,30 @@ RUN set -eux \
     && apt-get update -y \
     && apt-get install -y --no-install-recommends \
         apt-transport-https \
+        apt-utils \
         ca-certificates \
+        curl \
+        dirmngr \
+        dnsutils \
         gnupg \
+        jq \
         lsb-release \
+        lsof \
+        nano \
+        net-tools \
+        postgresql-client \
         procps \
-        unzip \
-        wget \
         ruby-hocon \
-        xmlstarlet \
         systemctl \
+        unzip \
+        vim \
         wait-for-it \
+        wget \
+        xmlstarlet \
     && apt-get clean \
     && rm -r /var/lib/apt/lists/*
 
+########################################################################################################################
 
 RUN set -eux \
     && wget -q https://adoptopenjdk.jfrog.io/adoptopenjdk/api/gpg/key/public \
@@ -56,7 +63,6 @@ RUN set -eux \
     && apt-get clean \
     && rm -r /var/lib/apt/lists/*
 
-
 RUN set -eux \
     && apt-get update -y \
     && apt-get install -y --no-install-recommends \
@@ -64,19 +70,12 @@ RUN set -eux \
     && apt-get clean \
     && rm -r /var/lib/apt/lists/*
 
-RUN set -eux \
-    && apt-get update -y \
-    && apt-get install -y --no-install-recommends \
-        curl \
-        dnsutils \
-        jq \
-        lsof \
-        nano \
-        net-tools \
-        vim \
-    && apt-get clean \
-    && rm -r /var/lib/apt/lists/*
+########################################################################################################################
 
+ENV EDU_HOME /opt/edu-sharing
+#ENV PATH $EDU_HOME/bin:$PATH
+
+WORKDIR $EDU_HOME
 
 ########################################################################################################################
 
@@ -87,12 +86,12 @@ RUN set -eux \
     && apt-get install -y --no-install-recommends \
         elasticsearch \
     && mkdir /var/run/elasticsearch \
-    && chown elasticsearch:elasticsearch -R /var/run/elasticsearch \
-    && chown elasticsearch:elasticsearch -R /usr/share/elasticsearch \
-    && chown elasticsearch:elasticsearch -R /var/log/elasticsearch \
-    && chown elasticsearch:elasticsearch -R /var/lib/elasticsearch \
     && chown elasticsearch:elasticsearch -R /etc/default/elasticsearch \
     && chown elasticsearch:elasticsearch -R /etc/elasticsearch \
+    && chown elasticsearch:elasticsearch -R /usr/share/elasticsearch \
+    && chown elasticsearch:elasticsearch -R /var/lib/elasticsearch \
+    && chown elasticsearch:elasticsearch -R /var/log/elasticsearch \
+    && chown elasticsearch:elasticsearch -R /var/run/elasticsearch \
     && apt-get clean \
     && rm -r /var/lib/apt/lists/*
 
@@ -101,12 +100,10 @@ COPY --chown=elasticsearch:elasticsearch assets/config/elasticsearch.yml /etc/el
 ########################################################################################################################
 
 COPY install.sh .env.base ./
-COPY assets/entrypoint.sh ./
-COPY assets/settings.xml /root/.m2/
 
-RUN set -eux \
-    && chmod +x install.sh \
-    && chmod +x entrypoint.sh
+COPY assets/entrypoint.sh ./
+
+COPY assets/settings.xml /root/.m2/
 
 ########################################################################################################################
 
@@ -114,7 +111,7 @@ ENTRYPOINT ["./entrypoint.sh"]
 
 EXPOSE 8080 8081 9200
 
-#VOLUME alf_data
+########################################################################################################################
 
 LABEL git.branch=${git.branch}
 LABEL git.closest.tag.name=${git.closest.tag.fixed}
