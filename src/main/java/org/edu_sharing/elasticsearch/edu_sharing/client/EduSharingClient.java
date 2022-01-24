@@ -11,6 +11,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.AutoConfigureAfter;
+import org.springframework.context.annotation.DependsOn;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
 import javax.annotation.PostConstruct;
@@ -25,6 +29,7 @@ import javax.ws.rs.core.NewCookie;
 import javax.ws.rs.core.Response;
 import java.io.IOException;
 import java.io.Serializable;
+import java.net.ConnectException;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -117,7 +122,7 @@ public class EduSharingClient {
         educlient.property("http.autoredirect", true);
         educlient.property("http.redirect.relative.uri", true);
 
-        authenticate();
+        manageAuthentication();
 
         MetadataSets metadataSets = getMetadataSets();
         for(MetadataSet metadataSet : metadataSets.getMetadatasets()){
@@ -385,10 +390,25 @@ public class EduSharingClient {
     }
 
     public void manageAuthentication(){
-        ValidateSessionResponse validateSessionResponse = this.validateSession();
-        if(!"OK".equals(validateSessionResponse.getStatusCode())){
+        ValidateSessionResponse validateSessionResponse = null;
+        if(jsessionId != null) {
+            validateSessionResponse = this.validateSession();
+        }
+        if(validateSessionResponse == null || !"OK".equals(validateSessionResponse.getStatusCode())){
             logger.info("have to refresh edu-sharing cookie");
-            authenticate();
+            boolean authFinished = false;
+            while(!authFinished) {
+                try {
+                    authenticate();
+                    authFinished = true;
+                } catch (Exception e) {
+                    logger.warn("auth failed cause of: " + e.getMessage() +" retrying in ms: "+Tools.WAIT_FOR_SERVICE);
+                    try {Thread.sleep(Tools.WAIT_FOR_SERVICE);} catch (InterruptedException ex) {
+                        logger.error(ex.getMessage(),ex);
+                    }
+                }
+            }
+
         }
     }
 
