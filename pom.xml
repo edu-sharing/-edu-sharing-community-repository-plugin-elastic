@@ -9,56 +9,68 @@
   <parent>
     <groupId>org.edu_sharing</groupId>
     <artifactId>edu_sharing-super-pom</artifactId>
-    <version>1</version>
+    <version>develop-SNAPSHOT</version>
     <relativePath/>
   </parent>
 
-  <artifactId>edu_sharing-community-repository-backend-search-elastic-tracker</artifactId>
+  <artifactId>edu_sharing-community-repository-plugin-elastic-tracker</artifactId>
   <version>git</version>
 
-  <name>edu_sharing-community-repository-backend-search-elastic-tracker</name>
-  <description>edu-sharing repository - tracker for elasticsearch</description>
-
-  <url>https://edu-sharing.net</url>
-
-  <inceptionYear>2020</inceptionYear>
-
-  <licenses>
-    <license>
-      <name>GNU General Public License v3.0</name>
-      <url>https://www.gnu.org/licenses/gpl-3.0</url>
-      <distribution>repo</distribution>
-    </license>
-  </licenses>
-
-  <organization>
-    <name>metaventis GmbH</name>
-    <url>http://www.metaventis.com/</url>
-  </organization>
-
-  <scm>
-    <connection>scm:git:https://scm.edu-sharing.com/rudolph/edu-sharing-elasticsearch-tracker.git</connection>
-    <developerConnection>scm:git:https://scm.edu-sharing.com/rudolph/edu-sharing-elasticsearch-tracker.git
-    </developerConnection>
-    <url>https://scm.edu-sharing.com/rudolph/edu-sharing-elasticsearch-tracker.git</url>
-  </scm>
+  <name>edu_sharing-community-repository-plugin-elastic-tracker</name>
 
   <properties>
+
     <maven.compiler.source>1.8</maven.compiler.source>
     <maven.compiler.target>1.8</maven.compiler.target>
-    <spring.boot.version>2.5.1</spring.boot.version>
+
+    <spring.boot.version>2.6.3</spring.boot.version>
+
   </properties>
+
+  <build>
+
+    <plugins>
+
+      <plugin>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-maven-plugin</artifactId>
+        <version>${spring.boot.version}</version>
+        <executions>
+          <execution>
+            <goals>
+              <goal>repackage</goal>
+            </goals>
+            <phase>package</phase>
+          </execution>
+        </executions>
+      </plugin>
+
+    </plugins>
+
+  </build>
 
   <dependencyManagement>
 
     <dependencies>
 
       <dependency>
+        <groupId>net.sourceforge.cardme</groupId>
+        <artifactId>cardme</artifactId>
+        <version>0.4.0</version>
+      </dependency>
+
+      <dependency>
         <groupId>org.apache.cxf</groupId>
         <artifactId>cxf-bom</artifactId>
-        <version>3.4.4</version>
+        <version>3.4.5</version>
         <scope>import</scope>
         <type>pom</type>
+      </dependency>
+
+      <dependency>
+        <groupId>info.picocli</groupId>
+        <artifactId>picocli</artifactId>
+        <version>4.6.1</version>
       </dependency>
 
       <dependency>
@@ -78,7 +90,6 @@
     <dependency>
       <groupId>net.sourceforge.cardme</groupId>
       <artifactId>cardme</artifactId>
-      <version>0.4.0</version>
     </dependency>
 
     <dependency>
@@ -88,39 +99,8 @@
 
     <dependency>
       <groupId>org.apache.cxf</groupId>
-      <artifactId>cxf-rt-rs-extension-providers</artifactId>
-    </dependency>
-
-    <dependency>
-      <groupId>org.apache.cxf</groupId>
       <artifactId>cxf-rt-transports-http-hc</artifactId>
     </dependency>
-
-    <!--
-    <dependency>
-      <groupId>${project.groupId}</groupId>
-      <artifactId>edu_sharing-community-repository-backend-alfresco-module</artifactId>
-      <version>${project.version}</version>
-      <exclusions>
-        <exclusion>
-          <groupId>*</groupId>
-          <artifactId>*</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-
-    <dependency>
-      <groupId>${project.groupId}</groupId>
-      <artifactId>edu_sharing-community-repository-backend-services-core</artifactId>
-      <version>${project.version}</version>
-      <exclusions>
-        <exclusion>
-          <groupId>*</groupId>
-          <artifactId>*</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-    -->
 
     <dependency>
       <groupId>org.elasticsearch.client</groupId>
@@ -153,6 +133,11 @@
     </dependency>
 
     <dependency>
+      <groupId>info.picocli</groupId>
+      <artifactId>picocli</artifactId>
+    </dependency>
+
+    <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-actuator</artifactId>
     </dependency>
@@ -160,11 +145,6 @@
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-aop</artifactId>
-    </dependency>
-
-    <dependency>
-      <groupId>org.springframework.boot</groupId>
-      <artifactId>spring-boot-starter-web</artifactId>
     </dependency>
 
     <dependency>
@@ -178,86 +158,35 @@
         </exclusion>
       </exclusions>
     </dependency>
+
     <dependency>
-      <groupId>info.picocli</groupId>
-      <artifactId>picocli</artifactId>
-      <version>4.6.1</version>
-      <scope>compile</scope>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-web</artifactId>
     </dependency>
 
   </dependencies>
 
-  <build>
-    <plugins>
-
-      <plugin>
-        <groupId>org.springframework.boot</groupId>
-        <artifactId>spring-boot-maven-plugin</artifactId>
-        <version>${spring.boot.version}</version>
-        <executions>
-          <execution>
-            <goals>
-              <goal>repackage</goal>
-            </goals>
-          </execution>
-        </executions>
-      </plugin>
-
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-enforcer-plugin</artifactId>
-        <executions>
-          <execution>
-            <id>enforce</id>
-            <goals>
-              <goal>enforce</goal>
-            </goals>
-            <phase>validate</phase>
-            <configuration>
-              <rules>
-                <requireReleaseDeps>
-                  <message>No Snapshots Allowed!</message>
-                  <onlyWhenRelease>true</onlyWhenRelease>
-                </requireReleaseDeps>
-              </rules>
-            </configuration>
-          </execution>
-        </executions>
-      </plugin>
-
-      <plugin>
-        <groupId>pl.project13.maven</groupId>
-        <artifactId>git-commit-id-plugin</artifactId>
-        <configuration>
-          <verbose>true</verbose>
-          <dateFormat>yyyy-MM-dd'T'HH:mm:ssZ</dateFormat>
-          <generateGitPropertiesFile>true</generateGitPropertiesFile>
-          <generateGitPropertiesFilename> ${project.build.outputDirectory}/git.properties</generateGitPropertiesFilename>
-        </configuration>
-      </plugin>
-    </plugins>
-
-
-  </build>
-
   <repositories>
 
     <repository>
-      <id>edu-sharing.public.releases</id>
-      <url>https://artifacts.edu-sharing.com/repository/public-releases/</url>
+      <id>edusharing-remote</id>
+      <url>https://artifacts.edu-sharing.com/repository/maven-remote/</url>
       <releases>
         <enabled>true</enabled>
+        <updatePolicy>always</updatePolicy>
       </releases>
       <snapshots>
-        <enabled>false</enabled>
+        <enabled>true</enabled>
+        <updatePolicy>always</updatePolicy>
       </snapshots>
     </repository>
 
     <repository>
-      <id>edu-sharing.public.snapshots</id>
-      <url>https://artifacts.edu-sharing.com/repository/public-snapshots/</url>
+      <id>edusharing-mirror</id>
+      <url>https://artifacts.edu-sharing.com/repository/maven-mirror/</url>
       <releases>
-        <enabled>false</enabled>
+        <enabled>true</enabled>
+        <updatePolicy>always</updatePolicy>
       </releases>
       <snapshots>
         <enabled>true</enabled>
@@ -266,19 +195,5 @@
     </repository>
 
   </repositories>
-
-  <distributionManagement>
-
-    <repository>
-      <id>edu-sharing.community.releases</id>
-      <url>https://artifacts.edu-sharing.com/repository/community-releases/</url>
-    </repository>
-
-    <snapshotRepository>
-      <id>edu-sharing.community.snapshots</id>
-      <url>https://artifacts.edu-sharing.com/repository/community-snapshots/</url>
-    </snapshotRepository>
-
-  </distributionManagement>
 
 </project>

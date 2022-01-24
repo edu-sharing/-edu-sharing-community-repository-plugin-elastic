@@ -4,26 +4,26 @@
                               https://maven.apache.org/xsd/settings-1.0.0.xsd">
   <mirrors>
     <mirror>
-      <id>mirror</id>
-      <url>https://artifacts.edu-sharing.com/repository/public-releases/</url>
-      <mirrorOf>central</mirrorOf>
+      <id>edusharing-mirror</id>
+      <url>https://artifacts.edu-sharing.com/repository/maven-mirror/</url>
+      <mirrorOf>!edusharing-remote,*</mirrorOf>
     </mirror>
   </mirrors>
   <servers>
     <server>
-      <id>edu-sharing.community.releases</id>
-      <username>${env.MAVEN_REPO_USER}</username>
-      <password>${env.MAVEN_REPO_PASS}</password>
+      <id>edusharing-remote</id>
+      <username>${env.MAVEN_REMOTE_USERNAME}</username>
+      <password>${env.MAVEN_REMOTE_PASSWORD}</password>
     </server>
     <server>
-      <id>edu-sharing.community.snapshots</id>
-      <username>${env.MAVEN_REPO_USER}</username>
-      <password>${env.MAVEN_REPO_PASS}</password>
+      <id>edusharing-releases</id>
+      <username>${env.MAVEN_DEPLOY_USERNAME}</username>
+      <password>${env.MAVEN_DEPLOY_PASSWORD}</password>
     </server>
     <server>
-      <id>community.docker.edu-sharing.com</id>
-      <username>${env.MAVEN_REPO_USER}</username>
-      <password>${env.MAVEN_REPO_PASS}</password>
+      <id>edusharing-snapshots</id>
+      <username>${env.MAVEN_DEPLOY_USERNAME}</username>
+      <password>${env.MAVEN_DEPLOY_PASSWORD}</password>
     </server>
   </servers>
 </settings>
