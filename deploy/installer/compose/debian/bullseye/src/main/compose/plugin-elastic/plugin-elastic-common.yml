@@ -5,7 +5,7 @@ services:
   repository-elastic:
     image: "${docker.repository}/edu_sharing-community-repository-plugin-elastic-deploy-installer-tracker-scripts-debian-bullseye:${docker.tag}"
     volumes:
-      - ".env.repository.elastic:/opt/edu-sharing/.env"
+      - "./repository/plugin-elastic/.env:/opt/edu-sharing/.env"
     environment:
       REPOSITORY_SERVICE_HOST: "repository"
       REPOSITORY_SERIVCE_PORT: "80"
