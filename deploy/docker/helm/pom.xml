@@ -69,8 +69,8 @@
   </build>
 
   <modules>
-    <module>elasticsearch</module>
-    <module>server</module>
+    <module>index</module>
+    <module>tracker</module>
   </modules>
 
 </project>

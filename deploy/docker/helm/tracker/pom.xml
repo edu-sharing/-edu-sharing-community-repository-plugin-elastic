@@ -13,10 +13,10 @@
     <relativePath>../pom.xml</relativePath>
   </parent>
 
-  <artifactId>edu_sharing-community-repository-plugin-elastic-deploy-docker-helm-elasticsearch</artifactId>
+  <artifactId>edu_sharing-community-repository-plugin-elastic-deploy-docker-helm-tracker</artifactId>
   <packaging>jar</packaging>
 
-  <name>edu_sharing-community-repository-plugin-elastic-deploy-docker-helm-elasticsearch</name>
+  <name>edu_sharing-community-repository-plugin-elastic-deploy-docker-helm-tracker</name>
 
   <build>
 

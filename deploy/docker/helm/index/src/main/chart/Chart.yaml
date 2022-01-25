@@ -1,7 +1,7 @@
 apiVersion: v2
 
-name: edusharing_community_elasticsearch
-description: edusharing_community_elasticsearch
+name: edusharing_community_repository_search_elastic_index
+description: edusharing_community_repository_search_elastic_index
 
 icon: ${helm.chart.icon}
 
