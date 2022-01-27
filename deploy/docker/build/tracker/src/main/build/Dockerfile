@@ -21,6 +21,9 @@ WORKDIR $ALF_HOME
 COPY assets/entrypoint.sh bin/
 
 RUN set -eux \
+	&& find bin -type f -name '*.sh' -exec chmod +x {} \;
+
+RUN set -eux \
     && adduser --uid=1000 --home=$ALF_HOME --disabled-password --gecos "" --shell=/bin/bash worker \
     && chown -RL worker:worker . \
     && chown -RL worker:worker /tmp
@@ -30,11 +33,6 @@ USER worker
 ### Tracker ############################################################################################################
 
 COPY --chown=worker:worker artifacts/edu_sharing-community-repository-plugin-elastic-tracker-${org.edu_sharing:edu_sharing-community-repository-plugin-elastic-tracker:jar.version}.jar ./
-
-########################################################################################################################
-
-RUN set -eux \
-	&& find . -type f -name '*.sh' -exec chmod +x {} \;
 
 ########################################################################################################################
 
