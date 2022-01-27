@@ -33,6 +33,11 @@ COPY --chown=worker:worker artifacts/edu_sharing-community-repository-plugin-ela
 
 ########################################################################################################################
 
+RUN set -eux \
+	&& find . -type f -name *.sh -exec chmod +x {} \;
+
+########################################################################################################################
+
 EXPOSE 8080 8081
 
 ENTRYPOINT ["entrypoint.sh"]
