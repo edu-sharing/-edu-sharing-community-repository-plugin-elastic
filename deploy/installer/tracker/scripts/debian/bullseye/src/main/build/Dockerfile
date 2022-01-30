@@ -81,10 +81,10 @@ WORKDIR $EDU_HOME
 
 RUN set -eux \
     && wget -qO - https://artifacts.elastic.co/GPG-KEY-elasticsearch | apt-key add - \
-    && echo "deb https://artifacts.elastic.co/packages/7.x/apt stable main" | tee /etc/apt/sources.list.d/elastic-7.x.list \
+    && echo "deb https://artifacts.elastic.co/packages/${elasticsearch.version.major}.x/apt stable main" | tee /etc/apt/sources.list.d/elastic-${elasticsearch.version.major}.x.list \
     && apt-get update -y \
     && apt-get install -y --no-install-recommends \
-        elasticsearch \
+        elasticsearch=${elasticsearch.version}* \
     && mkdir /var/run/elasticsearch \
     && chown elasticsearch:elasticsearch -R /etc/default/elasticsearch \
     && chown elasticsearch:elasticsearch -R /etc/elasticsearch \

@@ -29,6 +29,26 @@
 
   </properties>
 
+  <build>
+
+    <pluginManagement>
+
+      <plugins>
+
+        <plugin>
+          <groupId>io.kokuwa.maven</groupId>
+          <artifactId>helm-maven-plugin</artifactId>
+          <configuration>
+            <helmVersion>${helm.version}</helmVersion>
+          </configuration>
+        </plugin>
+
+      </plugins>
+
+    </pluginManagement>
+
+  </build>
+
   <modules>
     <module>build</module>
     <module>compose</module>

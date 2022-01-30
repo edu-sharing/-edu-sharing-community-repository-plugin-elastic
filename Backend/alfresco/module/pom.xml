@@ -53,25 +53,6 @@
 
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-dependency-plugin</artifactId>
-        <executions>
-          <execution>
-            <goals>
-              <goal>unpack-dependencies</goal>
-            </goals>
-            <phase>package</phase>
-            <configuration>
-              <includeArtifactIds>edu_sharing-community-repository-plugin-elastic-backend-alfresco-fixes
-              </includeArtifactIds>
-              <excludes>META-INF/**</excludes>
-              <outputDirectory>target/fixes</outputDirectory>
-            </configuration>
-          </execution>
-        </executions>
-      </plugin>
-
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-assembly-plugin</artifactId>
         <executions>
           <execution>
