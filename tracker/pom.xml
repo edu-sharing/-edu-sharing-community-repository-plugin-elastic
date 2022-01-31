@@ -111,12 +111,12 @@
       <artifactId>edu_sharing-community-repository-backend-alfresco-common</artifactId>
     </dependency>
 
-<!--
-    <dependency>
-      <groupId>${project.groupId}</groupId>
-      <artifactId>edu_sharing-community-repository-backend-services-rest-client-java</artifactId>
-    </dependency>
--->
+    <!--
+        <dependency>
+          <groupId>${project.groupId}</groupId>
+          <artifactId>edu_sharing-community-repository-backend-services-rest-client-java</artifactId>
+        </dependency>
+    -->
 
     <dependency>
       <groupId>org.elasticsearch.client</groupId>
