@@ -22,6 +22,7 @@
 
     <docker.from.elasticsearch.exporter>quay.io/prometheuscommunity/elasticsearch-exporter:v1.3.0
     </docker.from.elasticsearch.exporter>
+    <!--suppress UnresolvedMavenProperty -->
     <docker.from.elasticsearch.server>docker.elastic.co/elasticsearch/elasticsearch:${elasticsearch.version}
     </docker.from.elasticsearch.server>
     <docker.from.openjdk>docker.io/openjdk:8-jdk-bullseye</docker.from.openjdk>
@@ -40,6 +41,7 @@
           <groupId>io.kokuwa.maven</groupId>
           <artifactId>helm-maven-plugin</artifactId>
           <configuration>
+            <!--suppress UnresolvedMavenProperty -->
             <helmVersion>${helm.version}</helmVersion>
           </configuration>
         </plugin>
