@@ -8,10 +8,10 @@ echo "#########################################################################"
 echo ""
 echo "plugin: elastic"
 echo ""
-echo "  elasticsearch:"
+echo "  index:"
 echo ""
-echo "    Host:              ${repository_search_elastic_host}"
-echo "    Port:              ${repository_search_elastic_port}"
+echo "    Host:              ${repository_search_elastic_index_host}"
+echo "    Port:              ${repository_search_elastic_index_port}"
 echo ""
 
 ########################################################################################################################

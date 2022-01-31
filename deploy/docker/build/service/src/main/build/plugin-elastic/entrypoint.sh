@@ -1,19 +1,19 @@
 #!/bin/bash
 set -eux
 
-repository_search_elastic_host="${REPOSITORY_SEARCH_ELASTIC_HOST:-repository-search-elastic}"
-repository_search_elastic_port="${REPOSITORY_SEARCH_ELASTIC_PORT:-9200}"
-repository_search_elastic_base="http://${repository_search_elastic_host}:${repository_search_elastic_port}"
+repository_search_elastic_index_host="${REPOSITORY_SEARCH_ELASTIC_INDEX_HOST:-repository-search-elastic-index}"
+repository_search_elastic_index_port="${REPOSITORY_SEARCH_ELASTIC_INDEX_PORT:-9200}"
+repository_search_elastic_index_base="http://${repository_search_elastic_index_host}:${repository_search_elastic_index_port}"
 
 eduSConf="tomcat/shared/classes/config/cluster/edu-sharing.deployment.conf"
 homeProp="tomcat/shared/classes/config/cluster/applications/homeApplication.properties.xml"
 
 ### Wait ###############################################################################################################
 
-until wait-for-it "${repository_search_elastic_host}:${repository_search_elastic_port}" -t 3; do sleep 1; done
+until wait-for-it "${repository_search_elastic_index_host}:${repository_search_elastic_index_port}" -t 3; do sleep 1; done
 
-until [[ $(curl -sSf -w "%{http_code}\n" -o /dev/null "${repository_search_elastic_base}/_cluster/health?wait_for_status=yellow&timeout=3s") -eq 200 ]]; do
-	echo >&2 "Waiting for ${repository_search_elastic_host} ..."
+until [[ $(curl -sSf -w "%{http_code}\n" -o /dev/null "${repository_search_elastic_index_base}/_cluster/health?wait_for_status=yellow&timeout=3s") -eq 200 ]]; do
+	echo >&2 "Waiting for ${repository_search_elastic_index_host} ..."
 	sleep 3
 done
 
@@ -29,4 +29,4 @@ xmlstarlet ed -L \
 	"${homeProp}"
 
 hocon -f "${eduSConf}" \
-	set "elasticsearch.servers" '["'"${repository_search_elastic_host}:${repository_search_elastic_port}"'"]'
+	set "elasticsearch.servers" '["'"${repository_search_elastic_index_host}:${repository_search_elastic_index_port}"'"]'

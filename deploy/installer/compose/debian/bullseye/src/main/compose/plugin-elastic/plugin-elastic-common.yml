@@ -16,5 +16,5 @@ services:
 
   repository:
     environment:
-      REPOSITORY_SEARCH_ELASTIC_HOST: "repository-elastic"
-      REPOSITORY_SEARCH_ELASTIC_PORT: "9200"
+      REPOSITORY_SEARCH_ELASTIC_INDEX_HOST: "repository-elastic"
+      REPOSITORY_SEARCH_ELASTIC_INDEX_PORT: "9200"

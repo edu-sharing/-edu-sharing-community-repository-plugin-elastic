@@ -2,12 +2,12 @@ version: '3.7'
 
 services:
 
-  repository-search-elastic:
+  repository-search-elastic-index:
     image: "${docker.repository}/edu_sharing-community-repository-plugin-elastic-deploy-docker-build-elasticsearch:${docker.tag}"
     environment:
       ES_JAVA_OPTS: >-
-        -Xms${REPOSITORY_SEARCH_ELASTIC_JAVA_XMS:-1g}
-        -Xmx${REPOSITORY_SEARCH_ELASTIC_JAVA_XMX:-1g}
+        -Xms${REPOSITORY_SEARCH_ELASTIC_INDEX_JAVA_XMS:-1g}
+        -Xmx${REPOSITORY_SEARCH_ELASTIC_INDEX_JAVA_XMX:-1g}
         -Dcom.sun.management.jmxremote
         -Dcom.sun.management.jmxremote.authenticate=false
         -Dcom.sun.management.jmxremote.port=7199
@@ -19,7 +19,7 @@ services:
       - "9200"
       - "9300"
     volumes:
-      - "repository-search-elastic-volume:/usr/share/elasticsearch/data"
+      - "repository-search-elastic-index-volume:/usr/share/elasticsearch/data"
 
   repository-search-elastic-tracker:
     image: "${docker.repository}/edu_sharing-community-repository-plugin-elastic-deploy-docker-build-tracker:${docker.tag}"
@@ -31,23 +31,23 @@ services:
       - -Dcom.sun.management.jmxremote.port=7199
       - -Dcom.sun.management.jmxremote.ssl=false
     environment:
-      REPOSITORY_SEARCH_ELASTIC_HOST: repository-search-elastic
-      REPOSITORY_SEARCH_ELASTIC_PORT: "9200"
+      REPOSITORY_SEARCH_ELASTIC_INDEX_HOST: repository-search-elastic-index
+      REPOSITORY_SEARCH_ELASTIC_INDEX_PORT: "9200"
       REPOSITORY_SERVICE_HOST: repository-service
       REPOSITORY_SERVICE_PORT: "8080"
       REPOSITORY_SERVICE_ADMIN_PASS: "${REPOSITORY_SERVICE_ADMIN_PASS:-admin}"
     expose:
       - "7199"
     depends_on:
-      - repository-search-elastic
+      - repository-search-elastic-index
       - repository-service
 
   repository-service:
     environment:
-      REPOSITORY_SEARCH_ELASTIC_HOST: repository-search-elastic
-      REPOSITORY_SEARCH_ELASTIC_PORT: "9200"
+      REPOSITORY_SEARCH_ELASTIC_INDEX_HOST: repository-search-elastic-index
+      REPOSITORY_SEARCH_ELASTIC_INDEX_PORT: "9200"
     depends_on:
-      - repository-search-elastic
+      - repository-search-elastic-index
 
 volumes:
-  repository-search-elastic-volume:
+  repository-search-elastic-index-volume:

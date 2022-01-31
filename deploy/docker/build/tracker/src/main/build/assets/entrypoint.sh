@@ -5,10 +5,10 @@ set -eux
 
 my_bind="${REPOSITORY_SEARCH_ELASTIC_TRACKER_BIND:-"0.0.0.0"}"
 
-repository_search_elastic_host="${REPOSITORY_SEARCH_ELASTIC_HOST:-repository-search-elastic}"
-repository_search_elastic_port="${REPOSITORY_SEARCH_ELASTIC_PORT:-9200}"
+repository_search_elastic_index_host="${REPOSITORY_SEARCH_ELASTIC_INDEX_HOST:-repository-search-elastic-index}"
+repository_search_elastic_index_port="${REPOSITORY_SEARCH_ELASTIC_INDEX_PORT:-9200}"
 
-repository_search_elastic_base="http://${repository_search_elastic_host}:${repository_search_elastic_port}"
+repository_search_elastic_index_base="http://${repository_search_elastic_index_host}:${repository_search_elastic_index_port}"
 
 repository_search_elastic_index_shards="${REPOSITORY_SEARCH_ELASTIC_INDEX_SHARDS:-1}"
 repository_search_elastic_index_replicas="${REPOSITORY_SEARCH_ELASTIC_INDEX_REPLICAS:-1}"
@@ -22,10 +22,10 @@ repository_service_admin_pass="${REPOSITORY_SERVICE_ADMIN_PASS:-admin}"
 
 ### Wait ###############################################################################################################
 
-until wait-for-it "${repository_search_elastic_host}:${repository_search_elastic_port}" -t 3; do sleep 1; done
+until wait-for-it "${repository_search_elastic_index_host}:${repository_search_elastic_index_port}" -t 3; do sleep 1; done
 
-until [[ $(curl -sSf -w "%{http_code}\n" -o /dev/null "${repository_search_elastic_base}/_cluster/health?wait_for_status=yellow&timeout=3s") -eq 200 ]]; do
-	echo >&2 "Waiting for ${repository_search_elastic_host} ..."
+until [[ $(curl -sSf -w "%{http_code}\n" -o /dev/null "${repository_search_elastic_index_base}/_cluster/health?wait_for_status=yellow&timeout=3s") -eq 200 ]]; do
+	echo >&2 "Waiting for ${repository_search_elastic_index_host} ..."
 	sleep 3
 done
 
@@ -54,8 +54,8 @@ grep -q '^[#]*\s*alfresco\.port=' "application.properties" || echo "alfresco.por
 sed -i -r 's|^[#]*\s*alfresco\.password=.*|alfresco.password='"${repository_service_admin_pass}"'|' "application.properties"
 grep -q '^[#]*\s*alfresco\.password=' "application.properties" || echo "alfresco.password=${repository_service_admin_pass}" >>"application.properties"
 
-sed -i -r 's|^[#]*\s*elastic\.host=.*|elastic.host='"${repository_search_elastic_host}"'|' "application.properties"
-grep -q '^[#]*\s*elastic\.host=' "application.properties" || echo "elastic.host=${repository_search_elastic_host}" >>"application.properties"
+sed -i -r 's|^[#]*\s*elastic\.host=.*|elastic.host='"${repository_search_elastic_index_host}"'|' "application.properties"
+grep -q '^[#]*\s*elastic\.host=' "application.properties" || echo "elastic.host=${repository_search_elastic_index_host}" >>"application.properties"
 
 sed -i -r 's|^[#]*\s*elastic.\index\.number_of_replicas=.*|elastic.index.number_of_replicas='"${repository_search_elastic_index_replicas}"'|' "application.properties"
 grep -q '^[#]*\s*elastic.\index\.number_of_replicas=' "application.properties" || echo "elastic.index.number_of_replicas=${repository_search_elastic_index_replicas}" >>"application.properties"
@@ -63,8 +63,8 @@ grep -q '^[#]*\s*elastic.\index\.number_of_replicas=' "application.properties" |
 sed -i -r 's|^[#]*\s*elastic\.index.\number_of_shards=.*|elastic.index.number_of_shards='"${repository_search_elastic_index_shards}"'|' "application.properties"
 grep -q '^[#]*\s*elastic\.index.\number_of_shards=' "application.properties" || echo "elastic.index.number_of_shards=${repository_search_elastic_index_shards}" >>"application.properties"
 
-sed -i -r 's|^[#]*\s*elastic\.port=.*|elastic.port='"${repository_search_elastic_port}"'|' "application.properties"
-grep -q '^[#]*\s*elastic\.port=' "application.properties" || echo "elastic.port=${repository_search_elastic_port}" >>"application.properties"
+sed -i -r 's|^[#]*\s*elastic\.port=.*|elastic.port='"${repository_search_elastic_index_port}"'|' "application.properties"
+grep -q '^[#]*\s*elastic\.port=' "application.properties" || echo "elastic.port=${repository_search_elastic_index_port}" >>"application.properties"
 
 sed -i -r 's|^[#]*\s*server\.address=.*|server.address='"${my_bind}"'|' "application.properties"
 grep -q '^[#]*\s*server\.address=' "application.properties" || echo "server.address=${my_bind}" >>"application.properties"

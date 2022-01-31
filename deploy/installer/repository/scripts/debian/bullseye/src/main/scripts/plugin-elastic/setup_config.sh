@@ -21,7 +21,7 @@ xmlstarlet ed -L \
 	"${homeProp}"
 
 hocon -f "${eduSConf}" \
-	set "elasticsearch.servers" '["'"${repository_search_elastic_host}:${repository_search_elastic_port}"'"]'
+	set "elasticsearch.servers" '["'"${repository_search_elastic_index_host}:${repository_search_elastic_index_port}"'"]'
 
 popd
 

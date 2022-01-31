@@ -26,7 +26,7 @@ global:
 # LOCAL
 ########################################################################################################################
 
-nameOverride: edusharing-elasticsearch
+nameOverride: edusharing-repository-search-elastic-index
 
 image:
   registry: ${docker.registry}

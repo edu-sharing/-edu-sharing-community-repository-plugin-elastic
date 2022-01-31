@@ -2,7 +2,7 @@ version: '3.7'
 
 services:
 
-  repository-search-elastic:
+  repository-search-elastic-index:
     image: "${docker.registry}/${docker.repository}/edu_sharing-community-repository-plugin-elastic-deploy-docker-build-elasticsearch:${docker.tag}"
 
   repository-search-elastic-tracker:
