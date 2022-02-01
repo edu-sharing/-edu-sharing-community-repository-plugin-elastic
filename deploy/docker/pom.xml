@@ -27,8 +27,6 @@
     </docker.from.elasticsearch.server>
     <docker.from.openjdk>docker.io/openjdk:8-jdk-bullseye</docker.from.openjdk>
 
-    <docker.repository>${docker.repository.docker}</docker.repository>
-
   </properties>
 
   <build>
