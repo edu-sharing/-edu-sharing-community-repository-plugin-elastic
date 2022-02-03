@@ -27,6 +27,9 @@
     </docker.from.elasticsearch.server>
     <docker.from.openjdk>docker.io/openjdk:8-jdk-bullseye</docker.from.openjdk>
 
+    <helm.kube.version>&gt;= 1.18.0</helm.kube.version>
+    <helm.version>3.7.2</helm.version>
+
   </properties>
 
   <build>

@@ -31,7 +31,7 @@
 
   <properties>
 
-    <community.platform>${project.version}</community.platform>
+    <repository.version>${project.version}</repository.version>
 
   </properties>
 
@@ -44,6 +44,7 @@
         <artifactId>bom-maven-plugin</artifactId>
         <executions>
           <execution>
+            <id>community-repository</id>
             <goals>
               <goal>import-properties</goal>
             </goals>
@@ -52,8 +53,8 @@
               <artifacts>
                 <dependency>
                   <groupId>${project.groupId}</groupId>
-                  <artifactId>edu_sharing-community-bom</artifactId>
-                  <version>${community.platform}</version>
+                  <artifactId>edu_sharing-community-repository</artifactId>
+                  <version>${repository.version}</version>
                   <type>pom</type>
                 </dependency>
               </artifacts>
@@ -72,8 +73,8 @@
 
       <dependency>
         <groupId>${project.groupId}</groupId>
-        <artifactId>edu_sharing-community-bom</artifactId>
-        <version>${community.platform}</version>
+        <artifactId>edu_sharing-community-repository</artifactId>
+        <version>${repository.version}</version>
         <type>pom</type>
         <scope>import</scope>
       </dependency>
@@ -96,6 +97,53 @@
         <artifactId>edu_sharing-community-repository-plugin-elastic-backend-services-module</artifactId>
         <version>${project.version}</version>
         <type>amp</type>
+      </dependency>
+
+      <dependency>
+        <groupId>${project.groupId}</groupId>
+        <artifactId>edu_sharing-community-repository-plugin-elastic-config-defaults</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>${project.groupId}</groupId>
+        <artifactId>edu_sharing-community-repository-plugin-elastic-deploy-docker-build-service</artifactId>
+        <version>${project.version}</version>
+        <classifier>sources</classifier>
+      </dependency>
+
+      <dependency>
+        <groupId>${project.groupId}</groupId>
+        <artifactId>edu_sharing-community-repository-plugin-elastic-deploy-docker-compose</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>${project.groupId}</groupId>
+        <artifactId>edu_sharing-community-repository-plugin-elastic-deploy-docker-helm-index</artifactId>
+        <version>${project.version}</version>
+        <type>tar.gz</type>
+        <classifier>bin</classifier>
+      </dependency>
+
+      <dependency>
+        <groupId>${project.groupId}</groupId>
+        <artifactId>edu_sharing-community-repository-plugin-elastic-deploy-docker-helm-tracker</artifactId>
+        <version>${project.version}</version>
+        <type>tar.gz</type>
+        <classifier>bin</classifier>
+      </dependency>
+
+      <dependency>
+        <groupId>${project.groupId}</groupId>
+        <artifactId>edu_sharing-community-repository-plugin-elastic-deploy-installer-compose-debian-bullseye</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>${project.groupId}</groupId>
+        <artifactId>edu_sharing-community-repository-plugin-elastic-deploy-installer-repository-scripts-debian-bullseye</artifactId>
+        <version>${project.version}</version>
       </dependency>
 
       <dependency>
