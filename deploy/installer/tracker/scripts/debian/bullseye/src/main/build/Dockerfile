@@ -55,7 +55,7 @@ RUN set -eux \
     && gpg --no-default-keyring --keyring ./adoptopenjdk-keyring.gpg --export --output adoptopenjdk-archive-keyring.gpg \
     && mv adoptopenjdk-archive-keyring.gpg /usr/share/keyrings \
     && rm adoptopenjdk-keyring.gpg public \
-    && echo "deb [signed-by=/usr/share/keyrings/adoptopenjdk-archive-keyring.gpg] https://adoptopenjdk.jfrog.io/adoptopenjdk/deb `lsb_release -cs` main" | tee /etc/apt/sources.list.d/adoptopenjdk.list \
+    && echo "deb [signed-by=/usr/share/keyrings/adoptopenjdk-archive-keyring.gpg] https://artifacts.edu-sharing.com/repository/adoptopenjdk `lsb_release -cs` main" | tee /etc/apt/sources.list.d/adoptopenjdk.list \
     && apt-get update -y \
     && apt-get install -y --no-install-recommends \
         adoptopenjdk-8-hotspot \
@@ -81,7 +81,7 @@ WORKDIR $EDU_HOME
 
 RUN set -eux \
     && wget -qO - https://artifacts.elastic.co/GPG-KEY-elasticsearch | apt-key add - \
-    && echo "deb https://artifacts.elastic.co/packages/${elasticsearch.version.major}.x/apt stable main" | tee /etc/apt/sources.list.d/elastic-${elasticsearch.version.major}.x.list \
+    && echo "deb https://artifacts.edu-sharing.com/repository/elastic stable main" | tee /etc/apt/sources.list.d/elastic.list \
     && apt-get update -y \
     && apt-get install -y --no-install-recommends \
         elasticsearch=${elasticsearch.version}* \
