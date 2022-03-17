@@ -8,13 +8,38 @@ my_bind="${REPOSITORY_SEARCH_ELASTIC_TRACKER_BIND:-"0.0.0.0"}"
 repository_search_elastic_index_host="${REPOSITORY_SEARCH_ELASTIC_INDEX_HOST:-repository-search-elastic-index}"
 repository_search_elastic_index_port="${REPOSITORY_SEARCH_ELASTIC_INDEX_PORT:-9200}"
 
+repository_search_elastic_index_base="http://${repository_search_elastic_index_host}:${repository_search_elastic_index_port}"
+
 repository_search_elastic_index_shards="${REPOSITORY_SEARCH_ELASTIC_INDEX_SHARDS:-1}"
 repository_search_elastic_index_replicas="${REPOSITORY_SEARCH_ELASTIC_INDEX_REPLICAS:-1}"
 
 repository_service_host="${REPOSITORY_SERVICE_HOST:-repository-service}"
 repository_service_port="${REPOSITORY_SERVICE_PORT:-8080}"
 
+repository_service_base="http://${repository_service_host}:${repository_service_port}/edu-sharing"
+
 repository_service_admin_pass="${REPOSITORY_SERVICE_ADMIN_PASS:-admin}"
+
+### Wait ###############################################################################################################
+
+until wait-for-it "${repository_search_elastic_index_host}:${repository_search_elastic_index_port}" -t 3; do sleep 1; done
+
+until [[ $(curl -sSf -w "%{http_code}\n" -o /dev/null "${repository_search_elastic_index_base}/_cluster/health?wait_for_status=yellow&timeout=3s") -eq 200 ]]; do
+	echo >&2 "Waiting for ${repository_search_elastic_index_host} ..."
+	sleep 3
+done
+
+until wait-for-it "${repository_service_host}:${repository_service_port}" -t 3; do sleep 1; done
+
+until [[ $(curl -sSf -w "%{http_code}\n" -o /dev/null -H 'Accept: application/json' "${repository_service_base}/rest/_about/status/SERVICE?timeoutSeconds=3") -eq 200 ]]; do
+	echo >&2 "Waiting for ${repository_service_host} ..."
+	sleep 3
+done
+
+until [[ $(curl -sSf -w "%{http_code}\n" -o /dev/null -H 'Accept: application/json' "${repository_service_base}/rest/_about/status/SEARCH?timeoutSeconds=3") -eq 200 ]]; do
+	echo >&2 "Waiting for ${repository_service_host} ..."
+	sleep 3
+done
 
 ########################################################################################################################
 
