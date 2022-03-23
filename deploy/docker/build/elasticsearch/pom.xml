@@ -41,6 +41,13 @@
             <phase>deploy</phase>
           </execution>
         </executions>
+        <configuration>
+          <images>
+            <image>
+              <name>${docker.repository}/${docker.prefix}-deploy-docker-build-elasticsearch:${docker.tag}</name>
+            </image>
+          </images>
+        </configuration>
       </plugin>
 
       <plugin>

@@ -21,7 +21,7 @@ spec:
     spec:
       containers:
       - name: {{ include "edusharing_repository_search_elastic_tracker.name" . }}
-        image: {{ .Values.image.registry }}/{{ .Values.image.repository }}/edu_sharing-community-repository-plugin-elastic-deploy-docker-build-tracker:{{ .Values.image.tag }}
+        image: {{ .Values.image.registry }}/{{ .Values.image.repository }}/{{ .Values.image.prefix }}-deploy-docker-build-tracker:{{ .Values.image.tag }}
         imagePullPolicy: {{ .Values.global.image.pullPolicy }}
         envFrom:
         - configMapRef:

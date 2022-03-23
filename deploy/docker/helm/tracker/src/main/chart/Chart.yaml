@@ -1,7 +1,7 @@
 apiVersion: v2
 
-name: edusharing_community_repository_search_elastic_tracker
-description: edusharing_community_repository_search_elastic_tracker
+name: ${helm.prefix}-tracker
+description: ${helm.prefix}-tracker
 
 icon: ${helm.chart.icon}
 

@@ -67,13 +67,6 @@
       <plugin>
         <groupId>io.fabric8</groupId>
         <artifactId>docker-maven-plugin</artifactId>
-        <configuration>
-          <images>
-            <image>
-              <name>${docker.repository}/${project.artifactId}:${docker.tag}</name>
-            </image>
-          </images>
-        </configuration>
         <executions>
           <execution>
             <id>build</id>
@@ -90,6 +83,13 @@
             <phase>deploy</phase>
           </execution>
         </executions>
+        <configuration>
+          <images>
+            <image>
+              <name>${docker.repository}/${docker.prefix}-deploy-installer-tracker-scripts-debian-bullseye:${docker.tag}</name>
+            </image>
+          </images>
+        </configuration>
       </plugin>
 
     </plugins>

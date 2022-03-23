@@ -23,7 +23,7 @@ spec:
       initContainers:
       {{- if (default .Values.global.cluster.storage.data.permission .Values.persistence.data.permission) }}
       - name: {{ include "edusharing_elasticsearch.name" . }}-init-permission
-        image: {{ .Values.image.registry }}/{{ .Values.image.repository }}/edu_sharing-community-deploy-docker-build-minideb:{{ .Values.image.tag }}
+        image: {{ .Values.image.registry }}/{{ .Values.image.repository }}/{{ .Values.image.prefix }}-deploy-docker-build-minideb:{{ .Values.image.tag }}
         imagePullPolicy: {{ .Values.global.image.pullPolicy }}
         command:
         - "/bin/bash"
@@ -42,7 +42,7 @@ spec:
       {{- end }}
       containers:
       - name: {{ include "edusharing_elasticsearch.name" . }}
-        image: {{ .Values.image.registry }}/{{ .Values.image.repository }}/edu_sharing-community-repository-plugin-elastic-deploy-docker-build-elasticsearch:{{ .Values.image.tag }}
+        image: {{ .Values.image.registry }}/{{ .Values.image.repository }}/{{ .Values.image.prefix }}-deploy-docker-build-elasticsearch:{{ .Values.image.tag }}
         imagePullPolicy: {{ .Values.global.image.pullPolicy }}
         env:
         - name: node.name
@@ -93,7 +93,7 @@ spec:
         {{- end }}
       {{- if .Values.sidecar.metrics.enabled }}
       - name: {{ include "edusharing_elasticsearch.name" . }}-metrics
-        image: {{ .Values.image.registry }}/{{ .Values.image.repository }}/edu_sharing-community-repository-plugin-elastic-deploy-docker-build-elasticsearch_exporter:{{ .Values.image.tag }}
+        image: {{ .Values.image.registry }}/{{ .Values.image.repository }}/{{ .Values.image.prefix }}-deploy-docker-build-elasticsearch_exporter:{{ .Values.image.tag }}
         imagePullPolicy: {{ .Values.global.image.pullPolicy }}
         args:
         - --es.uri=http://127.0.0.1:9200

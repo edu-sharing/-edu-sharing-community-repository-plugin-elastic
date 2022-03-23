@@ -3,7 +3,7 @@ version: '3.7'
 services:
 
   repository-elastic:
-    image: "${docker.repository}/edu_sharing-community-repository-plugin-elastic-deploy-installer-tracker-scripts-debian-bullseye:${docker.tag}"
+    image: "${docker.repository}/${docker.prefix}-deploy-installer-tracker-scripts-debian-bullseye:${docker.tag}"
     volumes:
       - "./repository/plugin-elastic/.env:/opt/edu-sharing/.env"
     environment:

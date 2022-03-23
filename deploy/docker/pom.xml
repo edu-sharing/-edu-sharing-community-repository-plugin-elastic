@@ -25,6 +25,7 @@
     <!--suppress UnresolvedMavenProperty -->
     <docker.from.elasticsearch.server>docker.elastic.co/elasticsearch/elasticsearch:${elasticsearch.version}
     </docker.from.elasticsearch.server>
+    <docker.from.minideb>docker.io/bitnami/minideb:bullseye</docker.from.minideb>
     <docker.from.openjdk>docker.io/openjdk:8-jdk-bullseye</docker.from.openjdk>
 
     <helm.kube.version>&gt;= 1.18.0</helm.kube.version>

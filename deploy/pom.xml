@@ -18,6 +18,14 @@
 
   <name>edu_sharing-community-repository-plugin-elastic-deploy</name>
 
+  <properties>
+
+    <docker.repository>community</docker.repository>
+    <docker.prefix>edu_sharing-community-repository-plugin-elastic</docker.prefix>
+    <helm.prefix>edu_sharing-community-repository-plugin-elastic</helm.prefix>
+
+  </properties>
+
   <modules>
     <module>docker</module>
     <module>installer</module>

@@ -31,6 +31,7 @@ nameOverride: edusharing-repository-search-elastic-index
 image:
   registry: ${docker.registry}
   repository: ${docker.repository}
+  prefix: ${docker.prefix}
   tag: ${docker.tag}
 
 ########################################################################################################################

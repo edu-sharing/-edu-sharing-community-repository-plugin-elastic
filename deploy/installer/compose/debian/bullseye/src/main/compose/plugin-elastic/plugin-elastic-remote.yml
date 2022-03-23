@@ -3,4 +3,4 @@ version: '3.7'
 services:
 
   repository-elastic:
-    image: "${docker.registry}/${docker.repository}/edu_sharing-community-repository-plugin-elastic-deploy-installer-tracker-scripts-debian-bullseye:${docker.tag}"
+    image: "${docker.registry}/${docker.repository}/${docker.prefix}-deploy-installer-tracker-scripts-debian-bullseye:${docker.tag}"

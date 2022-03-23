@@ -3,7 +3,7 @@ version: '3.7'
 services:
 
   repository-search-elastic-index:
-    image: "${docker.repository}/edu_sharing-community-repository-plugin-elastic-deploy-docker-build-elasticsearch:${docker.tag}"
+    image: "${docker.repository}/${docker.prefix}-deploy-docker-build-elasticsearch:${docker.tag}"
     environment:
       ES_JAVA_OPTS: >-
         -Xms${REPOSITORY_SEARCH_ELASTIC_INDEX_JAVA_XMS:-1g}
@@ -22,7 +22,7 @@ services:
       - "repository-search-elastic-index-volume:/usr/share/elasticsearch/data"
 
   repository-search-elastic-tracker:
-    image: "${docker.repository}/edu_sharing-community-repository-plugin-elastic-deploy-docker-build-tracker:${docker.tag}"
+    image: "${docker.repository}/${docker.prefix}-deploy-docker-build-tracker:${docker.tag}"
     command:
       - -Xms${REPOSITORY_SEARCH_ELASTIC_TRACKER_JAVA_XMS:-1g}
       - -Xmx${REPOSITORY_SEARCH_ELASTIC_TRACKER_JAVA_XMX:-1g}
