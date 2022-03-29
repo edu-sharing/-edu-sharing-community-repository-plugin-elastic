@@ -133,7 +133,7 @@ else
 fi
 
 echo "- unpack repository plugin elastic tracker"
-mvn -q dependency:copy \
+mvn -q -llr dependency:copy \
 	-Dartifact=org.edu_sharing:edu_sharing-community-repository-plugin-elastic-tracker:${org.edu_sharing:edu_sharing-community-repository-plugin-elastic-tracker:jar.version} \
 	-DoutputDirectory=/opt/edu-sharing/repository/elastic/tracker
 

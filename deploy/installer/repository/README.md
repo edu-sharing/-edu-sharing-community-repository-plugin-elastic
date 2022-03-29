@@ -77,7 +77,7 @@ Installation or Update
        -DremoteRepositories=edusharing-remote::::https://artifacts.edu-sharing.com/repository/maven-remote/ \
        -Dtransitive=false
       
-   mvn -q dependency:copy \
+   mvn -q -llr dependency:copy \
        -Dartifact="org.edu_sharing:edu_sharing-community-deploy-installer-repository-scripts-debian-bullseye:${BRANCH}:tar.gz:bin" \
        -DoutputDirectory=.
    ```
