@@ -18,6 +18,9 @@ spec:
         prometheus.io/port: "8081"
         prometheus.io/scrape: {{ .Values.config.metrics | quote }}
         sidecar.istio.io/inject: {{ .Values.global.cluster.istio.enabled | quote }}
+        {{- if .Values.podAnnotations }}
+        {{- toYaml .Values.podAnnotations | nindent 8 }}
+        {{- end }}
     spec:
       containers:
       - name: {{ include "edusharing_repository_search_elastic_tracker.name" . }}
