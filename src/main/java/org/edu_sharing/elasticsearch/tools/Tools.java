@@ -6,6 +6,8 @@ import java.nio.charset.StandardCharsets;
 
 public class Tools {
 
+    public static final long WAIT_FOR_SERVICE = 10000;
+
     public static String getBasicAuth(String user, String password){
         String auth = user + ":" + password;
         byte[] encodedAuth = Base64.encodeBase64(
