@@ -6,7 +6,7 @@ metadata:
 spec:
   replicas: 1
   selector:
-    matchLabels: {{ include "edusharing_repository_search_elastic_tracker.labels.instance" . | nindent 6 }}
+    matchLabels: {{ include "edusharing_repository_search_elastic_tracker.labels.app" . | nindent 6 }}
   serviceName: {{ include "edusharing_repository_search_elastic_tracker.name" . }}-headless
   template:
     metadata:

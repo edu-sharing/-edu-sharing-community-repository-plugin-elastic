@@ -7,5 +7,5 @@ metadata:
 spec:
   maxUnavailable: 1
   selector:
-    matchLabels: {{ include "edusharing_elasticsearch.labels.instance" . | nindent 6 }}
+    matchLabels: {{ include "edusharing_elasticsearch.labels.app" . | nindent 6 }}
 {{- end }}
