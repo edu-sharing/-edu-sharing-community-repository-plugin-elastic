@@ -569,6 +569,9 @@ public class ElasticsearchClient {
                                     if(vcard.getUrls() != null && vcard.getUrls().size() > 0){
                                         builder.field("url",vcard.getUrls().get(0).getRawUrl());
                                     }
+                                    if(vcard.getOrg() != null){
+                                        builder.field("org",vcard.getOrg().getOrgName());
+                                    }
 
                                     List<ExtendedType> extendedTypes = vcard.getExtendedTypes();
                                     if(extendedTypes != null){
