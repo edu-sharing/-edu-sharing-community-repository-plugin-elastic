@@ -284,6 +284,8 @@ public class EduSharingClient {
                 replace("${storeProtocol}", Tools.getProtocol(node.getNodeMetadata().getNodeRef())).
                 replace("${storeId}", Tools.getIdentifier(node.getNodeMetadata().getNodeRef()));
 
+        url+="&allowRedirect=false";
+
         String urlSmall = url.replace("${width}", "400").
                 replace("${height}", "400").
                 replace("${quality}", "60");
