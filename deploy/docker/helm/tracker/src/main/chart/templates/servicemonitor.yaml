@@ -10,6 +10,8 @@ spec:
   endpoints:
   - path: "/actuator/prometheus"
     port: http-management
+    interval: {{ .Values.global.metrics.scrape.interval }}
+    scrapeTimeout: {{ .Values.global.metrics.scrape.timeout }}
   selector:
     matchLabels: {{ include "edusharing_repository_search_elastic_tracker.labels.app" . | nindent 6 }}
       app.kubernetes.io/component: "metrics"
