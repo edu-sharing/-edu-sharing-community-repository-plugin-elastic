@@ -20,39 +20,21 @@
 
   <properties>
 
-    <docker.from.elasticsearch.exporter>${docker.registry}/mirror/quay.io/prometheuscommunity/elasticsearch-exporter:v1.3.0
+    <docker.from.elasticsearch.exporter>
+      ${docker.registry}/mirror/quay.io/prometheuscommunity/elasticsearch-exporter:v1.3.0
     </docker.from.elasticsearch.exporter>
     <!--suppress UnresolvedMavenProperty -->
-    <docker.from.elasticsearch.server>${docker.registry}/mirror/docker.elastic.co/elasticsearch/elasticsearch:${elasticsearch.version}
+    <docker.from.elasticsearch.server>
+      ${docker.registry}/mirror/docker.elastic.co/elasticsearch/elasticsearch:${elasticsearch.version}
     </docker.from.elasticsearch.server>
-    <docker.from.minideb>${docker.registry}/mirror/docker.io/bitnami/minideb:bullseye</docker.from.minideb>
-    <docker.from.openjdk>${docker.registry}/mirror/docker.io/openjdk:8-jdk-bullseye</docker.from.openjdk>
-
-    <helm.kube.version>&gt;= 1.18.0</helm.kube.version>
-    <helm.version>3.8.1</helm.version>
+    <docker.from.minideb>
+      ${docker.registry}/mirror/docker.io/bitnami/minideb:bullseye
+    </docker.from.minideb>
+    <docker.from.openjdk>
+      ${docker.registry}/mirror/docker.io/openjdk:8-jdk-bullseye
+    </docker.from.openjdk>
 
   </properties>
-
-  <build>
-
-    <pluginManagement>
-
-      <plugins>
-
-        <plugin>
-          <groupId>io.kokuwa.maven</groupId>
-          <artifactId>helm-maven-plugin</artifactId>
-          <configuration>
-            <!--suppress UnresolvedMavenProperty -->
-            <helmVersion>${helm.version}</helmVersion>
-          </configuration>
-        </plugin>
-
-      </plugins>
-
-    </pluginManagement>
-
-  </build>
 
   <modules>
     <module>build</module>
