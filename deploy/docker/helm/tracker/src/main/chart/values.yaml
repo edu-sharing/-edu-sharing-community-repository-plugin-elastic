@@ -1,0 +1,121 @@
+########################################################################################################################
+# GLOBAL
+########################################################################################################################
+
+global:
+
+  cluster:
+
+    istio:
+      enabled: false
+
+  image:
+    pullPolicy: Always
+    pullSecrets: []
+
+  metrics:
+    scrape:
+      interval: 10s
+      timeout: 10s
+    servicemonitor:
+      enabled: false
+
+########################################################################################################################
+# LOCAL
+########################################################################################################################
+
+nameOverride: edusharing-repository-search-elastic-tracker
+
+image:
+  registry: ${docker.registry}
+  repository: ${docker.repository}
+  prefix: ${docker.prefix}
+  tag: ${docker.tag}
+
+########################################################################################################################
+
+service:
+
+  port:
+    management: 8081
+
+config:
+
+  jvm:
+    debug: false
+    ram:
+      minPercentage: "95.0"
+      maxPercentage: "95.0"
+
+  metrics: true
+
+  options: ""
+
+  repository:
+
+    host: edusharing-repository-service
+    port: 8080
+    password: admin
+
+  search:
+
+    elastic:
+      host: edusharing-repository-search-elastic-index
+      port: 9200
+      index:
+        shards: 1
+        replicas: 2
+
+########################################################################################################################
+
+nodeAffinity: {}
+
+tolerations: []
+
+########################################################################################################################
+
+podAnnotations: {}
+
+podSecurityContext:
+
+  runAsUser: 1000
+  fsGroup: 1000
+
+securityContext:
+
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+    - ALL
+
+########################################################################################################################
+
+terminationGracePeriod: 120
+
+livenessProbe:
+
+  failureThreshold: 3
+  initialDelaySeconds: 1200
+  periodSeconds: 10
+  timeoutSeconds: 5
+
+readinessProbe:
+
+  failureThreshold: 1
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  successThreshold: 1
+  timeoutSeconds: 5
+
+########################################################################################################################
+
+resources:
+
+  limits:
+    cpu: 500m
+    memory: 2Gi
+  requests:
+    cpu: 500m
+    memory: 2Gi
+
+########################################################################################################################

@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+                             https://maven.apache.org/xsd/maven-4.0.0.xsd">
+
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>org.edu_sharing</groupId>
+    <artifactId>edu_sharing-community-repository-plugin-elastic-deploy</artifactId>
+    <version>git</version>
+    <relativePath>../pom.xml</relativePath>
+  </parent>
+
+  <artifactId>edu_sharing-community-repository-plugin-elastic-deploy-docker</artifactId>
+  <packaging>pom</packaging>
+
+  <name>edu_sharing-community-repository-plugin-elastic-deploy-docker</name>
+
+  <properties>
+
+    <docker.from.elasticsearch.exporter>
+      ${docker.registry}/mirror/quay.io/prometheuscommunity/elasticsearch-exporter:v1.3.0
+    </docker.from.elasticsearch.exporter>
+    <!--suppress UnresolvedMavenProperty -->
+    <docker.from.elasticsearch.server>
+      ${docker.registry}/mirror/docker.elastic.co/elasticsearch/elasticsearch:${elasticsearch.version}
+    </docker.from.elasticsearch.server>
+    <docker.from.minideb>
+      ${docker.registry}/mirror/docker.io/bitnami/minideb:bullseye
+    </docker.from.minideb>
+    <docker.from.openjdk>
+      ${docker.registry}/mirror/docker.io/openjdk:8-jdk-bullseye
+    </docker.from.openjdk>
+
+  </properties>
+
+  <modules>
+    <module>build</module>
+    <module>compose</module>
+    <module>helm</module>
+  </modules>
+
+</project>

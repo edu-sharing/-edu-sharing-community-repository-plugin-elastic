@@ -1,0 +1,9 @@
+version: '3.7'
+
+services:
+
+  repository-search-elastic-index:
+    image: "${docker.registry}/${docker.repository}/${docker.prefix}-deploy-docker-build-elasticsearch:${docker.tag}"
+
+  repository-search-elastic-tracker:
+    image: "${docker.registry}/${docker.repository}/${docker.prefix}-deploy-docker-build-tracker:${docker.tag}"

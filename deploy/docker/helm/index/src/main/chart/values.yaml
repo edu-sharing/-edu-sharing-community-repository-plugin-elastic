@@ -1,0 +1,174 @@
+########################################################################################################################
+# GLOBAL
+########################################################################################################################
+
+global:
+
+  cluster:
+
+    istio:
+      enabled: false
+
+    pdb:
+      enabled: false
+
+    storage:
+      data:
+        permission: false
+        spec: {}
+#          storageClassName:
+
+  image:
+    pullPolicy: Always
+    pullSecrets: []
+
+  metrics:
+    scrape:
+      interval: 10s
+      timeout: 10s
+    servicemonitor:
+      enabled: false
+
+########################################################################################################################
+# LOCAL
+########################################################################################################################
+
+nameOverride: edusharing-repository-search-elastic-index
+
+image:
+  registry: ${docker.registry}
+  repository: ${docker.repository}
+  prefix: ${docker.prefix}
+  tag: ${docker.tag}
+
+########################################################################################################################
+
+replicaCount: 3
+
+########################################################################################################################
+
+service:
+
+  port:
+    api: 9200
+    gossip: 9300
+    metrics: 9114
+
+########################################################################################################################
+
+config:
+
+  jvm:
+    ram:
+      minPercentage: "50"
+      maxPercentage: "50"
+
+  store:
+    mmap: false
+
+########################################################################################################################
+
+nodeAffinity: {}
+podAntiAffinity: "soft"
+
+tolerations: []
+
+########################################################################################################################
+
+persistence:
+
+  data:
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: 5Gi
+
+########################################################################################################################
+
+podAnnotations: {}
+
+podSecurityContext:
+
+  runAsUser: 1000
+  fsGroup: 1000
+
+securityContext:
+
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+    - ALL
+
+########################################################################################################################
+
+terminationGracePeriod: 120
+
+livenessProbe:
+
+  failureThreshold: 3
+  initialDelaySeconds: 1200
+  periodSeconds: 10
+  timeoutSeconds: 5
+
+readinessProbe:
+
+  failureThreshold: 1
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  successThreshold: 1
+  timeoutSeconds: 5
+
+########################################################################################################################
+
+resources:
+
+  limits:
+    cpu: 200m
+    memory: 2Gi
+  requests:
+    cpu: 200m
+    memory: 2Gi
+
+########################################################################################################################
+
+init:
+
+  permission:
+
+    resources:
+
+      limits:
+        cpu: 100m
+        memory: 1Gi
+      requests:
+        cpu: 100m
+        memory: 1Gi
+
+    securityContext:
+
+      runAsUser: 0
+
+########################################################################################################################
+
+sidecar:
+
+  metrics:
+
+    enabled: true
+
+    resources:
+      limits:
+        cpu: 100m
+        memory: 100Mi
+      requests:
+        cpu: 100m
+        memory: 100Mi
+
+    securityContext:
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop:
+          - ALL
+
+########################################################################################################################

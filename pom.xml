@@ -2,7 +2,7 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
-         										 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+                             https://maven.apache.org/xsd/maven-4.0.0.xsd">
 
   <modelVersion>4.0.0</modelVersion>
 
@@ -13,34 +13,76 @@
     <relativePath/>
   </parent>
 
-  <artifactId>edu_sharing-community-repository-plugin-elastic-tracker</artifactId>
+  <artifactId>edu_sharing-community-repository-plugin-elastic</artifactId>
+  <packaging>pom</packaging>
   <version>git</version>
 
-  <name>edu_sharing-community-repository-plugin-elastic-tracker</name>
+  <name>edu_sharing-community-repository-plugin-elastic</name>
+
+  <scm>
+    <connection>
+      scm:git:https://scm.edu-sharing.com/edu-sharing/community/repository/edu-sharing-elasticsearch-tracker.git
+    </connection>
+    <developerConnection>
+      scm:git:https://scm.edu-sharing.com/edu-sharing/community/repository/edu-sharing-elasticsearch-tracker.git
+    </developerConnection>
+    <url>https://scm.edu-sharing.com/edu-sharing/community/repository/edu-sharing-elasticsearch-tracker.git</url>
+  </scm>
 
   <properties>
 
-    <maven.compiler.source>1.8</maven.compiler.source>
-    <maven.compiler.target>1.8</maven.compiler.target>
-
-    <spring.boot.version>2.6.3</spring.boot.version>
+    <!-- release-2 -->
+    <bom.repository.version>${project.version}</bom.repository.version>
 
   </properties>
+
+  <profiles>
+
+    <profile>
+
+      <id>dev</id>
+
+      <activation>
+        <activeByDefault>false</activeByDefault>
+        <property>
+          <name>env.DEV</name>
+          <value>true</value>
+        </property>
+      </activation>
+
+      <properties>
+        <bom.repository.version>${project.version}</bom.repository.version>
+      </properties>
+
+    </profile>
+
+  </profiles>
 
   <build>
 
     <plugins>
 
       <plugin>
-        <groupId>org.springframework.boot</groupId>
-        <artifactId>spring-boot-maven-plugin</artifactId>
-        <version>${spring.boot.version}</version>
+        <groupId>com.github.tommyk-gears</groupId>
+        <artifactId>bom-maven-plugin</artifactId>
         <executions>
           <execution>
+            <id>community-repository</id>
             <goals>
-              <goal>repackage</goal>
+              <goal>import-properties</goal>
             </goals>
-            <phase>package</phase>
+            <phase>validate</phase>
+            <configuration>
+              <artifacts>
+                <dependency>
+                  <groupId>${project.groupId}</groupId>
+                  <artifactId>edu_sharing-community-repository</artifactId>
+                  <!--suppress UnresolvedMavenProperty -->
+                  <version>${bom.repository.version}</version>
+                  <type>pom</type>
+                </dependency>
+              </artifacts>
+            </configuration>
           </execution>
         </executions>
       </plugin>
@@ -54,117 +96,89 @@
     <dependencies>
 
       <dependency>
-        <groupId>net.sourceforge.cardme</groupId>
-        <artifactId>cardme</artifactId>
-        <version>0.4.0</version>
-      </dependency>
-
-      <dependency>
-        <groupId>org.apache.cxf</groupId>
-        <artifactId>cxf-bom</artifactId>
-        <version>3.4.5</version>
-        <scope>import</scope>
-        <type>pom</type>
-      </dependency>
-
-      <dependency>
-        <groupId>info.picocli</groupId>
-        <artifactId>picocli</artifactId>
-        <version>4.6.1</version>
-      </dependency>
-
-      <dependency>
-        <groupId>org.springframework.boot</groupId>
-        <artifactId>spring-boot-dependencies</artifactId>
-        <version>${spring.boot.version}</version>
+        <groupId>${project.groupId}</groupId>
+        <artifactId>edu_sharing-community-repository</artifactId>
+        <version>${bom.repository.version}</version>
         <type>pom</type>
         <scope>import</scope>
+      </dependency>
+
+      <dependency>
+        <groupId>${project.groupId}</groupId>
+        <artifactId>edu_sharing-community-repository-plugin-elastic-backend-alfresco-module</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>${project.groupId}</groupId>
+        <artifactId>edu_sharing-community-repository-plugin-elastic-backend-alfresco-module</artifactId>
+        <version>${project.version}</version>
+        <type>amp</type>
+      </dependency>
+
+      <dependency>
+        <groupId>${project.groupId}</groupId>
+        <artifactId>edu_sharing-community-repository-plugin-elastic-backend-services-module</artifactId>
+        <version>${project.version}</version>
+        <type>amp</type>
+      </dependency>
+
+      <dependency>
+        <groupId>${project.groupId}</groupId>
+        <artifactId>edu_sharing-community-repository-plugin-elastic-config-defaults</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>${project.groupId}</groupId>
+        <artifactId>edu_sharing-community-repository-plugin-elastic-deploy-docker-build-service</artifactId>
+        <version>${project.version}</version>
+        <classifier>sources</classifier>
+      </dependency>
+
+      <dependency>
+        <groupId>${project.groupId}</groupId>
+        <artifactId>edu_sharing-community-repository-plugin-elastic-deploy-docker-compose</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>${project.groupId}</groupId>
+        <artifactId>edu_sharing-community-repository-plugin-elastic-deploy-docker-helm-index</artifactId>
+        <version>${project.version}</version>
+        <type>tar.gz</type>
+        <classifier>bin</classifier>
+      </dependency>
+
+      <dependency>
+        <groupId>${project.groupId}</groupId>
+        <artifactId>edu_sharing-community-repository-plugin-elastic-deploy-docker-helm-tracker</artifactId>
+        <version>${project.version}</version>
+        <type>tar.gz</type>
+        <classifier>bin</classifier>
+      </dependency>
+
+      <dependency>
+        <groupId>${project.groupId}</groupId>
+        <artifactId>edu_sharing-community-repository-plugin-elastic-deploy-installer-compose-debian-bullseye</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>${project.groupId}</groupId>
+        <artifactId>edu_sharing-community-repository-plugin-elastic-deploy-installer-repository-scripts-debian-bullseye</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>${project.groupId}</groupId>
+        <artifactId>edu_sharing-community-repository-plugin-elastic-tracker</artifactId>
+        <version>${project.version}</version>
       </dependency>
 
     </dependencies>
 
   </dependencyManagement>
-
-  <dependencies>
-
-    <dependency>
-      <groupId>net.sourceforge.cardme</groupId>
-      <artifactId>cardme</artifactId>
-    </dependency>
-
-    <dependency>
-      <groupId>org.apache.cxf</groupId>
-      <artifactId>cxf-rt-rs-client</artifactId>
-    </dependency>
-
-    <dependency>
-      <groupId>org.apache.cxf</groupId>
-      <artifactId>cxf-rt-transports-http-hc</artifactId>
-    </dependency>
-
-    <dependency>
-      <groupId>org.elasticsearch.client</groupId>
-      <artifactId>elasticsearch-rest-high-level-client</artifactId>
-    </dependency>
-
-    <dependency>
-      <groupId>com.fasterxml.jackson.core</groupId>
-      <artifactId>jackson-annotations</artifactId>
-    </dependency>
-
-    <dependency>
-      <groupId>com.fasterxml.jackson.core</groupId>
-      <artifactId>jackson-core</artifactId>
-    </dependency>
-
-    <dependency>
-      <groupId>com.fasterxml.jackson.core</groupId>
-      <artifactId>jackson-databind</artifactId>
-    </dependency>
-
-    <dependency>
-      <groupId>com.fasterxml.jackson.jaxrs</groupId>
-      <artifactId>jackson-jaxrs-json-provider</artifactId>
-    </dependency>
-
-    <dependency>
-      <groupId>io.micrometer</groupId>
-      <artifactId>micrometer-registry-prometheus</artifactId>
-    </dependency>
-
-    <dependency>
-      <groupId>info.picocli</groupId>
-      <artifactId>picocli</artifactId>
-    </dependency>
-
-    <dependency>
-      <groupId>org.springframework.boot</groupId>
-      <artifactId>spring-boot-starter-actuator</artifactId>
-    </dependency>
-
-    <dependency>
-      <groupId>org.springframework.boot</groupId>
-      <artifactId>spring-boot-starter-aop</artifactId>
-    </dependency>
-
-    <dependency>
-      <groupId>org.springframework.boot</groupId>
-      <artifactId>spring-boot-starter-test</artifactId>
-      <scope>test</scope>
-      <exclusions>
-        <exclusion>
-          <groupId>org.junit.vintage</groupId>
-          <artifactId>junit-vintage-engine</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-
-    <dependency>
-      <groupId>org.springframework.boot</groupId>
-      <artifactId>spring-boot-starter-web</artifactId>
-    </dependency>
-
-  </dependencies>
 
   <repositories>
 
@@ -195,5 +209,12 @@
     </repository>
 
   </repositories>
+
+  <modules>
+    <module>Backend</module>
+    <module>config</module>
+    <module>deploy</module>
+    <module>tracker</module>
+  </modules>
 
 </project>
