@@ -15,9 +15,13 @@ services:
     ports:
       - "${COMMON_BIND_HOST:-127.0.0.1}:${REPOSITORY_SEARCH_ELASTIC_INDEX_PORT_HTTP:-8300}:9200"
       - "${COMMON_BIND_HOST:-127.0.0.1}:${REPOSITORY_SEARCH_ELASTIC_INDEX_PORT_JPDA:-8301}:8000"
+    volumes:
+      - "profiler:/opt/profiler"
 
   repository-search-elastic-tracker:
     environment:
       JAVA_OPTS: "-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=8000"
     ports:
       - "${COMMON_BIND_HOST:-127.0.0.1}:${REPOSITORY_SEARCH_ELASTIC_TRACKER_PORT_JPDA:-8401}:8000"
+    volumes:
+      - "profiler:/opt/profiler"
