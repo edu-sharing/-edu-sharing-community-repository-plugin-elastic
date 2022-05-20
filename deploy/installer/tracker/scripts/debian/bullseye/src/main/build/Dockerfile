@@ -52,14 +52,13 @@ RUN set -eux \
 RUN set -eux \
     && wget -q https://adoptopenjdk.jfrog.io/adoptopenjdk/api/gpg/key/public \
     && gpg --no-default-keyring --keyring ./adoptopenjdk-keyring.gpg --import public \
-    && gpg --no-default-keyring --keyring ./adoptopenjdk-keyring.gpg --export --output adoptopenjdk-archive-keyring.gpg \
-    && mv adoptopenjdk-archive-keyring.gpg /usr/share/keyrings \
+    && gpg --no-default-keyring --keyring ./adoptopenjdk-keyring.gpg --export --output /etc/apt/trusted.gpg.d/adoptopenjdk.gpg \
     && rm adoptopenjdk-keyring.gpg public \
-    && echo "deb [signed-by=/usr/share/keyrings/adoptopenjdk-archive-keyring.gpg] https://artifacts.edu-sharing.com/repository/adoptopenjdk `lsb_release -cs` main" | tee /etc/apt/sources.list.d/adoptopenjdk.list \
+    && echo "deb https://artifacts.edu-sharing.com/repository/adoptopenjdk `lsb_release -cs` main" | tee /etc/apt/sources.list.d/adoptopenjdk.list \
     && apt-get update -y \
     && apt-get install -y --no-install-recommends \
-        adoptopenjdk-8-hotspot \
-    && update-java-alternatives -s adoptopenjdk-8-hotspot-amd64 \
+        adoptopenjdk-11-hotspot \
+    && update-java-alternatives -s adoptopenjdk-11-hotspot-amd64 \
     && apt-get clean \
     && rm -r /var/lib/apt/lists/*
 
