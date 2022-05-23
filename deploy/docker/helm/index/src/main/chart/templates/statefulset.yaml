@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: {{ include "edusharing_elasticsearch.name" . }}
-  labels: {{ include "edusharing_elasticsearch.labels" . | nindent 4 }}
+  labels: {{ include "edusharing_elasticsearch.labels.app" . | nindent 4 }}
 spec:
   podManagementPolicy: Parallel
   replicas: {{ .Values.replicaCount }}
@@ -12,7 +12,7 @@ spec:
   template:
     metadata:
       name: {{ include "edusharing_elasticsearch.name" . }}
-      labels: {{ include "edusharing_elasticsearch.labels" . | nindent 8 }}
+      labels: {{ include "edusharing_elasticsearch.labels.app" . | nindent 8 }}
       annotations:
         checksum/configmap-env: {{ include (print .Template.BasePath "/configmap-env.yaml") . | sha256sum | trunc 63 }}
         {{- if not .Values.global.metrics.servicemonitor.enabled }}
