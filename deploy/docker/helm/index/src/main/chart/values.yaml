@@ -60,8 +60,8 @@ config:
 
   jvm:
     ram:
-      minPercentage: "50"
-      maxPercentage: "50"
+      minPercentage: "75.0"
+      maxPercentage: "75.0"
 
   store:
     mmap: false
