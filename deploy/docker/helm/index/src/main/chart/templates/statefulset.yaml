@@ -69,6 +69,17 @@ spec:
         volumeMounts:
         - name: data
           mountPath: /usr/share/elasticsearch/data
+        {{- with .Values.startupProbe }}
+        startupProbe:
+          httpGet:
+            path: /_cluster/health?local=true&timeout={{ add1 .timeoutSeconds }}s
+            port: api
+          failureThreshold: {{ .failureThreshold }}
+          initialDelaySeconds: {{ .initialDelaySeconds }}
+          periodSeconds: {{ .periodSeconds }}
+          successThreshold: {{ .successThreshold }}
+          timeoutSeconds: {{ .timeoutSeconds }}
+        {{- end }}
         {{- with .Values.livenessProbe }}
         livenessProbe:
           tcpSocket:
