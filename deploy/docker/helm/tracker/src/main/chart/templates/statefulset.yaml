@@ -36,6 +36,16 @@ spec:
         ports:
         - name: management
           containerPort: 8081
+        {{- with .Values.startupProbe }}
+        startupProbe:
+          httpGet:
+            path: /actuator/health/readiness
+            port: management
+          failureThreshold: {{ .failureThreshold }}
+          initialDelaySeconds: {{ .initialDelaySeconds }}
+          periodSeconds: {{ .periodSeconds }}
+          timeoutSeconds: {{ .timeoutSeconds }}
+        {{- end }}
         {{- with .Values.livenessProbe }}
         livenessProbe:
           httpGet:
