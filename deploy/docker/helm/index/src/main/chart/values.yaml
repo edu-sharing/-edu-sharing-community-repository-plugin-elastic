@@ -132,10 +132,10 @@ readinessProbe:
 resources:
 
   limits:
-    cpu: 200m
+    cpu: 500m
     memory: 2Gi
   requests:
-    cpu: 200m
+    cpu: 500m
     memory: 2Gi
 
 ########################################################################################################################
@@ -147,11 +147,11 @@ init:
     resources:
 
       limits:
-        cpu: 100m
-        memory: 1Gi
+        cpu: 125m
+        memory: 512Mi
       requests:
-        cpu: 100m
-        memory: 1Gi
+        cpu: 125m
+        memory: 512Mi
 
     securityContext:
 
@@ -166,14 +166,16 @@ sidecar:
     enabled: true
 
     resources:
+
       limits:
-        cpu: 100m
-        memory: 100Mi
+        cpu: 125m
+        memory: 512Mi
       requests:
-        cpu: 100m
-        memory: 100Mi
+        cpu: 125m
+        memory: 512Mi
 
     securityContext:
+
       allowPrivilegeEscalation: false
       capabilities:
         drop:
