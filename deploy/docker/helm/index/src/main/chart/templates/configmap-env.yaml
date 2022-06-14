@@ -15,9 +15,7 @@ data:
     -Dcom.sun.management.jmxremote.authenticate=false
     -Dcom.sun.management.jmxremote.port=7199
     -Dcom.sun.management.jmxremote.ssl=false
-  {{- if .Release.IsInstall }}
   cluster.initial_master_nodes: "{{ range $i := until (.Values.replicaCount | int) }}{{ include "edusharing_elasticsearch.name" $ }}-{{ $i }},{{ end }}"
-  {{- end }}
   cluster.name: {{ include "edusharing_elasticsearch.name" . | quote }}
   discovery.seed_hosts: "{{ include "edusharing_elasticsearch.name" . }}-headless"
   network.bind_host: {{ if .Values.global.cluster.istio.enabled }}"127.0.0.1"{{ else }}"0.0.0.0"{{ end }}
