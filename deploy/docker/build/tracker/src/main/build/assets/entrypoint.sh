@@ -4,6 +4,10 @@ set -eux
 ########################################################################################################################
 
 my_bind="${REPOSITORY_SEARCH_ELASTIC_TRACKER_BIND:-"0.0.0.0"}"
+my_port="${REPOSITORY_SEARCH_ELASTIC_TRACKER_PORT:-"8080"}"
+
+my_management_bind="${REPOSITORY_SEARCH_ELASTIC_TRACKER_MANAGEMENT_BIND:-"127.0.0.1"}"
+my_management_port="${REPOSITORY_SEARCH_ELASTIC_TRACKER_MANAGEMENT_PORT:-"8081"}"
 
 repository_search_elastic_index_host="${REPOSITORY_SEARCH_ELASTIC_INDEX_HOST:-repository-search-elastic-index}"
 repository_search_elastic_index_port="${REPOSITORY_SEARCH_ELASTIC_INDEX_PORT:-9200}"
@@ -69,8 +73,14 @@ grep -q '^[#]*\s*elastic\.port=' "application.properties" || echo "elastic.port=
 sed -i -r 's|^[#]*\s*server\.address=.*|server.address='"${my_bind}"'|' "application.properties"
 grep -q '^[#]*\s*server\.address=' "application.properties" || echo "server.address=${my_bind}" >>"application.properties"
 
-sed -i -r 's|^[#]*\s*management\.server\.address=.*|management.server.address='"${my_bind}"'|' "application.properties"
-grep -q '^[#]*\s*management\.server\.address=' "application.properties" || echo "management.server.address=${my_bind}" >>"application.properties"
+sed -i -r 's|^[#]*\s*server\.port=.*|server.port='"${my_port}"'|' "application.properties"
+grep -q '^[#]*\s*server\.port=' "application.properties" || echo "server.port=${my_port}" >>"application.properties"
+
+sed -i -r 's|^[#]*\s*management\.server\.address=.*|management.server.address='"${my_management_bind}"'|' "application.properties"
+grep -q '^[#]*\s*management\.server\.address=' "application.properties" || echo "management.server.address=${my_management_bind}" >>"application.properties"
+
+sed -i -r 's|^[#]*\s*management\.server\.port=.*|management.server.port='"${my_management_port}"'|' "application.properties"
+grep -q '^[#]*\s*management\.server\.port=' "application.properties" || echo "management.server.port=${my_management_port}" >>"application.properties"
 
 ########################################################################################################################
 

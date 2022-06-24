@@ -2,10 +2,10 @@
 apiVersion: policy/v1beta1
 kind: PodDisruptionBudget
 metadata:
-  name: {{ include "edusharing_elasticsearch.name" . }}
-  labels: {{ include "edusharing_elasticsearch.labels.app" . | nindent 4 }}
+  name: {{ include "edusharing_repository_search_elastic_index.name" . }}
+  labels: {{ include "edusharing_repository_search_elastic_index.labels.app" . | nindent 4 }}
 spec:
   maxUnavailable: 1
   selector:
-    matchLabels: {{ include "edusharing_elasticsearch.labels.app" . | nindent 6 }}
+    matchLabels: {{ include "edusharing_repository_search_elastic_index.labels.app" . | nindent 6 }}
 {{- end }}

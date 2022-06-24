@@ -2,11 +2,11 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "edusharing_elasticsearch.name" . }}
-  labels: {{ include "edusharing_elasticsearch.labels.app" . | nindent 4 }}
+  name: {{ include "edusharing_repository_search_elastic_index.name" . }}
+  labels: {{ include "edusharing_repository_search_elastic_index.labels.app" . | nindent 4 }}
 spec:
   type: ClusterIP
-  selector: {{ include "edusharing_elasticsearch.labels.app" . | nindent 4 }}
+  selector: {{ include "edusharing_repository_search_elastic_index.labels.app" . | nindent 4 }}
   ports:
   - name: http-api
     port: {{ .Values.service.port.api }}
@@ -15,13 +15,13 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "edusharing_elasticsearch.name" . }}-headless
-  labels: {{ include "edusharing_elasticsearch.labels.app" . | nindent 4 }}
+  name: {{ include "edusharing_repository_search_elastic_index.name" . }}-headless
+  labels: {{ include "edusharing_repository_search_elastic_index.labels.app" . | nindent 4 }}
 spec:
   type: ClusterIP
   clusterIP: None
   publishNotReadyAddresses: true
-  selector: {{ include "edusharing_elasticsearch.labels.app" . | nindent 4 }}
+  selector: {{ include "edusharing_repository_search_elastic_index.labels.app" . | nindent 4 }}
   ports:
   - name: http-api
     port: {{ .Values.service.port.api }}
@@ -32,12 +32,12 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "edusharing_elasticsearch.name" . }}-metrics
-  labels: {{ include "edusharing_elasticsearch.labels.app" . | nindent 4 }}
+  name: {{ include "edusharing_repository_search_elastic_index.name" . }}-metrics
+  labels: {{ include "edusharing_repository_search_elastic_index.labels.app" . | nindent 4 }}
     app.kubernetes.io/component: "metrics"
 spec:
   type: ClusterIP
-  selector: {{ include "edusharing_elasticsearch.labels.app" . | nindent 4 }}
+  selector: {{ include "edusharing_repository_search_elastic_index.labels.app" . | nindent 4 }}
   ports:
     - name: http-metrics
       port: {{ .Values.service.port.metrics }}
