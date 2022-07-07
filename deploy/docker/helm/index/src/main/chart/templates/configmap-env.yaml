@@ -22,3 +22,4 @@ data:
   node.ingest: "true"
   node.master: "true"
   node.store.allow_mmap: "{{ .Values.config.store.mmap }}"
+  xpack.security.enabled: "false"

@@ -14,6 +14,7 @@ services:
         -Dcom.sun.management.jmxremote.ssl=false
       discovery.type: "single-node"
       cluster.routing.allocation.disk.threshold_enabled: "false"
+      xpack.security.enabled: "false"
     expose:
       - "7199"
       - "9200"
