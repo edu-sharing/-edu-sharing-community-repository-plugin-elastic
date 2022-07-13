@@ -51,7 +51,8 @@ public class TransactionTracker {
     long lastFromCommitTime = -1;
     long lastTransactionId = -1;
 
-    final static int maxResults = 500;
+    @Value("${transactions.max:500}")
+    int transactionsMax;
 
     Logger logger = LoggerFactory.getLogger(TransactionTracker.class);
     private ForkJoinPool threadPool;
@@ -85,7 +86,7 @@ public class TransactionTracker {
 
         Transactions transactions = (lastTransactionId < 1)
                 ? client.getTransactions(0L,500L,null,null, 1)
-                : client.getTransactions(lastTransactionId, lastTransactionId + TransactionTracker.maxResults, null, null, TransactionTracker.maxResults);
+                : client.getTransactions(lastTransactionId, lastTransactionId + transactionsMax, null, null, transactionsMax);
 
         long newLastTransactionId = lastTransactionId;
         //initialize
@@ -93,8 +94,8 @@ public class TransactionTracker {
             newLastTransactionId = transactions.getTransactions().get(0).getId();
         }else {
             //step forward
-            if (transactions.getMaxTxnId() > (newLastTransactionId + TransactionTracker.maxResults)) {
-                newLastTransactionId += TransactionTracker.maxResults;
+            if (transactions.getMaxTxnId() > (newLastTransactionId + transactionsMax)) {
+                newLastTransactionId += transactionsMax;
             } else {
                 newLastTransactionId = transactions.getMaxTxnId();
             }
@@ -108,7 +109,7 @@ public class TransactionTracker {
                 logger.info("index is up to date:" + lastTransactionId + " lastFromCommitTime:" + lastFromCommitTime+" transactions.getMaxTxnId():"+transactions.getMaxTxnId());
                 return false;
             }else{
-                logger.info("did not found new transactions in last transaction block min:" + (lastTransactionId - TransactionTracker.maxResults) +" max:"+lastTransactionId  );
+                logger.info("did not found new transactions in last transaction block min:" + (lastTransactionId - transactionsMax) +" max:"+lastTransactionId  );
                 return true;
             }
         }
