@@ -176,9 +176,22 @@ public class TransactionTracker {
                 .filter(n -> !n.getStatus().equals("d"))
                 .collect(Collectors.toList());
 
+        logger.info("getNodeMetadata start " +nodes.size());
         List<NodeMetadata> nodeData = new ArrayList<>();
         try {
-            nodeData.addAll(client.getNodeMetadata(nodes));
+            //some transactions can have a lot of Nodes which can cause trouble on alfresco so use partitioning
+            final AtomicInteger counter = new AtomicInteger(0);
+            final int size = 100;
+            Collection<List<Node>> partitions = nodes.stream()
+                    .collect(Collectors.groupingBy(it -> counter.getAndIncrement() / size))
+                    .values();
+            int pIdx = 0;
+            for(List<Node> partition :  partitions){
+                logger.info("getNodeMetadata partition " +pIdx);
+                nodeData.addAll(client.getNodeMetadata(partition));
+                pIdx++;
+            }
+
         } catch(Throwable t) {
             /**
              * get node metadata
@@ -194,7 +207,7 @@ public class TransactionTracker {
                 }
             }
         }
-        logger.info("getNodeData done " +nodeData.size());
+        logger.info("getNodeMetadata done " +nodeData.size());
         try{
 
             List<NodeMetadata> toIndexUsagesMd = nodeData
