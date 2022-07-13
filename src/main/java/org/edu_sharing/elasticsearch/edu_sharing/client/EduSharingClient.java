@@ -136,7 +136,7 @@ public class EduSharingClient {
     public String translate(String mds, String language, String property, String key){
         ValuespaceEntries entries = getValuespace(mds,language,property);
         if(entries.getError() != null){
-            logger.error("error:" + entries.getError() + " m:"+entries.getMessage());
+            logger.error("error while resolving valuespace entries:" + entries.getError() + " m:"+entries.getMessage());
             return null;
         }
         String result = null;
