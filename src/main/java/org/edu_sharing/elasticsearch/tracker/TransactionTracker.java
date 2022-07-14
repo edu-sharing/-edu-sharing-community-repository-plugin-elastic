@@ -176,9 +176,14 @@ public class TransactionTracker {
                 .filter(n -> !n.getStatus().equals("d"))
                 .collect(Collectors.toList());
 
-        logger.info("getNodeMetadata start " +nodes.size());
-        List<NodeMetadata> nodeData = new ArrayList<>();
+
         try {
+            elasticClient.beforeDeleteCleanupCollectionReplicas(toDelete);
+            elasticClient.delete(toDelete);
+
+            /**
+             * index nodes
+             */
             //some transactions can have a lot of Nodes which can cause trouble on alfresco so use partitioning
             final AtomicInteger counter = new AtomicInteger(0);
             final int size = 100;
@@ -187,11 +192,39 @@ public class TransactionTracker {
                     .values();
             int pIdx = 0;
             for(List<Node> partition :  partitions){
-                logger.info("getNodeMetadata partition " +pIdx);
-                nodeData.addAll(client.getNodeMetadata(partition));
+                logger.info("indexNodes partition " +pIdx);
+                indexNodes(partition);
                 pIdx++;
             }
 
+
+            //remember for the next start of tracker
+            elasticClient.setTransaction(lastFromCommitTime,transactionIds.get(transactionIds.size() - 1));
+            //set on success
+            lastTransactionId = newLastTransactionId;
+
+            if(lastFromCommitTime > last.getCommitTimeMs()){
+                logger.info("reseting lastFromCommitTime old:" +lastFromCommitTime +" new "+last.getCommitTimeMs());
+                lastFromCommitTime = last.getCommitTimeMs() + 1;
+            }
+        }catch(IOException e){
+            logger.error(e.getMessage(),e);
+        }
+
+
+        Double percentage = (transactionIds != null && transactionIds.size() > 0) ? new Double(((double)transactionIds.get(transactionIds.size() - 1) / (double)transactions.getMaxTxnId()) * 100.0)  : 0.0;
+        DecimalFormat df = new DecimalFormat("0.00");
+        logger.info("finished "+df.format(percentage)+"%, lastTransactionId:" + last.getId() +
+                " transactions:" + Arrays.toString(transactionIds.toArray()) +
+                " nodes:" + nodes.size());
+        return true;
+    }
+
+    private void indexNodes(List<Node> nodes) throws IOException{
+        logger.info("getNodeMetadata start " + nodes.size());
+        List<NodeMetadata> nodeData = new ArrayList<>();
+        try {
+            nodeData.addAll(client.getNodeMetadata(nodes));
         } catch(Throwable t) {
             /**
              * get node metadata
@@ -208,117 +241,95 @@ public class TransactionTracker {
             }
         }
         logger.info("getNodeMetadata done " +nodeData.size());
-        try{
 
-            List<NodeMetadata> toIndexUsagesMd = nodeData
-                    .stream()
-                    .filter(n -> "ccm:usage".equals(n.getType()))
-                    .collect(Collectors.toList());
+        List<NodeMetadata> toIndexUsagesMd = nodeData
+                .stream()
+                .filter(n -> "ccm:usage".equals(n.getType()))
+                .collect(Collectors.toList());
 
-            List<NodeMetadata> toIndexMd = new ArrayList<>();
-            List<Node> ioSubobjectChange = new ArrayList<>();
-            for(NodeMetadata data : nodeData){
+        List<NodeMetadata> toIndexMd = new ArrayList<>();
+        List<Node> ioSubobjectChange = new ArrayList<>();
+        for(NodeMetadata data : nodeData){
 
-                //force reindex of parent io to get subobjects
-                if(subTypes.contains(data.getType())
-                        && (!data.getType().equals("ccm:io") || data.getAspects().contains("ccm:io_childobject"))
-                        && Constants.STORE_REF_WORKSPACE.equals(Tools.getStoreRef(data.getNodeRef()))){
+            //force reindex of parent io to get subobjects
+            if(subTypes.contains(data.getType())
+                    && (!data.getType().equals("ccm:io") || data.getAspects().contains("ccm:io_childobject"))
+                    && Constants.STORE_REF_WORKSPACE.equals(Tools.getStoreRef(data.getNodeRef()))){
 
-                    String[] splitted = data.getPaths().get(0).getApath().split("/");
-                    String parentId = splitted[splitted.length -1];
-                    Serializable value = elasticClient.getProperty(Constants.STORE_REF_WORKSPACE+"/"+parentId,"dbid");
-                    if(value != null){
-                        Long parentDbid = ((Number)value).longValue();
-                        logger.info("FOUND PARENT IO WITH "+ parentDbid);
-                        //check if exists in list
-                        if(!nodeData.stream().anyMatch(n -> n.getId() == parentDbid)){
-                            Node n = new Node();
-                            n.setId(parentDbid);
-                            ioSubobjectChange.add(n);
-                        }
-                    }//else io does not exist in index
-                }
-
-                if(allowedTypes != null && !allowedTypes.trim().equals("")){
-                    String[] allowedTypesArray = allowedTypes.split(",");
-                    String type = data.getType();
-
-                    if(!Arrays.asList(allowedTypesArray).contains(type)){
-                        logger.debug("ignoring type:" + type);
-                        continue;
+                String[] splitted = data.getPaths().get(0).getApath().split("/");
+                String parentId = splitted[splitted.length -1];
+                Serializable value = elasticClient.getProperty(Constants.STORE_REF_WORKSPACE+"/"+parentId,"dbid");
+                if(value != null){
+                    Long parentDbid = ((Number)value).longValue();
+                    logger.info("FOUND PARENT IO WITH "+ parentDbid);
+                    //check if exists in list
+                    if(!nodeData.stream().anyMatch(n -> n.getId() == parentDbid)){
+                        Node n = new Node();
+                        n.setId(parentDbid);
+                        ioSubobjectChange.add(n);
                     }
-                }
-                toIndexMd.add(data);
+                }//else io does not exist in index
             }
 
-            if(ioSubobjectChange.size() > 0){
-                toIndexMd.addAll(client.getNodeMetadata(ioSubobjectChange));
-            }
+            if(allowedTypes != null && !allowedTypes.trim().equals("")){
+                String[] allowedTypesArray = allowedTypes.split(",");
+                String type = data.getType();
 
-            List<NodeData> toIndex = client.getNodeData(toIndexMd);
-            for(NodeData data: toIndex) {
-                threadPool.execute(() -> {
-                    eduSharingClient.addPreview(data);
-                    eduSharingClient.translateValuespaceProps(data);
-                });
-            }
-            if(!threadPool.awaitQuiescence(10, TimeUnit.MINUTES)){
-                logger.error("Fatal error while processing nodes: timeout of preview and transform processing");
-                logger.error(nodeData.stream().map(NodeMetadata::getNodeRef).collect(Collectors.joining(", ")));
-            }
-
-            logger.info("final usable: " + toIndexUsagesMd.size() + " " + toIndex.size());
-
-            elasticClient.beforeDeleteCleanupCollectionReplicas(toDelete);
-            elasticClient.delete(toDelete);
-            final AtomicInteger counter = new AtomicInteger(0);
-            final int size = 50;
-            final Collection<List<NodeData>> partitioned = toIndex.stream()
-                    .collect(Collectors.groupingBy(it -> counter.getAndIncrement() / size))
-                    .values();
-            for(List<NodeData> p : partitioned){
-                elasticClient.index(p);
-            }
-            for(NodeData nodeDataStat : toIndex){
-                if(!"ccm:io".equals(nodeDataStat.getNodeMetadata().getType())
-                        || !Tools.getProtocol(nodeDataStat.getNodeMetadata().getNodeRef()).equals("workspace")){
+                if(!Arrays.asList(allowedTypesArray).contains(type)){
+                    logger.debug("ignoring type:" + type);
                     continue;
                 }
-                long trackTs = System.currentTimeMillis();
-                long trackFromTime = trackTs - (historyInDays * 24L * 60L * 60L * 1000L);
-                String nodeId = Tools.getUUID(nodeDataStat.getNodeMetadata().getNodeRef());
-                List<NodeStatistic> statisticsForNode = eduSharingClient.getStatisticsForNode(nodeId, trackFromTime);
-                Map<String,List<NodeStatistic>> updateNodeStatistics = new HashMap<>();
-                updateNodeStatistics.put(nodeId,statisticsForNode);
-                elasticClient.updateNodeStatistics(updateNodeStatistics);
-                //we don't need cleanup cause former elasticClient.index(..) call removes all statistic data
-                //elasticClient.cleanUpNodeStatistics(nodeDataStat);
             }
-
-            /**
-             * refresh index so that collections will be found by cacheCollections process
-             */
-            elasticClient.refresh(ElasticsearchClient.INDEX_WORKSPACE);
-            for(NodeMetadata usage : toIndexUsagesMd) elasticClient.indexCollections(usage);
-
-            //remember for the next start of tracker
-            elasticClient.setTransaction(lastFromCommitTime,transactionIds.get(transactionIds.size() - 1));
-            //set on success
-            lastTransactionId = newLastTransactionId;
-
-            if(lastFromCommitTime > last.getCommitTimeMs()){
-                logger.info("reseting lastFromCommitTime old:" +lastFromCommitTime +" new "+last.getCommitTimeMs());
-                lastFromCommitTime = last.getCommitTimeMs() + 1;
-            }
-        }catch(IOException e){
-            logger.error(e.getMessage(),e);
+            toIndexMd.add(data);
         }
 
-        Double percentage = (transactionIds != null && transactionIds.size() > 0) ? new Double(((double)transactionIds.get(transactionIds.size() - 1) / (double)transactions.getMaxTxnId()) * 100.0)  : 0.0;
-        DecimalFormat df = new DecimalFormat("0.00");
-        logger.info("finished "+df.format(percentage)+"%, lastTransactionId:" + last.getId() +
-                " transactions:" + Arrays.toString(transactionIds.toArray()) +
-                " nodes:" + nodes.size());
-        return true;
+        if(ioSubobjectChange.size() > 0){
+            toIndexMd.addAll(client.getNodeMetadata(ioSubobjectChange));
+        }
+
+        List<NodeData> toIndex = client.getNodeData(toIndexMd);
+        for(NodeData data: toIndex) {
+            threadPool.execute(() -> {
+                eduSharingClient.addPreview(data);
+                eduSharingClient.translateValuespaceProps(data);
+            });
+        }
+        if(!threadPool.awaitQuiescence(10, TimeUnit.MINUTES)){
+            logger.error("Fatal error while processing nodes: timeout of preview and transform processing");
+            logger.error(nodeData.stream().map(NodeMetadata::getNodeRef).collect(Collectors.joining(", ")));
+        }
+
+        logger.info("final usable: " + toIndexUsagesMd.size() + " " + toIndex.size());
+
+
+        final AtomicInteger counter = new AtomicInteger(0);
+        final int size = 50;
+        final Collection<List<NodeData>> partitioned = toIndex.stream()
+                .collect(Collectors.groupingBy(it -> counter.getAndIncrement() / size))
+                .values();
+        for(List<NodeData> p : partitioned){
+            elasticClient.index(p);
+        }
+        for(NodeData nodeDataStat : toIndex){
+            if(!"ccm:io".equals(nodeDataStat.getNodeMetadata().getType())
+                    || !Tools.getProtocol(nodeDataStat.getNodeMetadata().getNodeRef()).equals("workspace")){
+                continue;
+            }
+            long trackTs = System.currentTimeMillis();
+            long trackFromTime = trackTs - (historyInDays * 24L * 60L * 60L * 1000L);
+            String nodeId = Tools.getUUID(nodeDataStat.getNodeMetadata().getNodeRef());
+            List<NodeStatistic> statisticsForNode = eduSharingClient.getStatisticsForNode(nodeId, trackFromTime);
+            Map<String,List<NodeStatistic>> updateNodeStatistics = new HashMap<>();
+            updateNodeStatistics.put(nodeId,statisticsForNode);
+            elasticClient.updateNodeStatistics(updateNodeStatistics);
+            //we don't need cleanup cause former elasticClient.index(..) call removes all statistic data
+            //elasticClient.cleanUpNodeStatistics(nodeDataStat);
+        }
+
+        /**
+         * refresh index so that collections will be found by cacheCollections process
+         */
+        elasticClient.refresh(ElasticsearchClient.INDEX_WORKSPACE);
+        for(NodeMetadata usage : toIndexUsagesMd) elasticClient.indexCollections(usage);
     }
 }
