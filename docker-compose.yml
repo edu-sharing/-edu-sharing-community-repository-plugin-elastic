@@ -1,6 +1,23 @@
 version: "3.7"
 services:
 
+  elastic:
+    image: "elasticsearch:8.3.2"
+    environment:
+      ES_JAVA_OPTS: >-
+        -Xms${REPOSITORY_SEARCH_ELASTIC_INDEX_JAVA_XMS:-512m}
+        -Xmx${REPOSITORY_SEARCH_ELASTIC_INDEX_JAVA_XMX:-512m}
+        -Dcom.sun.management.jmxremote
+        -Dcom.sun.management.jmxremote.authenticate=false
+        -Dcom.sun.management.jmxremote.port=7199
+        -Dcom.sun.management.jmxremote.ssl=false
+      discovery.type: "single-node"
+      cluster.routing.allocation.disk.threshold_enabled: "false"
+    ports:
+      - "7199:7199"
+      - "9200:9200"
+      - "9300:9300"
+
   tracker:
     build: . 
     environment: 
