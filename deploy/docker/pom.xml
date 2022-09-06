@@ -34,7 +34,7 @@
       dockerio.mirror.docker.edu-sharing.com/openjdk:11-jdk-bullseye
     </docker.from.openjdk>
 
-    <helm.kube.version>&gt;= 1.18.0</helm.kube.version>
+    <helm.kube.version>&gt;= 1.19.0</helm.kube.version>
     <helm.version>3.8.2</helm.version>
 
   </properties>
