@@ -12,6 +12,8 @@ global:
   image:
     pullPolicy: Always
     pullSecrets: []
+    registry: ${docker.registry}
+    repository: ${docker.repository}
 
   metrics:
     scrape:
@@ -27,8 +29,6 @@ global:
 nameOverride: edusharing-repository-search-elastic-tracker
 
 image:
-  registry: ${docker.registry}
-  repository: ${docker.repository}
   prefix: ${docker.prefix}
   tag: ${docker.tag}
 

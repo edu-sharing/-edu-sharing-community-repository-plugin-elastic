@@ -27,3 +27,9 @@ app.kubernetes.io/name: {{ include "edusharing_repository_search_elastic_index.n
 version: {{ .Chart.AppVersion | quote }}
 app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
 {{- end -}}
+
+{{- define "edusharing_repository_search_elastic_index.image" -}}
+{{- $registry := default .Values.global.image.registry .Values.image.registry -}}
+{{- $repository := default .Values.global.image.repository .Values.image.repository -}}
+{{ $registry }}{{ if $registry }}/{{ end }}{{ $repository }}{{ if $repository }}/{{ end }}
+{{- end -}}
