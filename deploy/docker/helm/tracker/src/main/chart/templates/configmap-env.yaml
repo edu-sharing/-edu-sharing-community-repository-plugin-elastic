@@ -25,4 +25,4 @@ data:
   REPOSITORY_SEARCH_ELASTIC_TRACKER_MANAGEMENT_BIND: "0.0.0.0"
   REPOSITORY_SERVICE_HOST: {{ .Values.config.repository.host | quote }}
   REPOSITORY_SERVICE_PORT: {{ .Values.config.repository.port | quote }}
-  SPRING_APPLICATION_JSON: {{ .Values.config.options | quote }}
+  SPRING_APPLICATION_JSON: {{ .Values.config.override | quote }}
