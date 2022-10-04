@@ -17,6 +17,7 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import java.io.Serializable;
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 @Component
@@ -34,11 +35,8 @@ public class AlfrescoWebscriptClient {
     @Value("${log.requests}")
     String logRequests;
 
-    @Value("${alfresco.username}")
-    String alfrescoUsername;
-
-    @Value("${alfresco.password}")
-    String alfrescoPassword;
+    @Value("${alfresco.readTimeout}")
+    long alfrescoReadTimeout;
 
     @Value("${trackContent}")
     boolean trackContent;
@@ -69,6 +67,7 @@ public class AlfrescoWebscriptClient {
 
     public AlfrescoWebscriptClient() {
         client = ClientBuilder.newBuilder()
+                .readTimeout(alfrescoReadTimeout, TimeUnit.MILLISECONDS)
                 .register(JacksonJsonProvider.class).build();
         //client.property("use.async.http.conduit", Boolean.TRUE);
         //client.property("org.apache.cxf.transport.http.async.usePolicy", AsyncHTTPConduitFactory.UseAsyncPolicy.ALWAYS);

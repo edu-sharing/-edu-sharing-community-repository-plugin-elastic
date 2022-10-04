@@ -1224,6 +1224,13 @@ public class ElasticsearchClient {
                                     .startObject("mapping")
                                         .field("type", "keyword")
                                         .field("store", true)
+                                        /**
+                                         * prevent
+                                         * type=illegal_argument_exception, reason=Document contains at least one immense term in field="properties_aggregated.ccm:ph_history" (whose UTF8 encoding is longer than the max length 32766)
+                                         *
+                                         * https://www.elastic.co/guide/en/elasticsearch/reference/current/ignore-above.html
+                                         */
+                                        .field("ignore_above",256)
                                     .endObject()
                                 .endObject()
                             .endObject()

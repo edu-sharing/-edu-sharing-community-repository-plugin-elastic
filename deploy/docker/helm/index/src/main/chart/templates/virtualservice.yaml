@@ -13,5 +13,10 @@ spec:
     - destination:
         host: {{ include "edusharing_repository_search_elastic_index.name" . }}
       weight: 100
+  tcp:
+  - route:
+    - destination:
+        host: {{ include "edusharing_repository_search_elastic_index.name" . }}
+      weight: 100
 {{- end }}
 {{- end }}
