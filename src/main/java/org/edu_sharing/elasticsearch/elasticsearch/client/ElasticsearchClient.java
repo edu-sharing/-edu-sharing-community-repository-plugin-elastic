@@ -554,6 +554,7 @@ public class ElasticsearchClient {
                         List<String> val = (List<String>)entry.getValue();
                         for(String v : val){
                             try {
+                                if(v == null) continue;
                                 VCard vcard = vcardEngine.parse(v);
                                 if(vcard != null){
 
@@ -588,6 +589,8 @@ public class ElasticsearchClient {
                                 }
                             } catch (VCardParseException e) {
                                 logger.error(e.getMessage(),e);
+                            }catch (NullPointerException e){
+                                logger.error("node: "+id +" "+ e.getMessage(),e);
                             }
                         }
 
