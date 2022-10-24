@@ -356,6 +356,18 @@ public class ElasticsearchClient {
             builder.field("txnId",node.getTxnId());
             builder.field("dbid",node.getId());
 
+            List<String> parentUuids = Arrays.asList(node.getPaths().get(0).getApath().split("/"));
+            String parentUuid = parentUuids.stream().skip(parentUuids.size() -1).findFirst().get();
+            //getAncestors() is not sorted
+            String primaryParentRef = node.getAncestors().stream().filter(s -> s.contains(parentUuid)).findAny().get();
+            builder.startObject("parentRef")
+                    .startObject("storeRef")
+                        .field("protocol",Tools.getProtocol(primaryParentRef))
+                        .field("identifier",Tools.getIdentifier(primaryParentRef))
+                    .endObject()
+                    .field("id",Tools.getUUID(primaryParentRef))
+            .endObject();
+
             String id = node.getNodeRef().split("://")[1].split("/")[1];
             builder.startObject("nodeRef")
                     .startObject("storeRef")
@@ -542,6 +554,7 @@ public class ElasticsearchClient {
                         List<String> val = (List<String>)entry.getValue();
                         for(String v : val){
                             try {
+                                if(v == null) continue;
                                 VCard vcard = vcardEngine.parse(v);
                                 if(vcard != null){
 
@@ -576,6 +589,8 @@ public class ElasticsearchClient {
                                 }
                             } catch (VCardParseException e) {
                                 logger.error(e.getMessage(),e);
+                            }catch (NullPointerException e){
+                                logger.error("node: "+id +" "+ e.getMessage(),e);
                             }
                         }
 

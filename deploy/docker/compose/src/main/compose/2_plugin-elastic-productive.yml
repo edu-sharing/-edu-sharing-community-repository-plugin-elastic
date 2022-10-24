@@ -1,0 +1,9 @@
+version: '3.7'
+
+services:
+
+  repository-search-elastic-index:
+    restart: unless-stopped
+
+  repository-search-elastic-tracker:
+    restart: unless-stopped
