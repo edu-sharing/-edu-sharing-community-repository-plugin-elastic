@@ -18,6 +18,9 @@ global:
         spec: {}
 #          storageClassName:
 
+    sysctl:
+      enabled: false
+
   image:
     pullPolicy: Always
     pullSecrets: []
@@ -60,11 +63,11 @@ config:
 
   jvm:
     ram:
-      minPercentage: "75.0"
-      maxPercentage: "75.0"
+      minPercentage: "50.0"
+      maxPercentage: "50.0"
 
   store:
-    mmap: false
+    mmap: true
 
 ########################################################################################################################
 
@@ -143,6 +146,21 @@ resources:
 init:
 
   permission:
+
+    resources:
+
+      limits:
+        cpu: 125m
+        memory: 512Mi
+      requests:
+        cpu: 125m
+        memory: 512Mi
+
+    securityContext:
+
+      runAsUser: 0
+
+  sysctl:
 
     resources:
 
