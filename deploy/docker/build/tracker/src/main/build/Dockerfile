@@ -5,8 +5,11 @@ FROM ${docker.from.openjdk}
 RUN set -eux \
     && apt-get update -y \
     && apt-get install -y --no-install-recommends \
-		jq \
-		wait-for-it \
+		curl \
+        jq \
+		nano \
+        wait-for-it \
+        wget \
         xmlstarlet \
     && apt-get clean \
     && rm -r /var/lib/apt/lists/*
