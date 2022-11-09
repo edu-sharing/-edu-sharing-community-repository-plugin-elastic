@@ -88,6 +88,10 @@ spec:
           containerPort: 9200
         - name: gossip
           containerPort: 9300
+        {{- if default .Values.global.debug .Values.debug }}
+        - name: jpda
+          containerPort: 5005
+        {{- end }}
         volumeMounts:
         - name: data
           mountPath: /usr/share/elasticsearch/data
