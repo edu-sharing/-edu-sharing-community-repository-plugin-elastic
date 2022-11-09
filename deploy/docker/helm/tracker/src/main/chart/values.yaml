@@ -9,6 +9,8 @@ global:
     istio:
       enabled: false
 
+  debug: false
+
   image:
     pullPolicy: Always
     pullSecrets: []
