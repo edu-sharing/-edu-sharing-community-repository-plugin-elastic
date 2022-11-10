@@ -15,6 +15,9 @@ data:
     -Dcom.sun.management.jmxremote.authenticate=false
     -Dcom.sun.management.jmxremote.port=7199
     -Dcom.sun.management.jmxremote.ssl=false
+    {{- if default .Values.global.debug .Values.debug }}
+    -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=5005
+    {{- end }}
   cluster.initial_master_nodes: "{{ range $i := until (.Values.replicaCount | int) }}{{ include "edusharing_repository_search_elastic_index.name" $ }}-{{ $i }},{{ end }}"
   cluster.name: {{ include "edusharing_repository_search_elastic_index.name" . | quote }}
   discovery.seed_hosts: "{{ include "edusharing_repository_search_elastic_index.name" . }}-headless"

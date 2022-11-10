@@ -28,7 +28,7 @@
       elastic.mirror.docker.edu-sharing.com/elasticsearch/elasticsearch:${elasticsearch.version}
     </docker.from.elasticsearch.server>
     <docker.from.minideb>
-      dockerio.mirror.docker.edu-sharing.com/bitnami/minideb:bullseye
+      dockerio.mirror.docker.edu-sharing.com/bitnami/bitnami-shell:11
     </docker.from.minideb>
     <docker.from.openjdk>
       dockerio.mirror.docker.edu-sharing.com/openjdk:11-jdk-bullseye

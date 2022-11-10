@@ -5,8 +5,11 @@ FROM ${docker.from.openjdk}
 RUN set -eux \
     && apt-get update -y \
     && apt-get install -y --no-install-recommends \
-		jq \
-		wait-for-it \
+		curl \
+        jq \
+		nano \
+        wait-for-it \
+        wget \
         xmlstarlet \
     && apt-get clean \
     && rm -r /var/lib/apt/lists/*
@@ -30,9 +33,17 @@ RUN set -eux \
 
 USER worker
 
-### Tracker ############################################################################################################
+########################################################################################################################
 
 COPY --chown=worker:worker artifacts/edu_sharing-community-repository-plugin-elastic-tracker-${org.edu_sharing:edu_sharing-community-repository-plugin-elastic-tracker:jar.version}.jar ./
+
+########################################################################################################################
+
+RUN set -eux \
+    && mkdir profiler \
+    && wget -qO- https://github.com/Granulate/async-profiler/releases/download/v2.0g1/async-profiler-2.0-linux-x64.tar.gz | tar xvz -C profiler
+
+COPY --chown=worker:worker assets/profiler profiler/
 
 ########################################################################################################################
 
