@@ -1266,7 +1266,7 @@ public class ElasticsearchClient {
                                 .startObject("read").field("type","keyword").endObject()
                             .endObject()
                     .endObject();
-                    //@TODO content
+                    addContentDefinition(builder);
                     builder.startObject("properties")
                             .startObject("properties")
                                 .startObject("ccm:original").field("type","keyword").endObject()
@@ -1315,6 +1315,18 @@ public class ElasticsearchClient {
         }
     }
 
+    private void addContentDefinition(XContentBuilder builder) throws IOException {
+        builder.startObject("content")
+            .startObject("properties")
+                .startObject("fulltext").field("type","text").endObject()
+                .startObject("contentId").field("type","long").endObject()
+                .startObject("size").field("type","long").endObject()
+                .startObject("encoding").field("type","keyword").endObject()
+                .startObject("locale").field("type","keyword").endObject()
+                .startObject("mimetype").field("type","keyword").endObject()
+            .endObject()
+        .endObject();
+    }
     public SearchHits search(String index, QueryBuilder queryBuilder, int from, int size) throws IOException {
         SearchRequest searchRequest = new SearchRequest(index);
         SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
