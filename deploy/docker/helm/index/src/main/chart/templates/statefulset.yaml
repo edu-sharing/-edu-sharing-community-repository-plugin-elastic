@@ -39,7 +39,9 @@ spec:
         - "/bin/bash"
         - "-ec"
         - |
-          chown -R {{ .Values.podSecurityContext.runAsUser }}:{{ .Values.podSecurityContext.fsGroup }} /usr/share/elasticsearch/data
+          if [[ ! "$(ls -A /usr/share/elasticsearch/data)" ]]; then
+            chown -R {{ .Values.podSecurityContext.runAsUser }}:{{ .Values.podSecurityContext.fsGroup }} /usr/share/elasticsearch/data
+          fi
         volumeMounts:
         - name: data
           mountPath: /usr/share/elasticsearch/data
