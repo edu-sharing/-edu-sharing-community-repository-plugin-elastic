@@ -1443,8 +1443,9 @@ public class ElasticsearchClient {
                             .field("type", "object")
                             .startObject("properties")
                                 .startObject("type").field("type", "keyword").endObject()
-                                .startObject("aspects").field("type", "keyword").endObject()
-                            .endObject()
+                                .startObject("aspects").field("type", "keyword").endObject();
+                                addContentDefinition(builder);
+                            builder.endObject()
                     .endObject();
                     builder.startObject("aspects").field("type","keyword").endObject();
                     builder.startObject("collections")
