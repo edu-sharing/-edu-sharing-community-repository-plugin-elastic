@@ -1497,22 +1497,35 @@ public class ElasticsearchClient {
     }
 
     public SearchHits search(String index, QueryBuilder queryBuilder, int from, int size) throws IOException {
+        return this.search(index,queryBuilder,from,size,null);
+    }
+    public SearchHits search(String index, QueryBuilder queryBuilder, int from, int size, List<String> excludes) throws IOException {
         SearchRequest searchRequest = new SearchRequest(index);
         SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
         searchSourceBuilder.query(queryBuilder);
         searchSourceBuilder.from(from);
         searchSourceBuilder.size(size);
+        if(excludes != null && excludes.size() > 0){
+            searchSourceBuilder.fetchSource(null,excludes.toArray(new String[]{}));
+        }
         searchRequest.source(searchSourceBuilder);
         SearchResponse searchResponse = client.search(searchRequest, RequestOptions.DEFAULT);
         return searchResponse.getHits();
     }
 
     public Serializable getProperty(String nodeRef, String property) throws IOException {
-       Map<String,Object> sourceMap = getSourceMap(nodeRef);
-       return (sourceMap == null) ? null: (Serializable)sourceMap.get(property);
+        List<String> excludes = new ArrayList<>();
+        excludes.add("preview");
+        excludes.add("content");
+        Map<String,Object> sourceMap = getSourceMap(nodeRef,excludes);
+        return (sourceMap == null) ? null: (Serializable)sourceMap.get(property);
     }
 
     public Map<String,Object> getSourceMap(String nodeRef) throws IOException {
+        return this.getSourceMap(nodeRef,null);
+    }
+    public Map<String,Object> getSourceMap(String nodeRef, List<String> excludes) throws IOException {
+
         String uuid = Tools.getUUID(nodeRef);
         String protocol = Tools.getProtocol(nodeRef);
         String identifier = Tools.getIdentifier(nodeRef);
@@ -1521,7 +1534,7 @@ public class ElasticsearchClient {
                 .must(QueryBuilders.termQuery("nodeRef.storeRef.protocol",protocol))
                 .must(QueryBuilders.termQuery("nodeRef.storeRef.identifier",identifier));
 
-        SearchHits sh = this.search(INDEX_WORKSPACE,qb,0,1);
+        SearchHits sh = this.search(INDEX_WORKSPACE,qb,0,1, excludes);
         if(sh == null || sh.getTotalHits().value == 0){
             return null;
         }
@@ -1629,8 +1642,10 @@ public class ElasticsearchClient {
 
     public void cleanUpNodeStatistics(String nodeUuid) throws IOException {
 
-
-        Map<String, Object> sourceMap = getSourceMap("workspace://SpacesStore/" + nodeUuid);
+        List<String> excludes = new ArrayList<>();
+        excludes.add("preview");
+        excludes.add("content");
+        Map<String, Object> sourceMap = getSourceMap("workspace://SpacesStore/" + nodeUuid,excludes);
         if(sourceMap == null){
             return;
         }
