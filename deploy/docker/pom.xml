@@ -21,7 +21,7 @@
   <properties>
 
     <docker.from.elasticsearch.exporter>
-      quay.mirror.docker.edu-sharing.com/prometheuscommunity/elasticsearch-exporter:v1.3.0
+      quay.mirror.docker.edu-sharing.com/prometheuscommunity/elasticsearch-exporter:v1.5.0
     </docker.from.elasticsearch.exporter>
     <!--suppress UnresolvedMavenProperty -->
     <docker.from.elasticsearch.server>
@@ -31,11 +31,11 @@
       dockerio.mirror.docker.edu-sharing.com/bitnami/bitnami-shell:11
     </docker.from.minideb>
     <docker.from.openjdk>
-      dockerio.mirror.docker.edu-sharing.com/openjdk:11-jdk-bullseye
+      dockerio.mirror.docker.edu-sharing.com/openjdk:11-jdk
     </docker.from.openjdk>
 
-    <helm.kube.version>&gt;= 1.19.0</helm.kube.version>
-    <helm.version>3.8.2</helm.version>
+    <helm.kube.version>&gt;= 1.20.0</helm.kube.version>
+    <helm.version>3.10.0</helm.version>
 
   </properties>
 

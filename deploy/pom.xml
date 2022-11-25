@@ -26,7 +26,7 @@
 
     <elasticsearch.version.major>7</elasticsearch.version.major>
     <elasticsearch.version.minor>17</elasticsearch.version.minor>
-    <elasticsearch.version.patch>0</elasticsearch.version.patch>
+    <elasticsearch.version.patch>7</elasticsearch.version.patch>
     <elasticsearch.version>
       ${elasticsearch.version.major}.${elasticsearch.version.minor}.${elasticsearch.version.patch}
     </elasticsearch.version>
@@ -35,7 +35,7 @@
 
   <modules>
     <module>docker</module>
-    <module>installer</module>
+<!--    <module>installer</module>-->
   </modules>
 
 </project>
