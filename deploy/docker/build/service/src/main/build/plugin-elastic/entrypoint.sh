@@ -1,5 +1,8 @@
 #!/bin/bash
-set -eux
+[[ -n $DEBUG ]] && set -x
+set -eu
+
+########################################################################################################################
 
 repository_search_elastic_index_host="${REPOSITORY_SEARCH_ELASTIC_INDEX_HOST:-repository-search-elastic-index}"
 repository_search_elastic_index_port="${REPOSITORY_SEARCH_ELASTIC_INDEX_PORT:-9200}"
