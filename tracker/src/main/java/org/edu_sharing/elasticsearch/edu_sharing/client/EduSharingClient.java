@@ -73,6 +73,9 @@ public class EduSharingClient {
 
     long valuespaceCacheLastModified = -1;
 
+    @Value("${preview.maxKiloBytes : 100}")
+    long previewMaxKiloBytes;
+
 
     private Client educlient;
 
@@ -298,6 +301,9 @@ public class EduSharingClient {
 
         NodePreview preview = new NodePreview();
         if(previewSmall!=null) {
+            if(previewSmall.getData() != null && (previewSmall.getData().length /1024) > previewMaxKiloBytes){
+                return;
+            }
             preview.setMimetype(previewSmall.getMimetype());
             preview.setSmall(previewSmall.getData());
         }
