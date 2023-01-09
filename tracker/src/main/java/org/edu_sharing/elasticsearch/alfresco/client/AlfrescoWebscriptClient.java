@@ -247,9 +247,9 @@ public class AlfrescoWebscriptClient {
                 }
 
                 if (children.size() > 0 && allowedChildTypes.size() > 0) {
-                    List<NodeData> childrenFiltered = getNodeData(this.getNodeMetadata(children)).stream().filter((node) ->
-                            allowedChildTypes.contains("ALL") || allowedChildTypes.contains(node.getNodeMetadata().getType())
-                    ).collect(Collectors.toList());
+                    List<NodeData> childrenFiltered = getNodeData(this.getNodeMetadata(children).stream().filter((node) ->
+                            allowedChildTypes.contains("ALL") || allowedChildTypes.contains(node.getType())
+                    ).collect(Collectors.toList()));
                     if(childrenFiltered.size() > 0) {
                         nodeData.getChildren().addAll(childrenFiltered);
                     }
