@@ -13,6 +13,7 @@ import org.edu_sharing.elasticsearch.alfresco.client.Node;
 import org.edu_sharing.elasticsearch.edu_sharing.client.EduSharingClient;
 import org.edu_sharing.elasticsearch.edu_sharing.client.NodeStatistic;
 import org.edu_sharing.elasticsearch.tools.Tools;
+import org.elasticsearch.action.DocWriteRequest;
 import org.edu_sharing.repository.client.tools.CCConstants;
 import org.elasticsearch.action.DocWriteResponse;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
@@ -100,6 +101,8 @@ public class ElasticsearchClient {
 
     @Value("${elastic.index.number_of_replicas}")
     int indexNumberOfReplicas;
+    @Value("${elastic.maxCollectionChildItemsUpdateSize}")
+    int maxCollectionChildItemsUpdateSize;
 
     Logger logger = LogManager.getLogger(ElasticsearchClient.class);
 
@@ -264,7 +267,7 @@ public class ElasticsearchClient {
                     logger.debug("updated node in elastic:" + node);
                     if(node.getType().equals("ccm:map") && node.getAspects().contains("ccm:collection")){
                         this.refresh(INDEX_WORKSPACE);
-                        onUpdateRefreshUsageCollectionReplicas(nodeData.getNodeMetadata());
+                        onUpdateRefreshUsageCollectionReplicas(nodeData.getNodeMetadata(), indexResponse.getResult() == DocWriteResponse.Result.UPDATED);
                     }
                 }
                 ReplicationResponse.ShardInfo shardInfo = indexResponse.getShardInfo();
@@ -321,7 +324,7 @@ public class ElasticsearchClient {
                     Long dbId = Long.parseLong(item.getResponse().getId());
                     NodeData nodeData = collectionNodes.get(dbId);
                     if (nodeData != null) {
-                        onUpdateRefreshUsageCollectionReplicas(nodeData.getNodeMetadata());
+                        onUpdateRefreshUsageCollectionReplicas(nodeData.getNodeMetadata(), item.getOpType() == DocWriteRequest.OpType.UPDATE || item.getOpType() == DocWriteRequest.OpType.INDEX);
                     }
                 }
                 logger.info("finished RefreshCollectionReplicas");
@@ -938,7 +941,7 @@ public class ElasticsearchClient {
         this.updateBulk(updateRequests);
     }
 
-    private void onUpdateRefreshUsageCollectionReplicas(NodeMetadata node) throws IOException {
+    private void onUpdateRefreshUsageCollectionReplicas(NodeMetadata node, boolean update) throws IOException {
 
         String query = null;
         String queryProposal = null;
@@ -975,14 +978,20 @@ public class ElasticsearchClient {
                     logger.error("could not find usage/proposal object in alfresco with dbid:" + dbId);
                     return;
                 }
+
                 NodeMetadata usage = nodeMetadatas.getNodes().get(0);
+                logger.info("Is update: {}", update);
+                if(update && nodeMetadatas.getNodes().size() > maxCollectionChildItemsUpdateSize){
+                    logger.warn("to much children detected at node {}. Skipping synchronization of children", usage.getNodeRef());
+                    return;
+                }
+
                 logger.info("running indexCollections for usage: " + dbId);
                 indexCollections(usage);
             }
         };
-        shr.run(queryUsages);
-        shr.run(queryProposals);
-
+        shr.run(queryUsages, 5, update ? maxCollectionChildItemsUpdateSize: null);
+        shr.run(queryProposals, 5, update ? maxCollectionChildItemsUpdateSize: null);
     }
 
     private String getMultilangValue(List listvalue){
