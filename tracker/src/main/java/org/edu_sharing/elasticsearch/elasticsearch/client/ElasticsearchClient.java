@@ -712,8 +712,12 @@ public class ElasticsearchClient {
         if(usageOrProposal.getType().equals("ccm:collection_proposal")){
             List<String> parentUuids = Arrays.asList(usageOrProposal.getPaths().get(0).getApath().split("/"));
             nodeIdCollection = parentUuids.stream().skip(parentUuids.size() -1).findFirst().get();
-            String ioNodeRef = usageOrProposal.getProperties().get("{http://www.campuscontent.de/model/1.0}collection_proposal_target").toString();
-            nodeIdIO = Tools.getUUID(ioNodeRef);
+            Serializable ioNodeRef = usageOrProposal.getProperties().get("{http://www.campuscontent.de/model/1.0}collection_proposal_target");
+            if(ioNodeRef == null) {
+                logger.warn("no proposal target found for: " + usageOrProposal.getNodeRef());
+                return;
+            }
+            nodeIdIO = Tools.getUUID(ioNodeRef.toString());
         }
 
         QueryBuilder collectionQuery = QueryBuilders.termQuery("properties.sys:node-uuid",nodeIdCollection);
