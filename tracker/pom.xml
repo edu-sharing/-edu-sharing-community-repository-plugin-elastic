@@ -51,6 +51,12 @@
     <dependencies>
 
       <dependency>
+        <groupId>org.codehaus.groovy</groupId>
+        <artifactId>groovy-all</artifactId>
+        <version>2.4.16</version>
+      </dependency>
+
+      <dependency>
         <groupId>net.sourceforge.cardme</groupId>
         <artifactId>cardme</artifactId>
         <version>0.4.0</version>
@@ -90,6 +96,10 @@
           <artifactId>alfresco-solrclient</artifactId>
         </dependency>
     -->
+    <dependency>
+      <groupId>org.codehaus.groovy</groupId>
+      <artifactId>groovy-all</artifactId>
+    </dependency>
 
     <dependency>
       <groupId>net.sourceforge.cardme</groupId>
