@@ -7,3 +7,5 @@ services:
 
   repository-search-elastic-tracker:
     restart: unless-stopped
+    volumes:
+      - ./tracker/scripts:/opt/alfresco/scripts

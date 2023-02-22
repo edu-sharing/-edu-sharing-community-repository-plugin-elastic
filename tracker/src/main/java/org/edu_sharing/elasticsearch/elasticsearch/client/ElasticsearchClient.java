@@ -12,6 +12,7 @@ import org.edu_sharing.elasticsearch.alfresco.client.*;
 import org.edu_sharing.elasticsearch.alfresco.client.Node;
 import org.edu_sharing.elasticsearch.edu_sharing.client.EduSharingClient;
 import org.edu_sharing.elasticsearch.edu_sharing.client.NodeStatistic;
+import org.edu_sharing.elasticsearch.tools.ScriptExecutor;
 import org.edu_sharing.elasticsearch.tools.Tools;
 import org.edu_sharing.repository.client.tools.CCConstants;
 import org.elasticsearch.action.DocWriteResponse;
@@ -74,6 +75,7 @@ import static org.elasticsearch.common.xcontent.XContentFactory.jsonBuilder;
 @Component
 public class ElasticsearchClient {
 
+    public static final String CONTRIBUTOR_REGEX = "ccm:[a-zA-Z]*contributer_[a-zA-Z_-]*";
     @Value("${elastic.host}")
     String elasticHost;
 
@@ -122,6 +124,9 @@ public class ElasticsearchClient {
 
     @Autowired
     RestHighLevelClient client = null;
+
+    @Autowired
+    ScriptExecutor scriptExecutor;
 
     @Autowired
     private EduSharingClient eduSharingClient;
@@ -445,7 +450,7 @@ public class ElasticsearchClient {
                 }
 
                 Serializable value = prop.getValue();
-                if(key.matches("ccm:[a-zA-Z]*contributer_[a-zA-Z_-]*")){
+                if(key.matches(CONTRIBUTOR_REGEX)){
                     if(value != null){
                         contributorProperties.put(key,value);
                     }
@@ -649,6 +654,7 @@ public class ElasticsearchClient {
                     builder.field("statistic_RATING_null", ratingAll);
                 }
             }
+            scriptExecutor.addCustomPropertiesByScript(builder, nodeData);
         }
         if(nodeData instanceof NodeDataProposal) {
             builder = getProposalData((NodeDataProposal) nodeData, builder);
