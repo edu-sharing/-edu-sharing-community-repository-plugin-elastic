@@ -98,7 +98,9 @@ public class ScriptExecutor {
     private void init() {
         try {
             scripts = scriptLoaderService.getFiles();
-            assert scripts != null;
+            if(scripts == null) {
+                scripts = new File[0];
+            }
             Arrays.sort(scripts);
             for (File script : scripts) {
                 logger.info("Registered script: " + script.getName());
