@@ -186,11 +186,15 @@ public class EduSharingClient {
 
                     if (prop.getValue() instanceof List) {
                         ArrayList<String> translatedList = new ArrayList<>();
-                        for (String value : (List<String>) prop.getValue()) {
-                           String translatedVal =  translate(mds,language,key,value);
-                           if(translatedVal != null && !translatedVal.trim().equals("")){
-                               translatedList.add(translatedVal);
-                           }
+                        for (Serializable value : (List<Serializable>) prop.getValue()) {
+                            if(value instanceof String) {
+                                String translatedVal = translate(mds, language, key, (String) value);
+                                if (translatedVal != null && !translatedVal.trim().equals("")) {
+                                    translatedList.add(translatedVal);
+                                }
+                            } else {
+                                logger.warn("Can't translate value for field " + key + " of type " + value.getClass() + " at node " + data.getNodeMetadata().getNodeRef());
+                            }
                         }
                         if(translatedList.size()>0){
                             translated = translatedList;
