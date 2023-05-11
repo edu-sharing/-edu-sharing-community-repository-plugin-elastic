@@ -372,7 +372,7 @@ public class EduSharingClient {
                     return aClass.equals(OffsetDateTime.class);
                 }
             }).create().fromJson(result, NodeEntry.class);
-        }catch(Exception e) {
+        }catch(Throwable e) {
             logger.info("Could not fetch node " + nodeId, e);
             return null;
         }
