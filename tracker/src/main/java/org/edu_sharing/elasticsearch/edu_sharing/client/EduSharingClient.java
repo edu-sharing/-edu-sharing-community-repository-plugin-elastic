@@ -314,7 +314,7 @@ public class EduSharingClient {
         NodeEntry nodeEntry = getNode(Tools.getUUID(node.getNodeMetadata().getNodeRef()));
         if(nodeEntry != null) {
             Node nodeData = nodeEntry.getNode();
-            if (nodeData.getPreview() != null) {
+            if (nodeData != null && nodeData.getPreview() != null) {
                 preview.setIsIcon(nodeData.getPreview().getIsIcon());
                 preview.setType(nodeData.getPreview().getType());
             }
