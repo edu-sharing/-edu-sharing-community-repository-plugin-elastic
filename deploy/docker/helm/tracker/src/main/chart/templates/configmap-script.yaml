@@ -1,0 +1,10 @@
+{{- if .Values.config.tracker.customScript }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "edusharing_repository_search_elastic_tracker.name" . }}-script
+  labels: {{ include "edusharing_repository_search_elastic_tracker.labels.app" . | nindent 4 }}
+data:
+  script.groovy: |
+{{ .Values.config.tracker.customScript | indent 4 }}
+{{- end -}}
