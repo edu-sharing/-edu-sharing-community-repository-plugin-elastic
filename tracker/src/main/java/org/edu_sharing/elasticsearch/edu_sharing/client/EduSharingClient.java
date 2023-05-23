@@ -1,11 +1,16 @@
 package org.edu_sharing.elasticsearch.edu_sharing.client;
 
 import com.fasterxml.jackson.jaxrs.json.JacksonJsonProvider;
+import com.google.gson.ExclusionStrategy;
+import com.google.gson.FieldAttributes;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import org.apache.cxf.feature.LoggingFeature;
 import org.apache.cxf.transport.http.asyncclient.AsyncHTTPConduitFactory;
 import org.edu_sharing.elasticsearch.alfresco.client.NodeData;
 import org.edu_sharing.elasticsearch.alfresco.client.NodePreview;
 import org.edu_sharing.elasticsearch.tools.Tools;
+import org.edu_sharing.generated.repository.backend.services.rest.client.model.Node;
 import org.edu_sharing.repository.client.tools.CCConstants;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,6 +38,8 @@ import java.net.ConnectException;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import org.edu_sharing.generated.repository.backend.services.rest.client.model.NodeEntry;
+import org.threeten.bp.OffsetDateTime;
 
 @Component
 public class EduSharingClient {
@@ -86,6 +93,7 @@ public class EduSharingClient {
     String URL_PREVIEW = "/edu-sharing/preview?nodeId=${nodeId}&storeProtocol=${storeProtocol}&storeId=${storeId}&crop=true&maxWidth=${width}&maxHeight=${height}&quality=${quality}";
 
     String URL_MDS = "/edu-sharing/rest/mds/v1/metadatasets/-home-/${mds}";
+    String URL_NODE = "/edu-sharing/rest/node/v1/nodes/-home-/${node}/metadata";
 
     String URL_MDS_ALL = "/edu-sharing/rest/mds/v1/metadatasets/-home-";
 
@@ -300,11 +308,20 @@ public class EduSharingClient {
                 replace("${height}", "800").
                 replace("${quality}", "70");
 
+        NodePreview preview = new NodePreview();
+        preview.setIsIcon(false);
         PreviewData previewSmall=getPreviewData(urlSmall);
+        NodeEntry nodeEntry = getNode(Tools.getUUID(node.getNodeMetadata().getNodeRef()));
+        if(nodeEntry != null) {
+            Node nodeData = nodeEntry.getNode();
+            if (nodeData != null && nodeData.getPreview() != null) {
+                preview.setIsIcon(nodeData.getPreview().getIsIcon());
+                preview.setType(nodeData.getPreview().getType());
+            }
+        }
         //byte[] previewLarge=getPreviewData(urlSmall);
 
-        NodePreview preview = new NodePreview();
-        if(previewSmall!=null) {
+        if(previewSmall!=null && !preview.isIcon()) {
             if(previewSmall.getData() != null && (previewSmall.getData().length /1024) > previewMaxKiloBytes){
                 return;
             }
@@ -331,6 +348,32 @@ public class EduSharingClient {
                     get().readEntity(PreviewData.class);
         }catch(Exception e) {
             logger.info("Could not fetch preview from " + url, e);
+            return null;
+        }
+    }
+
+    private NodeEntry getNode(String nodeId) {
+        logger.debug("calling getNode");
+        try {
+            String result = educlient.target(getUrl(URL_NODE.replace("${node}", nodeId))).
+                    request(MediaType.APPLICATION_JSON).
+                    accept(MediaType.APPLICATION_JSON).
+                    cookie(jsessionId.getName(),jsessionId.getValue()).
+                    get().readEntity(String.class);
+            logger.info(result);
+            return new GsonBuilder().setExclusionStrategies(new ExclusionStrategy() {
+                @Override
+                public boolean shouldSkipField(FieldAttributes fieldAttributes) {
+                    return false;
+                }
+
+                @Override
+                public boolean shouldSkipClass(Class<?> aClass) {
+                    return aClass.equals(OffsetDateTime.class);
+                }
+            }).create().fromJson(result, NodeEntry.class);
+        }catch(Throwable e) {
+            logger.info("Could not fetch node " + nodeId, e);
             return null;
         }
     }

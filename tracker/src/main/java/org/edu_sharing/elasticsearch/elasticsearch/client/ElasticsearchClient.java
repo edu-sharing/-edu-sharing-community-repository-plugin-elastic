@@ -609,6 +609,8 @@ public class ElasticsearchClient {
             if(nodeData.getNodePreview() != null) {
                 builder.startObject("preview").
                         field("mimetype", nodeData.getNodePreview().getMimetype()).
+                        field("type", nodeData.getNodePreview().getType()).
+                        field("icon", nodeData.getNodePreview().isIcon()).
                         field("small", nodeData.getNodePreview().getSmall()).
                         //field("large", nodeData.getNodePreview().getLarge()).
                                 endObject();
@@ -1480,6 +1482,8 @@ public class ElasticsearchClient {
                             .startObject("properties");
                     {
                         builder.startObject("mimetype").field("type", "keyword").endObject();
+                        builder.startObject("type").field("type", "keyword").endObject();
+                        builder.startObject("icon").field("type", "boolean").endObject();
                         builder.startObject("small").field("type", "binary").endObject();
                         //builder.startObject("large").field("type", "binary").endObject();
                     }
