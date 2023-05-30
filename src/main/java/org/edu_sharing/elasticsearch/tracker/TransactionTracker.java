@@ -101,6 +101,19 @@ public class TransactionTracker {
             }
         }
 
+        /**
+         * there is a issue with the alfresco node-common-SqlMap.xml select_TxnLast:
+         * when there are more than one transactions for one timestamp in commit_time_ms
+         *
+         * org.alfresco.repo.domain.node.ibatis.NodeDAOImpl.selectLastTxnBeforeCommitTime
+         * returns the first of the sql statement instead of the one with the highest transaction id.
+         *
+         */
+        if(lastTransactionId >= 1 && lastTransactionId > transactions.getMaxTxnId()){
+            logger.info("lastTransactionId:"+lastTransactionId+" > transactions.getMaxTxnId():"+transactions.getMaxTxnId()+". skip cause transactions are already processed.");
+            return false;
+        }
+
 
         if(transactions.getTransactions().size() == 0){
 
