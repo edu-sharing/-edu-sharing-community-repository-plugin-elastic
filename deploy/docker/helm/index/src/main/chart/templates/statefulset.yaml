@@ -26,8 +26,8 @@ spec:
         traffic.sidecar.istio.io/excludeOutboundPorts: "9300"
         traffic.sidecar.istio.io/excludeInboundPorts: "9300"
         {{- end }}
-        {{- if .Values.podAnnotations }}
-        {{- toYaml .Values.podAnnotations | nindent 8 }}
+        {{- with merge .Values.podAnnotations .Values.global.annotations }}
+        {{- toYaml . | nindent 8 }}
         {{- end }}
     spec:
       initContainers:
@@ -73,6 +73,12 @@ spec:
       - name: {{ include "edusharing_repository_search_elastic_index.name" . }}
         image: {{ include "edusharing_repository_search_elastic_index.image" . }}{{ .Values.image.prefix }}-deploy-docker-build-elasticsearch:{{ .Values.image.tag }}
         imagePullPolicy: {{ .Values.global.image.pullPolicy }}
+        command:
+          - "/bin/bash"
+          - "-ec"
+          - |
+            find /usr/share/elasticsearch/data -name "*.lock" -delete
+
         env:
         - name: node.name
           valueFrom:
