@@ -73,12 +73,6 @@ spec:
       - name: {{ include "edusharing_repository_search_elastic_index.name" . }}
         image: {{ include "edusharing_repository_search_elastic_index.image" . }}{{ .Values.image.prefix }}-deploy-docker-build-elasticsearch:{{ .Values.image.tag }}
         imagePullPolicy: {{ .Values.global.image.pullPolicy }}
-        command:
-          - "/bin/bash"
-          - "-ec"
-          - |
-            find /usr/share/elasticsearch/data -name "*.lock" -delete
-
         env:
         - name: node.name
           valueFrom:
