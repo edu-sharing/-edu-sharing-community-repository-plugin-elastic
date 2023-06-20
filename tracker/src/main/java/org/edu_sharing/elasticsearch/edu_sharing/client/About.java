@@ -13,6 +13,9 @@ public class About {
     @JsonIgnore
     Object services;
 
+    @JsonIgnore
+    Object plugins;
+
 
     public String getThemesUrl() {
         return themesUrl;
@@ -45,4 +48,13 @@ public class About {
     public void setServices(Object services) {
         this.services = services;
     }
+
+    public Object getPlugins() {
+        return plugins;
+    }
+
+    public void setPlugins(Object plugins) {
+        this.plugins = plugins;
+    }
+
 }
