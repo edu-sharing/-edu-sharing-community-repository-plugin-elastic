@@ -4,6 +4,8 @@
 
 global:
 
+  annotations: {}
+
   cluster:
 
     istio:

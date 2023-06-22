@@ -26,8 +26,8 @@ spec:
         traffic.sidecar.istio.io/excludeOutboundPorts: "9300"
         traffic.sidecar.istio.io/excludeInboundPorts: "9300"
         {{- end }}
-        {{- if .Values.podAnnotations }}
-        {{- toYaml .Values.podAnnotations | nindent 8 }}
+        {{- with merge .Values.podAnnotations .Values.global.annotations }}
+        {{- toYaml . | nindent 8 }}
         {{- end }}
     spec:
       initContainers:
