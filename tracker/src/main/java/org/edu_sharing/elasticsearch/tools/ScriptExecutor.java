@@ -7,9 +7,11 @@ import net.sourceforge.cardme.vcard.VCard;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.edu_sharing.elasticsearch.alfresco.client.NodeData;
+import org.edu_sharing.elasticsearch.edu_sharing.client.EduSharingClient;
 import org.edu_sharing.elasticsearch.elasticsearch.client.ElasticsearchClient;
 import org.edu_sharing.repository.client.tools.CCConstants;
 import org.elasticsearch.common.xcontent.XContentBuilder;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.io.File;
@@ -28,6 +30,8 @@ import java.util.stream.Collectors;
 @Service
 public class ScriptExecutor {
     static Logger logger = LogManager.getLogger(ScriptExecutor.class);
+    @Autowired
+    private EduSharingClient eduSharingClient;
 
     private final ScriptLoaderConfiguration.ScriptLoaderService scriptLoaderService;
     private File[] scripts = new File[0];
@@ -40,7 +44,8 @@ public class ScriptExecutor {
         init();
     }
 
-    public void addCustomPropertiesByScript(XContentBuilder builder, NodeData nodeData) throws IOException {
+    public boolean addCustomPropertiesByScript(XContentBuilder builder, NodeData nodeData) throws IOException {
+        boolean hasData = false;
         Map<String, Serializable> metadata = nodeData.getNodeMetadata().getProperties().entrySet().stream()
                 .collect(HashMap::new, (m,v)->m.put(CCConstants.getValidLocalName(v.getKey()), v.getValue()), HashMap::putAll);
         builder.startObject("customProperties");
@@ -52,18 +57,25 @@ public class ScriptExecutor {
                 Map<String, Serializable> result =
                         (Map<String, Serializable>) shell.evaluate(script);
                 if(result != null) {
+                    String mds = eduSharingClient.getMdsId(nodeData);
                     for (Map.Entry<String, Serializable> entry : result.entrySet()) {
                         String key = entry.getKey();
                         Serializable value = entry.getValue();
                         builder.field(key, value);
                         logger.debug("Script: " + script.getName() + ", key: " + key + ", value: " + value);
+                        eduSharingClient.translateProperty(nodeData, mds, null, new AbstractMap.SimpleEntry<>(
+                                "customProperties." + entry.getKey(), entry.getValue()
+                        ));
                     }
+
+                    hasData = true;
                 }
             } catch(Throwable t) {
                 logger.warn("Could not execute script " + script.getName(), t);
             }
         }
         builder.endObject();
+        return hasData;
     }
 
     private Binding getBindings(Map<String, Serializable> metadata) {
