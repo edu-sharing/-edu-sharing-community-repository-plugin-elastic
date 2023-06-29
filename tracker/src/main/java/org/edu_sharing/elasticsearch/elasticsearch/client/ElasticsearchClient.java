@@ -399,7 +399,7 @@ public class ElasticsearchClient {
                         if(key != null) {
                             builder.field(key, valuespace.getValue());
                         }else{
-                            builder.field(valuespace.getKey().replace(".", "_"), valuespace.getValue());
+                            builder.field(valuespace.getKey(), valuespace.getValue());
                             // logger.error("unknown valuespace property: " + valuespace.getKey());
                         }
                     }
