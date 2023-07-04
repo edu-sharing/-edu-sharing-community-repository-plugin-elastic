@@ -4,6 +4,8 @@ public class NodePreview {
     private String mimetype;
     private byte[] small;
     private byte[] large;
+    private boolean isIcon;
+    private String type;
 
     public byte[] getSmall() {
         return small;
@@ -27,5 +29,21 @@ public class NodePreview {
 
     public String getMimetype() {
         return mimetype;
+    }
+
+    public void setType(String type) {
+        this.type = type;
+    }
+
+    public String getType() {
+        return type;
+    }
+
+    public void setIsIcon(boolean isIcon) {
+        this.isIcon = isIcon;
+    }
+
+    public boolean isIcon() {
+        return isIcon;
     }
 }

@@ -385,6 +385,8 @@ public class ElasticsearchClient {
             builder.field("owner", node.getOwner());
             builder.field("type",node.getType());
 
+            scriptExecutor.addCustomPropertiesByScript(builder, nodeData);
+
             //valuespaces
             if(nodeData.getValueSpaces().size() > 0){
                 builder.startObject("i18n");
@@ -397,7 +399,8 @@ public class ElasticsearchClient {
                         if(key != null) {
                             builder.field(key, valuespace.getValue());
                         }else{
-                            logger.error("unknown valuespace property: " + valuespace.getKey());
+                            builder.field(valuespace.getKey(), valuespace.getValue());
+                            // logger.error("unknown valuespace property: " + valuespace.getKey());
                         }
                     }
                     builder.endObject();
@@ -609,6 +612,8 @@ public class ElasticsearchClient {
             if(nodeData.getNodePreview() != null) {
                 builder.startObject("preview").
                         field("mimetype", nodeData.getNodePreview().getMimetype()).
+                        field("type", nodeData.getNodePreview().getType()).
+                        field("icon", nodeData.getNodePreview().isIcon()).
                         field("small", nodeData.getNodePreview().getSmall()).
                         //field("large", nodeData.getNodePreview().getLarge()).
                                 endObject();
@@ -657,7 +662,6 @@ public class ElasticsearchClient {
                     builder.field("statistic_RATING_null", ratingAll);
                 }
             }
-            scriptExecutor.addCustomPropertiesByScript(builder, nodeData);
         }
         if(nodeData instanceof NodeDataProposal) {
             builder = getProposalData((NodeDataProposal) nodeData, builder);
@@ -1480,6 +1484,8 @@ public class ElasticsearchClient {
                             .startObject("properties");
                     {
                         builder.startObject("mimetype").field("type", "keyword").endObject();
+                        builder.startObject("type").field("type", "keyword").endObject();
+                        builder.startObject("icon").field("type", "boolean").endObject();
                         builder.startObject("small").field("type", "binary").endObject();
                         //builder.startObject("large").field("type", "binary").endObject();
                     }

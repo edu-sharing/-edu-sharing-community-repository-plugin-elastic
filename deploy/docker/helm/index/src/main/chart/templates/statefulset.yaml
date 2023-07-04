@@ -26,8 +26,8 @@ spec:
         traffic.sidecar.istio.io/excludeOutboundPorts: "9300"
         traffic.sidecar.istio.io/excludeInboundPorts: "9300"
         {{- end }}
-        {{- if .Values.podAnnotations }}
-        {{- toYaml .Values.podAnnotations | nindent 8 }}
+        {{- with merge .Values.podAnnotations .Values.global.annotations }}
+        {{- toYaml . | nindent 8 }}
         {{- end }}
     spec:
       initContainers:
@@ -159,7 +159,7 @@ spec:
       {{- with .Values.global.image.pullSecrets }}
       imagePullSecrets: {{ toYaml . | nindent 8 }}
       {{- end }}
-      {{- with .Values.podSecurityContext }}
+      {{- with merge .Values.podSecurityContext .Values.global.security }}
       securityContext: {{ toYaml . | nindent 8 }}
       {{- end }}
       {{- with .Values.tolerations }}
