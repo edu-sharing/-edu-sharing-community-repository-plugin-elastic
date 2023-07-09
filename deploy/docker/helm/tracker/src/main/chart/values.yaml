@@ -92,7 +92,6 @@ podAnnotations: {}
 
 podSecurityContext:
 
-  runAsUser: 1000
   fsGroup: 1000
   fsGroupChangePolicy: OnRootMismatch
 
@@ -102,6 +101,7 @@ securityContext:
   capabilities:
     drop:
     - ALL
+  runAsUser: 1000
 
 ########################################################################################################################
 
