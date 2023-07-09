@@ -11,7 +11,8 @@ spec:
   ports:
   - name: http-management
     port: {{ .Values.service.port.management }}
-{{- if and .Values.global.metrics.servicemonitor.enabled .Values.config.metrics }}
+{{- if .Values.global.metrics.servicemonitor.enabled }}
+{{- if .Values.config.metrics.enabled }}
 ---
 apiVersion: v1
 kind: Service
@@ -26,4 +27,5 @@ spec:
     - name: http-management
       port: {{ .Values.service.port.management }}
       targetPort: management
+{{- end }}
 {{- end }}
