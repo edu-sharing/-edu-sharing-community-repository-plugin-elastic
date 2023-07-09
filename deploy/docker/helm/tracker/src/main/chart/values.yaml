@@ -54,7 +54,9 @@ config:
       minPercentage: "90.0"
       maxPercentage: "90.0"
 
-  metrics: true
+  metrics:
+    enabled: true
+    relabelings: []
 
   override: ""
 
