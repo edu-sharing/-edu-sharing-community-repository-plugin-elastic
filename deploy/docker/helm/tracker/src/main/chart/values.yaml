@@ -54,7 +54,9 @@ config:
       minPercentage: "90.0"
       maxPercentage: "90.0"
 
-  metrics: true
+  metrics:
+    enabled: true
+    relabelings: []
 
   override: ""
 
@@ -92,7 +94,6 @@ podAnnotations: {}
 
 podSecurityContext:
 
-  runAsUser: 1000
   fsGroup: 1000
   fsGroupChangePolicy: OnRootMismatch
 
@@ -102,6 +103,7 @@ securityContext:
   capabilities:
     drop:
     - ALL
+  runAsUser: 1000
 
 ########################################################################################################################
 

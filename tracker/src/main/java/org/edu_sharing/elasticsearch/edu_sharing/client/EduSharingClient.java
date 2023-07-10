@@ -164,72 +164,88 @@ public class EduSharingClient {
 
         Map<String, Serializable> properties = data.getNodeMetadata().getProperties();
 
-        String mds = (String)data.getNodeMetadata().getProperties().get(CCConstants.CM_PROP_METADATASET_EDU_METADATASET);
-        if(mds == null) mds = "default";
+        String mds = getMdsId(data);
 
-        if(mds.equals("default")){
-            //"default" in repo is hard coded, should map on the first registered mds in repo
-            mds = valuespaceProps.keySet().iterator().next();
-        }
-
-        Set<String> valueSpacePropsMds = valuespaceProps.get(mds);
+        Set<String> valueSpacePropsMds = getPropsMdsList(mds);
         if(valueSpacePropsMds == null){
             logger.error("no i18n props found for mds:" + mds);
             return;
         }
 
         for(Map.Entry<String, Serializable> prop : properties.entrySet()){
-            String key = CCConstants.getValidLocalName(prop.getKey());
-            if(key == null){
-                logger.error("unknown namespace: " + prop.getKey());
-                continue;
-            }
-
-
-            if(valueSpacePropsMds.contains(key)){
-                for(String language : valuespaceLanguages) {
-                    Serializable translated = null;
-
-                    if(prop.getValue() == null) continue;
-
-                    if (prop.getValue() instanceof List) {
-                        ArrayList<String> translatedList = new ArrayList<>();
-                        for (Serializable value : (List<Serializable>) prop.getValue()) {
-                            if(value instanceof String) {
-                                String translatedVal = translate(mds, language, key, (String) value);
-                                if (translatedVal != null && !translatedVal.trim().equals("")) {
-                                    translatedList.add(translatedVal);
-                                }
-                            } else {
-                                logger.warn("Can't translate value for field " + key + " of type " + value.getClass() + " at node " + data.getNodeMetadata().getNodeRef());
-                            }
-                        }
-                        if(translatedList.size()>0){
-                            translated = translatedList;
-                        }
-                    } else {
-                        String translatedVal =  translate(mds,language,key,prop.getValue().toString());
-                        if(translatedVal != null){
-                            translated = translatedVal;
-                        }
-                    }
-
-                    Map<String, List<String>> valuespacesForLanguage = data.getValueSpaces().get(language);
-                    if(valuespacesForLanguage == null){
-                        valuespacesForLanguage = new HashMap<>();
-                        data.getValueSpaces().put(language,valuespacesForLanguage);
-                    }
-                    if(translated instanceof List){
-                        valuespacesForLanguage.put(prop.getKey(),(List)translated);
-                    }else{
-                        valuespacesForLanguage.put(prop.getKey(),Arrays.asList(new String[]{(String)translated}));
-                    }
-                }
-            }
+            translateProperty(data, mds, valueSpacePropsMds, prop);
         }
 
 
 
+    }
+
+    private Set<String> getPropsMdsList(String mds) {
+        Set<String> valueSpacePropsMds = valuespaceProps.get(mds);
+        return valueSpacePropsMds;
+    }
+
+    public String getMdsId(NodeData data) {
+        String mds = (String) data.getNodeMetadata().getProperties().get(CCConstants.CM_PROP_METADATASET_EDU_METADATASET);
+        if(mds == null) mds = "default";
+
+        if(mds.equals("default")){
+            //"default" in repo is hard coded, should map on the first registered mds in repo
+            mds = valuespaceProps.keySet().iterator().next();
+        }
+        return mds;
+    }
+
+    public void translateProperty(NodeData data, String mds, Set<String> valueSpacePropsMds, Map.Entry<String, Serializable> prop) {
+        if(valueSpacePropsMds == null) {
+            valueSpacePropsMds = getPropsMdsList(mds);
+        }
+        String key = CCConstants.getValidLocalName(prop.getKey());
+        if(key == null){
+            key = prop.getKey();
+        }
+
+
+        if(valueSpacePropsMds.contains(key)){
+            for(String language : valuespaceLanguages) {
+                Serializable translated = null;
+
+                if(prop.getValue() == null) continue;
+
+                if (prop.getValue() instanceof List) {
+                    ArrayList<String> translatedList = new ArrayList<>();
+                    for (Serializable value : (List<Serializable>) prop.getValue()) {
+                        if(value instanceof String) {
+                            String translatedVal = translate(mds, language, key, (String) value);
+                            if (translatedVal != null && !translatedVal.trim().equals("")) {
+                                translatedList.add(translatedVal);
+                            }
+                        } else {
+                            logger.warn("Can't translate value for field " + key + " of type " + value.getClass() + " at node " + data.getNodeMetadata().getNodeRef());
+                        }
+                    }
+                    if(translatedList.size()>0){
+                        translated = translatedList;
+                    }
+                } else {
+                    String translatedVal =  translate(mds,language,key, prop.getValue().toString());
+                    if(translatedVal != null){
+                        translated = translatedVal;
+                    }
+                }
+
+                Map<String, List<String>> valuespacesForLanguage = data.getValueSpaces().get(language);
+                if(valuespacesForLanguage == null){
+                    valuespacesForLanguage = new HashMap<>();
+                    data.getValueSpaces().put(language,valuespacesForLanguage);
+                }
+                if(translated instanceof List){
+                    valuespacesForLanguage.put(prop.getKey(),(List)translated);
+                }else{
+                    valuespacesForLanguage.put(prop.getKey(),Arrays.asList(new String[]{(String)translated}));
+                }
+            }
+        }
     }
 
     /**
