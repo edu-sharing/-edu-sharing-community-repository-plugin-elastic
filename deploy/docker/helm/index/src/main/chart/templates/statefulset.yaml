@@ -40,7 +40,7 @@ spec:
         - "-ec"
         - |
           if [[ ! "$(ls -A /usr/share/elasticsearch/data)" ]]; then
-            chown -R {{ .Values.podSecurityContext.runAsUser }}:{{ .Values.podSecurityContext.fsGroup }} /usr/share/elasticsearch/data
+            chown -R {{ .Values.securityContext.runAsUser }}:{{ .Values.podSecurityContext.fsGroup }} /usr/share/elasticsearch/data
           fi
         volumeMounts:
         - name: data
