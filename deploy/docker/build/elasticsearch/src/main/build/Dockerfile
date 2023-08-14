@@ -9,3 +9,8 @@ LABEL git.dirty=${git.dirty}
 LABEL mvn.project.artifactId=${project.artifactId}
 LABEL mvn.project.groupId=${project.groupId}
 LABEL mvn.project.version=${project.version}
+
+
+
+RUN set -eux \
+    && echo "http.max_content_length: 2147483647b" >> /usr/share/elasticsearch/config/elasticsearch.yml
