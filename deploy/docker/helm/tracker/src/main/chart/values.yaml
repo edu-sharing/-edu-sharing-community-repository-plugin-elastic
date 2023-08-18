@@ -11,6 +11,9 @@ global:
     istio:
       enabled: false
 
+    pdb:
+      enabled: false
+
   debug: false
 
   image:
@@ -77,6 +80,22 @@ config:
       index:
         shards: 1
         replicas: 2
+
+########################################################################################################################
+
+multistage:
+
+  enabled: false
+
+  stages: []
+#    - name: blue
+#      spec:
+#        config:
+#          override: ""
+#    - name: green
+#      spec:
+#        config:
+#          override: ""
 
 ########################################################################################################################
 
