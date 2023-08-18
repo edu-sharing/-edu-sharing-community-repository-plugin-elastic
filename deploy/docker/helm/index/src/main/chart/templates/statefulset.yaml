@@ -300,7 +300,7 @@ spec:
         imagePullPolicy: {{ $.Values.global.image.pullPolicy }}
         env:
         - name: cluster.initial_master_nodes
-          value: "{{ range $i := until ($.Values.replicaCount | int) }}{{ printf "%s-%s" $name $i }},{{ end }}"
+          value: "{{ range $i := until ($.Values.replicaCount | int) }}{{ $name }}-{{ $i }},{{ end }}"
         - name: cluster.name
           value: "{{ include "edusharing_repository_search_elastic_index.name" $ }}-{{ .name }}"
         - name: discovery.seed_hosts
