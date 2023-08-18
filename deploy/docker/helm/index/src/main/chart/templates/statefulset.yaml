@@ -83,6 +83,12 @@ spec:
         image: {{ include "edusharing_repository_search_elastic_index.image" . }}{{ .Values.image.prefix }}-deploy-docker-build-elasticsearch:{{ .Values.image.tag }}
         imagePullPolicy: {{ .Values.global.image.pullPolicy }}
         env:
+        - name: cluster.initial_master_nodes
+          value: "{{ range $i := until (.Values.replicaCount | int) }}{{ include "edusharing_repository_search_elastic_index.name" $ }}-{{ $i }},{{ end }}"
+        - name: cluster.name
+          value: "{{ include "edusharing_repository_search_elastic_index.name" . }}"
+        - name: discovery.seed_hosts
+          value: "{{ include "edusharing_repository_search_elastic_index.name" . }}-headless"
         - name: node.name
           valueFrom:
             fieldRef:
@@ -212,6 +218,7 @@ spec:
     spec: {{ merge .Values.persistence.data.spec .Values.global.cluster.storage.data.spec | toYaml | nindent 6 }}
 {{- if .Values.multistage.enabled }}
 {{- range .Values.multistage.stages }}
+{{ $name := printf "%s-%s" (include "edusharing_repository_search_elastic_index.name" $) .name }}
 ---
 apiVersion: apps/v1
 kind: StatefulSet
@@ -292,6 +299,12 @@ spec:
         image: {{ include "edusharing_repository_search_elastic_index.image" $ }}{{ $.Values.image.prefix }}-deploy-docker-build-elasticsearch:{{ $.Values.image.tag }}
         imagePullPolicy: {{ $.Values.global.image.pullPolicy }}
         env:
+        - name: cluster.initial_master_nodes
+          value: "{{ range $i := until ($.Values.replicaCount | int) }}{{ printf "%s-%s" $name $i }},{{ end }}"
+        - name: cluster.name
+          value: "{{ include "edusharing_repository_search_elastic_index.name" $ }}-{{ .name }}"
+        - name: discovery.seed_hosts
+          value: "{{ include "edusharing_repository_search_elastic_index.name" $ }}-headless-{{ .name }}"
         - name: node.name
           valueFrom:
             fieldRef:
