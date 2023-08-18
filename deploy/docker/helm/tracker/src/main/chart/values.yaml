@@ -92,10 +92,14 @@ multistage:
 #      spec:
 #        config:
 #          override: ""
+#          tracker:
+#              customScript: ""
 #    - name: green
 #      spec:
 #        config:
 #          override: ""
+#          tracker:
+#              customScript: ""
 
 ########################################################################################################################
 

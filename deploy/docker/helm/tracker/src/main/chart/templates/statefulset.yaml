@@ -164,6 +164,13 @@ spec:
             name: {{ include "edusharing_repository_search_elastic_tracker.name" $ }}-env
         - secretRef:
             name: {{ include "edusharing_repository_search_elastic_tracker.name" $ }}-env
+        {{- if .spec.config.tracker.customScript }}
+        volumeMounts:
+          - name: script
+            mountPath: /opt/alfresco/scripts/script.groovy
+            subPath: script.groovy
+            readOnly: true
+        {{- end }}
         ports:
         - name: management
           containerPort: 8081
@@ -208,6 +215,12 @@ spec:
         {{- with $.Values.securityContext }}
         securityContext: {{ toYaml . | nindent 10 }}
         {{- end }}
+      {{- if .spec.config.tracker.customScript }}
+      volumes:
+      - configMap:
+          name: {{ include "edusharing_repository_search_elastic_tracker.name" $ }}-script-{{ .name }}
+        name: script
+      {{- end }}
       {{- with $.Values.global.image.pullSecrets }}
       imagePullSecrets: {{ toYaml . | nindent 8 }}
       {{- end }}
