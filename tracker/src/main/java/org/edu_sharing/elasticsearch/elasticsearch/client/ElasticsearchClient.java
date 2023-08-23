@@ -1085,7 +1085,7 @@ public class ElasticsearchClient {
         if(resp.isExists()) {
 
             transaction = new Tx();
-            transaction.setTxnCommitTime((Long) resp.getSource().get("txnCommitTime"));
+            transaction.setTxnCommitTime(((Number) resp.getSource().get("txnCommitTime")).longValue());
             transaction.setTxnId(((Number)resp.getSource().get("txnId")).longValue());
         }
 

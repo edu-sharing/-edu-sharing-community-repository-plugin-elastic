@@ -1,23 +1,22 @@
 package org.edu_sharing.elasticsearch.tracker;
 
-import org.edu_sharing.elasticsearch.alfresco.client.*;
+import org.edu_sharing.elasticsearch.alfresco.client.Node;
+import org.edu_sharing.elasticsearch.alfresco.client.NodeData;
+import org.edu_sharing.elasticsearch.alfresco.client.NodeMetadata;
 import org.edu_sharing.elasticsearch.edu_sharing.client.EduSharingClient;
 import org.edu_sharing.elasticsearch.edu_sharing.client.NodeStatistic;
 import org.edu_sharing.elasticsearch.elasticsearch.client.ElasticsearchClient;
-import org.edu_sharing.elasticsearch.elasticsearch.client.Tx;
 import org.edu_sharing.elasticsearch.tools.Tools;
 import org.edu_sharing.repository.client.tools.CCConstants;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.json.JsonParser;
 import org.springframework.stereotype.Component;
 
 import javax.annotation.PostConstruct;
 import java.io.IOException;
 import java.io.Serializable;
-import java.text.DecimalFormat;
 import java.util.*;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
@@ -25,13 +24,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 @Component
-public class TransactionTracker {
-
-    @Autowired
-    private AlfrescoWebscriptClient client;
-
-    @Autowired
-    private ElasticsearchClient elasticClient;
+public class TransactionTracker extends TransactionTrackerBase{
 
     @Autowired
     private EduSharingClient eduSharingClient;
@@ -47,12 +40,6 @@ public class TransactionTracker {
     @Value("${threading.threadCount}")
     Integer threadCount;
 
-    long lastFromCommitTime = -1;
-    long lastTransactionId = -1;
-
-    @Value("${transactions.max:500}")
-    int transactionsMax;
-
     Logger logger = LoggerFactory.getLogger(TransactionTracker.class);
     private ForkJoinPool threadPool;
 
@@ -60,94 +47,14 @@ public class TransactionTracker {
     long historyInDays;
 
     @PostConstruct
-    public void init()  throws IOException{
-        Tx txn = null;
-        try {
-            txn = elasticClient.getTransaction();
-            if(txn != null){
-                lastFromCommitTime = txn.getTxnCommitTime();
-                lastTransactionId = txn.getTxnId();
-                logger.info("got last transaction from index txnCommitTime:" + txn.getTxnCommitTime() +" txnId" +txn.getTxnId());
-            }
-        } catch (IOException e) {
-            logger.error("problems reaching elastic search server");
-            throw e;
-        }
+    public void initThreadPool()  throws IOException{
         threadPool = new ForkJoinPool(threadCount);
-
     }
 
-
-    public boolean track(){
-        logger.info("starting lastTransactionId:" +lastTransactionId+ " lastFromCommitTime:" + lastFromCommitTime +" " +  new Date(lastFromCommitTime));
-
+    @Override
+    public void trackNodes(List<Node> nodes) {
         eduSharingClient.refreshValuespaceCache();
 
-        Transactions transactions = (lastTransactionId < 1)
-                ? client.getTransactions(0L,500L,null,null, 1)
-                : client.getTransactions(lastTransactionId, lastTransactionId + transactionsMax, null, null, transactionsMax);
-
-        long newLastTransactionId = lastTransactionId;
-        //initialize
-        if(newLastTransactionId < 1){
-            newLastTransactionId = transactions.getTransactions().get(0).getId();
-        }else {
-            //step forward
-            if (transactions.getMaxTxnId() > (newLastTransactionId + transactionsMax)) {
-                newLastTransactionId += transactionsMax;
-            } else {
-                newLastTransactionId = transactions.getMaxTxnId();
-            }
-        }
-
-
-        if(transactions.getTransactions().size() == 0){
-
-            lastTransactionId = newLastTransactionId;
-            if(transactions.getMaxTxnId() <= lastTransactionId){
-                logger.info("index is up to date:" + lastTransactionId + " lastFromCommitTime:" + lastFromCommitTime+" transactions.getMaxTxnId():"+transactions.getMaxTxnId());
-                return false;
-            }else{
-                logger.info("did not found new transactions in last transaction block min:" + (lastTransactionId - transactionsMax) +" max:"+lastTransactionId  );
-                return true;
-            }
-        }
-
-
-        try {
-            Tx txn = elasticClient.getTransaction();
-            //long lastProcessedTxId = transactions.getTransactions().get(size -1).getId();
-            if(txn != null && (txn.getTxnId() == transactions.getMaxTxnId())){
-                logger.info("nothing to do.");
-                return false;
-            }
-        } catch (IOException e) {
-            logger.error(e.getMessage(),e);
-            return false;
-        }
-
-
-        Transaction first = transactions.getTransactions().get(0);
-        Transaction last = transactions.getTransactions().get(transactions.getTransactions().size() -1);
-
-        if(lastFromCommitTime < 1) {
-            this.lastFromCommitTime = last.getCommitTimeMs();
-        }
-
-
-
-        /**
-         * add transactionsIds as getNodes Param
-         */
-        List<Long> transactionIds = new ArrayList<>();
-        for(Transaction t : transactions.getTransactions()){
-            transactionIds.add(t.getId());
-        }
-
-        /**
-         * get nodes
-         */
-        List<Node> nodes =  client.getNodes(transactionIds);
         //filter stores
         nodes = nodes
                 .stream()
@@ -155,8 +62,7 @@ public class TransactionTracker {
                 .collect(Collectors.toList());
 
         if(nodes.size() == 0){
-            lastTransactionId = newLastTransactionId;
-            return true;
+            return;
         }
 
         /**
@@ -196,27 +102,9 @@ public class TransactionTracker {
                 pIdx++;
             }
 
-
-            //remember for the next start of tracker
-            elasticClient.setTransaction(lastFromCommitTime,transactionIds.get(transactionIds.size() - 1));
-            //set on success
-            lastTransactionId = newLastTransactionId;
-
-            if(lastFromCommitTime > last.getCommitTimeMs()){
-                logger.info("reseting lastFromCommitTime old:" +lastFromCommitTime +" new "+last.getCommitTimeMs());
-                lastFromCommitTime = last.getCommitTimeMs() + 1;
-            }
         }catch(IOException e){
             logger.error(e.getMessage(),e);
         }
-
-
-        Double percentage = (transactionIds != null && transactionIds.size() > 0) ? new Double(((double)transactionIds.get(transactionIds.size() - 1) / (double)transactions.getMaxTxnId()) * 100.0)  : 0.0;
-        DecimalFormat df = new DecimalFormat("0.00");
-        logger.info("finished "+df.format(percentage)+"%, lastTransactionId:" + last.getId() +
-                " transactions:" + Arrays.toString(transactionIds.toArray()) +
-                " nodes:" + nodes.size());
-        return true;
     }
 
     private void indexNodes(List<Node> nodes) throws IOException{
