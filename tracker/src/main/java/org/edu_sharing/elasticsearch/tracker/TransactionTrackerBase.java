@@ -4,6 +4,7 @@ import org.edu_sharing.elasticsearch.alfresco.client.AlfrescoWebscriptClient;
 import org.edu_sharing.elasticsearch.alfresco.client.Node;
 import org.edu_sharing.elasticsearch.alfresco.client.Transaction;
 import org.edu_sharing.elasticsearch.alfresco.client.Transactions;
+import org.edu_sharing.elasticsearch.edu_sharing.client.EduSharingClient;
 import org.edu_sharing.elasticsearch.elasticsearch.client.ElasticsearchClient;
 import org.edu_sharing.elasticsearch.elasticsearch.client.Tx;
 import org.slf4j.Logger;
@@ -11,6 +12,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 
+import javax.annotation.PostConstruct;
 import java.io.IOException;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
@@ -24,6 +26,9 @@ public abstract class TransactionTrackerBase implements TransactionTrackerInterf
     @Autowired
     protected ElasticsearchClient elasticClient;
 
+    @Autowired
+    protected EduSharingClient eduSharingClient;
+
     @Value("${transactions.max:500}")
     int transactionsMax;
 
@@ -33,11 +38,16 @@ public abstract class TransactionTrackerBase implements TransactionTrackerInterf
     @Value("${stack.max:1000}")
     int maxStackSize;
 
+    @PostConstruct
+    public void initIndex() throws IOException{
+        elasticClient.createIndexIfNotExists(getTransactionIndex());
+    }
+
 
     @Override
     public boolean track(){
         try {
-            Tx txn = elasticClient.getTransaction();
+            Tx txn = elasticClient.getTransaction(getTransactionIndex());
 
             long lastTransactionId;
             if(txn != null){
@@ -76,6 +86,7 @@ public abstract class TransactionTrackerBase implements TransactionTrackerInterf
             List<Node> nodes =  client.getNodes(transactionIds);
             logger.info("got "+nodes.size() +" nodes");
 
+            eduSharingClient.refreshValuespaceCache();
             /**
              * index nodes
              */
@@ -117,9 +128,13 @@ public abstract class TransactionTrackerBase implements TransactionTrackerInterf
 
     void commit(long txId) throws IOException{
         logger.info("safe transactionId " + txId);
-        elasticClient.setTransaction(0L,txId);
+        elasticClient.setTransaction(getTransactionIndex(),0L,txId);
     }
 
     public abstract void trackNodes(List<Node> nodes) throws IOException;
+
+    public String getTransactionIndex(){
+        return ElasticsearchClient.INDEX_TRANSACTIONS;
+    }
 
 }

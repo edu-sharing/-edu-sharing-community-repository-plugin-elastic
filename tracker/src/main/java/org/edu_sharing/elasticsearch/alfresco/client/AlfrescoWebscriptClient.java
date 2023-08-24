@@ -148,6 +148,28 @@ public class AlfrescoWebscriptClient {
         return getNodeMetadataByIds(dbnodeids);
     }
 
+    public List<NodeMetadata> getNodeMetadataAsSingleOnExeption(List<Node> nodes) {
+        List<NodeMetadata> nodeData = new ArrayList<>();
+        try {
+            nodeData.addAll(getNodeMetadata(nodes));
+        } catch(Throwable t) {
+            /**
+             * get node metadata
+             *
+             * use every single node to get metadata instead of bulk to prevent damaged nodes break other nodes
+             */
+            for (Node node : nodes) {
+                try {
+                    List<NodeMetadata> nodeDataTmp = getNodeMetadata(Arrays.asList(new Node[]{node}));
+                    nodeData.addAll(nodeDataTmp);
+                } catch (javax.ws.rs.ProcessingException e) {
+                    logger.error("error unmarshalling NodeMetadata for node " + node, e);
+                }
+            }
+        }
+        return nodeData;
+    }
+
     private List<NodeMetadata> getNodeMetadataByIds(List<Long> dbNodeIds) {
         GetNodeMetadataParam getNodeMetadataParam = new GetNodeMetadataParam();
         getNodeMetadataParam.setNodeIds(dbNodeIds);

@@ -29,8 +29,6 @@ import java.util.stream.Collectors;
 @ConditionalOnProperty(prefix = "transaction", name="tracker", havingValue = "default", matchIfMissing = true)
 public class TransactionTracker extends TransactionTrackerBase{
 
-    @Autowired
-    private EduSharingClient eduSharingClient;
 
     @Value("${allowed.types}")
     String allowedTypes;
@@ -56,7 +54,6 @@ public class TransactionTracker extends TransactionTrackerBase{
 
     @Override
     public void trackNodes(List<Node> nodes) throws IOException{
-        eduSharingClient.refreshValuespaceCache();
 
         //filter stores
         nodes = nodes
@@ -105,26 +102,9 @@ public class TransactionTracker extends TransactionTrackerBase{
         }
     }
 
-    private void indexNodes(List<Node> nodes) throws IOException{
+    public void indexNodes(List<Node> nodes) throws IOException{
         logger.info("getNodeMetadata start " + nodes.size());
-        List<NodeMetadata> nodeData = new ArrayList<>();
-        try {
-            nodeData.addAll(client.getNodeMetadata(nodes));
-        } catch(Throwable t) {
-            /**
-             * get node metadata
-             *
-             * use every single node to get metadata instead of bulk to prevent damaged nodes break other nodes
-             */
-            for (Node node : nodes) {
-                try {
-                    List<NodeMetadata> nodeDataTmp = client.getNodeMetadata(Arrays.asList(new Node[]{node}));
-                    nodeData.addAll(nodeDataTmp);
-                } catch (javax.ws.rs.ProcessingException e) {
-                    logger.error("error unmarshalling NodeMetadata for node " + node, e);
-                }
-            }
-        }
+        List<NodeMetadata> nodeData = client.getNodeMetadataAsSingleOnExeption(nodes);
         logger.info("getNodeMetadata done " +nodeData.size());
 
         List<NodeMetadata> toIndexUsagesProposalsMd = nodeData
@@ -220,5 +200,17 @@ public class TransactionTracker extends TransactionTrackerBase{
          */
         elasticClient.refresh(ElasticsearchClient.INDEX_WORKSPACE);
         for(NodeMetadata usage : toIndexUsagesProposalsMd) elasticClient.indexCollections(usage);
+    }
+
+    public boolean isAllowedType(NodeMetadata nodeMetadata){
+        if(allowedTypes != null && !allowedTypes.trim().equals("")){
+            String[] allowedTypesArray = allowedTypes.split(",");
+            String type = nodeMetadata.getType();
+
+            if(!Arrays.asList(allowedTypesArray).contains(type)){
+                return false;
+            }
+        }
+        return true;
     }
 }

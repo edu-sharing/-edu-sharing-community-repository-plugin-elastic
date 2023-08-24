@@ -156,7 +156,7 @@ public class ElasticsearchClient {
         DeleteIndexRequest request = new DeleteIndexRequest(index);
         client.indices().delete(request, RequestOptions.DEFAULT);
     }
-    private void createIndexIfNotExists(String index) throws IOException{
+    public void createIndexIfNotExists(String index) throws IOException{
         GetIndexRequest request = new GetIndexRequest(index);
         if(!client.indices().exists(request,RequestOptions.DEFAULT)){
             CreateIndexRequest createIndexRequest = new CreateIndexRequest(index);
@@ -1035,7 +1035,7 @@ public class ElasticsearchClient {
         }
     }
 
-    public void setTransaction(long txnCommitTime, long transactionId) throws IOException {
+    public void setTransaction(String index, long txnCommitTime, long transactionId) throws IOException {
 
         XContentBuilder builder = jsonBuilder();
         builder.startObject();
@@ -1045,7 +1045,11 @@ public class ElasticsearchClient {
         }
         builder.endObject();
 
-        setNode(INDEX_TRANSACTIONS, ID_TRANSACTION,builder);
+        setNode(index, ID_TRANSACTION,builder);
+    }
+
+    public void setTransaction(long txnCommitTime, long transactionId) throws IOException {
+        setTransaction(INDEX_TRANSACTIONS,txnCommitTime,transactionId);
     }
 
     private void setNode(String index, String id, XContentBuilder builder) throws IOException {
@@ -1072,15 +1076,15 @@ public class ElasticsearchClient {
         }
     }
 
-    private GetResponse get(String index, String id) throws IOException {
+    public GetResponse get(String index, String id) throws IOException {
         GetRequest getRequest = new GetRequest(index,id);
         GetResponse resp = client.get(getRequest,RequestOptions.DEFAULT);
         return resp;
     }
 
-    public Tx getTransaction() throws IOException {
+    public Tx getTransaction(String index) throws IOException {
 
-        GetResponse resp = this.get(INDEX_TRANSACTIONS, ID_TRANSACTION);
+        GetResponse resp = this.get(index, ID_TRANSACTION);
         Tx transaction = null;
         if(resp.isExists()) {
 
@@ -1090,6 +1094,10 @@ public class ElasticsearchClient {
         }
 
         return transaction;
+    }
+
+    public Tx getTransaction() throws IOException {
+        return getTransaction(INDEX_TRANSACTIONS);
     }
 
 
