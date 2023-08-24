@@ -6,6 +6,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 
@@ -16,8 +17,9 @@ public class FixMissingTracker extends TransactionTrackerBase{
 
     Logger logger =  LoggerFactory.getLogger(FixMissingTracker.class);
 
+
     @Override
-    public void trackNodes(List<Node> nodes) {
+    public void trackNodes(List<Node> nodes) throws IOException {
         logger.info("tracking the following number of nodes:" + nodes.size());
     }
 }

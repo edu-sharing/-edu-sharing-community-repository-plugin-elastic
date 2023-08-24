@@ -55,7 +55,7 @@ public class TransactionTracker extends TransactionTrackerBase{
     }
 
     @Override
-    public void trackNodes(List<Node> nodes) {
+    public void trackNodes(List<Node> nodes) throws IOException{
         eduSharingClient.refreshValuespaceCache();
 
         //filter stores
@@ -85,28 +85,23 @@ public class TransactionTracker extends TransactionTrackerBase{
                 .collect(Collectors.toList());
 
 
-        try {
-            elasticClient.beforeDeleteCleanupCollectionReplicas(toDelete);
-            elasticClient.delete(toDelete);
+        elasticClient.beforeDeleteCleanupCollectionReplicas(toDelete);
+        elasticClient.delete(toDelete);
 
-            /**
-             * index nodes
-             */
-            //some transactions can have a lot of Nodes which can cause trouble on alfresco so use partitioning
-            final AtomicInteger counter = new AtomicInteger(0);
-            final int size = 100;
-            Collection<List<Node>> partitions = nodes.stream()
-                    .collect(Collectors.groupingBy(it -> counter.getAndIncrement() / size))
-                    .values();
-            int pIdx = 0;
-            for(List<Node> partition :  partitions){
-                logger.info("indexNodes partition " +pIdx);
-                indexNodes(partition);
-                pIdx++;
-            }
-
-        }catch(IOException e){
-            logger.error(e.getMessage(),e);
+        /**
+         * index nodes
+         */
+        //some transactions can have a lot of Nodes which can cause trouble on alfresco so use partitioning
+        final AtomicInteger counter = new AtomicInteger(0);
+        final int size = 100;
+        Collection<List<Node>> partitions = nodes.stream()
+                .collect(Collectors.groupingBy(it -> counter.getAndIncrement() / size))
+                .values();
+        int pIdx = 0;
+        for(List<Node> partition :  partitions){
+            logger.info("indexNodes partition " +pIdx);
+            indexNodes(partition);
+            pIdx++;
         }
     }
 

@@ -112,6 +112,6 @@ public abstract class TransactionTrackerBase implements TransactionTrackerInterf
         elasticClient.setTransaction(0L,txId);
     }
 
-    public abstract void trackNodes(List<Node> nodes);
+    public abstract void trackNodes(List<Node> nodes) throws IOException;
 
 }
