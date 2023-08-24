@@ -29,7 +29,9 @@ public abstract class TransactionTrackerBase implements TransactionTrackerInterf
 
     Logger logger = LoggerFactory.getLogger(TransactionTrackerBase.class);
 
-
+    //max value vor recursive track() calls, prevents stackoverflow error
+    @Value("${stack.max:1000}")
+    int maxStackSize;
 
 
     @Override
@@ -93,6 +95,12 @@ public abstract class TransactionTrackerBase implements TransactionTrackerInterf
             logger.info("finished "+df.format(calcProgress(transactions,transactionIds))+"%, lastTransactionId:" +
                     " transactions:" + Arrays.toString(transactionIds.toArray()) +
                     " nodes:" + nodes.size() + "Stack size:" + Thread.currentThread().getStackTrace().length);
+
+            if(Thread.currentThread().getStackTrace().length >= maxStackSize){
+                logger.info("reached max stack size of: " +maxStackSize + "<=" +Thread.currentThread().getStackTrace().length);
+                return false;
+            }
+
             return true;
 
         } catch (IOException e) {
