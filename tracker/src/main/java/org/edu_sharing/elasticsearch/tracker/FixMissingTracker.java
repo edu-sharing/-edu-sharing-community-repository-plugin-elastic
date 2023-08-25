@@ -76,7 +76,7 @@ public class FixMissingTracker extends TransactionTracker{
                 .collect(Collectors.toList());
 
 
-        List<NodeMetadata> nodeData = client.getNodeMetadataAsSingleOnExeption(nodes);
+        List<NodeMetadata> nodeData = client.getNodeMetadata(nodes);
         for(Node node : nodes){
             boolean isPresent = nodeData.stream().filter(n ->  n.getId() == node.getId()).findFirst().isPresent();
             if(!isPresent){

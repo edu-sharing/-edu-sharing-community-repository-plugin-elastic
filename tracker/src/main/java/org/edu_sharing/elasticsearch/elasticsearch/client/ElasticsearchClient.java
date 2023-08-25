@@ -987,18 +987,14 @@ public class ElasticsearchClient {
                 long dbId = ((Number)hit.getSourceAsMap().get("dbid")).longValue();
                 GetNodeMetadataParam param = new GetNodeMetadataParam();
                 param.setNodeIds(Arrays.asList(new Long[]{dbId}));
-                NodeMetadatas nodeMetadatas = alfrescoClient.getNodeMetadata(param);
-                if(nodeMetadatas == null || nodeMetadatas.getNodes() == null || nodeMetadatas.getNodes().size() == 0){
+                List<NodeMetadata> nodeMetadataByIds = alfrescoClient.getNodeMetadataByIds(Arrays.asList(dbId));
+                if(nodeMetadataByIds == null  || nodeMetadataByIds.size() == 0){
                     logger.error("could not find usage/proposal object in alfresco with dbid:" + dbId);
                     return;
                 }
 
-                NodeMetadata usage = nodeMetadatas.getNodes().get(0);
+                NodeMetadata usage = nodeMetadataByIds.get(0);
                 logger.info("Is update: {}", update);
-                if(update && nodeMetadatas.getNodes().size() > maxCollectionChildItemsUpdateSize){
-                    logger.warn("to much children detected at node {}. Skipping synchronization of children", usage.getNodeRef());
-                    return;
-                }
 
                 logger.info("running indexCollections for usage: " + dbId);
                 indexCollections(usage);

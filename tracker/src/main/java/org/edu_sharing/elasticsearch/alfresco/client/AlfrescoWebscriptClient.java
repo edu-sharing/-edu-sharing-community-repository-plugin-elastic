@@ -101,7 +101,7 @@ public class AlfrescoWebscriptClient {
         return this.getNodeMetadata(param, false);
     }
 
-    public NodeMetadatas getNodeMetadata(GetNodeMetadataParam param, boolean debug) {
+    public NodeMetadatas getNodeMetadata(GetNodeMetadataParam param, boolean debug) throws ResponseProcessingException {
         String url = getUrl(URL_NODE_METADATA);
         Response resp = client.target(url)
                 .request(MediaType.APPLICATION_JSON)
@@ -112,17 +112,9 @@ public class AlfrescoWebscriptClient {
             logger.error("problems with node(s):" + valueAsString);
             return null;
         } else {
-            try {
-                NodeMetadatas nmds = resp.readEntity(NodeMetadatas.class);
-                return nmds;
-            } catch (ResponseProcessingException e) {
-                resp = client.target(url)
-                        .request(MediaType.APPLICATION_JSON)
-                        .post(Entity.json(param));
-                String valueAsString = resp.readEntity(String.class);
-                logger.error("problems with node(s):" + valueAsString, e);
-                return null;
-            }
+            //throws ResponseProcessingException when jaxrs data mapping fails
+            NodeMetadatas nmds = resp.readEntity(NodeMetadatas.class);
+            return nmds;
         }
     }
 
@@ -148,36 +140,35 @@ public class AlfrescoWebscriptClient {
         return getNodeMetadataByIds(dbnodeids);
     }
 
-    public List<NodeMetadata> getNodeMetadataAsSingleOnExeption(List<Node> nodes) {
-        List<NodeMetadata> nodeData = new ArrayList<>();
-        try {
-            nodeData.addAll(getNodeMetadata(nodes));
-        } catch(Throwable t) {
-            /**
-             * get node metadata
-             *
-             * use every single node to get metadata instead of bulk to prevent damaged nodes break other nodes
-             */
-            for (Node node : nodes) {
-                try {
-                    List<NodeMetadata> nodeDataTmp = getNodeMetadata(Arrays.asList(new Node[]{node}));
-                    nodeData.addAll(nodeDataTmp);
-                } catch (javax.ws.rs.ProcessingException e) {
-                    logger.error("error unmarshalling NodeMetadata for node " + node, e);
-                }
-            }
-        }
-        return nodeData;
-    }
-
-    private List<NodeMetadata> getNodeMetadataByIds(List<Long> dbNodeIds) {
+    public List<NodeMetadata> getNodeMetadataByIds(List<Long> dbNodeIds) {
         GetNodeMetadataParam getNodeMetadataParam = new GetNodeMetadataParam();
         getNodeMetadataParam.setNodeIds(dbNodeIds);
 
-        NodeMetadatas nmds = getNodeMetadata(getNodeMetadataParam);
-        if (nmds != null) {
-            return nmds.getNodes();
-        } else return new ArrayList<>();
+        NodeMetadatas nmds = null;
+        try {
+            nmds = getNodeMetadata(getNodeMetadataParam);
+            return (nmds == null) ?  new ArrayList<>() : nmds.getNodes();
+        }catch (ResponseProcessingException e){
+            List<NodeMetadata> fallbackResult = new ArrayList<>();
+            for(Long dbid : dbNodeIds){
+                GetNodeMetadataParam getNodeMetadataParamSingle = new GetNodeMetadataParam();
+                getNodeMetadataParamSingle.setNodeIds(Arrays.asList(dbid));
+                try {
+                    NodeMetadatas nmdsSingle = getNodeMetadata(getNodeMetadataParamSingle);
+                    if(nmdsSingle != null) fallbackResult.addAll(nmdsSingle.getNodes());
+                //finally log the broken node
+                }catch (ResponseProcessingException e2){
+                    String url = getUrl(URL_NODE_METADATA);
+                    Response resp = client.target(url)
+                            .request(MediaType.APPLICATION_JSON)
+                            .post(Entity.json(getNodeMetadataParamSingle));
+                    String valueAsString = resp.readEntity(String.class);
+                    logger.error("problems with node:" + valueAsString, e);
+                }
+            }
+            return fallbackResult;
+        }
+
     }
 
     public List<NodeMetadata> getNodeMetadataByAllowedTypes(List<Node> nodes, final List<String> types) {
@@ -202,6 +193,7 @@ public class AlfrescoWebscriptClient {
         getNodeMetadataParam.setIncludeChildIds(false);
         getNodeMetadataParam.setIncludeTxnId(false);
 
+        //call shoulkd not lead to responseprocessing exception cause only type is returned
         NodeMetadatas nmds = getNodeMetadata(getNodeMetadataParam);
         if (nmds != null) {
             return getNodeMetadataByIds(nmds.getNodes()

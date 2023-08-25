@@ -47,6 +47,7 @@ public abstract class TransactionTrackerBase implements TransactionTrackerInterf
     @Override
     public boolean track(){
         try {
+            eduSharingClient.refreshValuespaceCache();
             Tx txn = elasticClient.getTransaction(getTransactionIndex());
 
             long lastTransactionId;
