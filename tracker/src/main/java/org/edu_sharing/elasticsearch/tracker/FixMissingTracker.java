@@ -2,6 +2,7 @@ package org.edu_sharing.elasticsearch.tracker;
 
 import org.edu_sharing.elasticsearch.alfresco.client.Node;
 import org.edu_sharing.elasticsearch.alfresco.client.NodeMetadata;
+import org.edu_sharing.elasticsearch.alfresco.client.Transactions;
 import org.edu_sharing.elasticsearch.elasticsearch.client.ElasticsearchClient;
 import org.edu_sharing.elasticsearch.elasticsearch.client.Tx;
 import org.edu_sharing.elasticsearch.tools.Tools;
@@ -39,6 +40,8 @@ public class FixMissingTracker extends TransactionTracker{
     boolean repair;
 
     File tempFile;
+
+    Long runToTx = null;
 
 
     @PostConstruct
@@ -121,5 +124,20 @@ public class FixMissingTracker extends TransactionTracker{
     private void logUnresolveableNode(String dbid) throws IOException{
         dbid = dbid + System.lineSeparator();
         Files.write(tempFile.toPath(),dbid.getBytes(StandardCharsets.UTF_8), StandardOpenOption.APPEND);
+    }
+
+    @Override
+    public long getMaxTxnId(Transactions transactions) {
+        if(runToTx == null){
+            try {
+                runToTx = elasticClient.getTransaction(ElasticsearchClient.INDEX_TRANSACTIONS).getTxnId();
+                logger.info("running not longer than current main tracker transaction:" +runToTx);
+            } catch (IOException e) {
+               logger.error("error reaching elasticsearch");
+               return 0;
+            }
+        }
+        return runToTx;
+
     }
 }

@@ -66,8 +66,8 @@ public abstract class TransactionTrackerBase implements TransactionTrackerInterf
             Transactions transactions = client.getTransactions(nextTransactionId, nextTransactionId + transactionsMax, null, null, transactionsMax);
 
             if(transactions.getTransactions().size() == 0){
-                if(transactions.getMaxTxnId() <= (lastTransactionId + transactionsMax)){
-                    logger.info("index is up to date transactions.getMaxTxnId():"+transactions.getMaxTxnId());
+                if(getMaxTxnId(transactions) <= (lastTransactionId + transactionsMax)){
+                    logger.info("index is up to date getMaxTxnId():"+getMaxTxnId(transactions));
                     return false;
                 }else{
                     logger.info("did not found new transactions in last transaction block min:" + lastTransactionId +" max:"+(lastTransactionId + transactionsMax)  );
@@ -124,7 +124,7 @@ public abstract class TransactionTrackerBase implements TransactionTrackerInterf
 
     private Double calcProgress(Transactions transactions, List<Long> transactionIds){
         Long last = transactionIds.get(transactionIds.size() - 1);
-        return  (transactionIds != null && transactionIds.size() > 0) ? new Double(((double) last / (double)transactions.getMaxTxnId()) * 100.0)  : 0.0;
+        return  (transactionIds != null && transactionIds.size() > 0) ? new Double(((double) last / (double)getMaxTxnId(transactions)) * 100.0)  : 0.0;
     }
 
     void commit(long txId) throws IOException{
@@ -136,6 +136,10 @@ public abstract class TransactionTrackerBase implements TransactionTrackerInterf
 
     public String getTransactionIndex(){
         return ElasticsearchClient.INDEX_TRANSACTIONS;
+    }
+
+    public long getMaxTxnId(Transactions transactions){
+        return transactions.getMaxTxnId();
     }
 
 }
