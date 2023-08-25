@@ -154,6 +154,7 @@ public class AlfrescoWebscriptClient {
             for(Long dbid : dbNodeIds){
                 GetNodeMetadataParam getNodeMetadataParamSingle = new GetNodeMetadataParam();
                 getNodeMetadataParamSingle.setNodeIds(Arrays.asList(dbid));
+                getNodeMetadataParamSingle.setIncludeChildAssociations(false);
                 try {
                     NodeMetadatas nmdsSingle = getNodeMetadata(getNodeMetadataParamSingle);
                     if(nmdsSingle != null) fallbackResult.addAll(nmdsSingle.getNodes());
