@@ -95,6 +95,12 @@ public class FixMissingTracker extends TransactionTracker{
                     if(repair){
                         Node node = nodes.stream().filter(n -> n.getId() == nodeMetadata.getId()).findFirst().get();
                         indexNodes(Arrays.asList(node));
+
+                        if("ccm:usage".equals(nodeMetadata.getType())
+                                || "ccm:collection_proposal".equals(nodeMetadata.getType())){
+                            logger.info("sync collections for usage:" + node.getId());
+                            elasticClient.indexCollections(nodeMetadata);
+                        }
                     }
                 }
             }
