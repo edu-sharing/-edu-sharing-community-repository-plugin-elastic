@@ -160,6 +160,11 @@ public class ElasticsearchClient {
         GetIndexRequest request = new GetIndexRequest(index);
         if(!client.indices().exists(request,RequestOptions.DEFAULT)){
             CreateIndexRequest createIndexRequest = new CreateIndexRequest(index);
+
+            createIndexRequest.settings(Settings.builder()
+                            .put("index.number_of_shards", indexNumberOfShards)
+                            .put("index.number_of_replicas", indexNumberOfReplicas));
+
             client.indices().create(createIndexRequest, RequestOptions.DEFAULT);
         }
     }
