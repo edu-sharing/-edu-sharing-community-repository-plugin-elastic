@@ -93,12 +93,10 @@ public class FixMissingTracker extends TransactionTracker{
                 if (!resp.isExists()) {
                     logNodeProblem("node does not exist in elastic id:", nodeMetadata);
                     if(repair){
-                        Node node = nodes.stream().filter(n -> n.getId() == nodeMetadata.getId()).findFirst().get();
-                        indexNodes(Arrays.asList(node));
-
+                        indexNodesMetadata(Arrays.asList(nodeMetadata));
                         if("ccm:usage".equals(nodeMetadata.getType())
                                 || "ccm:collection_proposal".equals(nodeMetadata.getType())){
-                            logger.info("sync collections for usage:" + node.getId());
+                            logger.info("sync collections for usage:" + nodeMetadata.getId());
                             elasticClient.indexCollections(nodeMetadata);
                         }
                     }

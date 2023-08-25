@@ -106,6 +106,9 @@ public class TransactionTracker extends TransactionTrackerBase{
         logger.info("getNodeMetadata start " + nodes.size());
         List<NodeMetadata> nodeData = client.getNodeMetadata(nodes);
         logger.info("getNodeMetadata done " +nodeData.size());
+        indexNodesMetadata(nodeData);
+    }
+    public void indexNodesMetadata(List<NodeMetadata> nodeData) throws IOException{
 
         List<NodeMetadata> toIndexUsagesProposalsMd = nodeData
                 .stream()
