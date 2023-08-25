@@ -119,6 +119,7 @@ public class FixMissingTracker extends TransactionTracker{
     }
 
     private void logUnresolveableNode(String dbid) throws IOException{
+        dbid = dbid + System.lineSeparator();
         Files.write(tempFile.toPath(),dbid.getBytes(StandardCharsets.UTF_8), StandardOpenOption.APPEND);
     }
 }
