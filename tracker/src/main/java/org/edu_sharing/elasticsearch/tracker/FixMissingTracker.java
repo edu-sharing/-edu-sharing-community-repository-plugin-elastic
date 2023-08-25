@@ -66,7 +66,7 @@ public class FixMissingTracker extends TransactionTracker{
         //filter stores
         nodes = nodes
                 .stream()
-                .filter(n -> indexStoreRefs.contains(Tools.getStoreRef(n.getNodeRef())))
+                .filter(n -> "workspace://SpacesStore".contains(Tools.getStoreRef(n.getNodeRef())))
                 .collect(Collectors.toList());
 
         //filter deletes
