@@ -143,6 +143,7 @@ public class AlfrescoWebscriptClient {
     public List<NodeMetadata> getNodeMetadataByIds(List<Long> dbNodeIds) {
         GetNodeMetadataParam getNodeMetadataParam = new GetNodeMetadataParam();
         getNodeMetadataParam.setNodeIds(dbNodeIds);
+        getNodeMetadataParam.setIncludeChildAssociations(false);
 
         NodeMetadatas nmds = null;
         try {
