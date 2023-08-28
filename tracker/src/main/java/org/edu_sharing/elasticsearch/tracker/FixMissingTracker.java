@@ -78,8 +78,11 @@ public class FixMissingTracker extends TransactionTracker{
                 .filter(n -> !n.getStatus().equals("d"))
                 .collect(Collectors.toList());
 
+        logger.info("nodes cleaned up:" + nodes.size());
+
 
         List<NodeMetadata> nodeData = client.getNodeMetadata(nodes);
+        logger.info("nodes getMetadata finished. size:" + nodeData.size());
         for(Node node : nodes){
             boolean isPresent = nodeData.stream().filter(n ->  n.getId() == node.getId()).findFirst().isPresent();
             if(!isPresent){
@@ -87,6 +90,8 @@ public class FixMissingTracker extends TransactionTracker{
                 logUnresolveableNode(new Long(node.getId()).toString());
             }
         }
+
+
 
         for(NodeMetadata nodeMetadata : nodeData){
             if(isAllowedType(nodeMetadata)) {
@@ -106,6 +111,7 @@ public class FixMissingTracker extends TransactionTracker{
                 }
             }
         }
+        logger.info("finished reindexing:" + nodeData.size());
     }
 
     private void logNodeProblem(String message, Node node){
