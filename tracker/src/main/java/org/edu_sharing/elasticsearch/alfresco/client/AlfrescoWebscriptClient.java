@@ -144,6 +144,7 @@ public class AlfrescoWebscriptClient {
         GetNodeMetadataParam getNodeMetadataParam = new GetNodeMetadataParam();
         getNodeMetadataParam.setNodeIds(dbNodeIds);
         getNodeMetadataParam.setIncludeChildAssociations(false);
+        getNodeMetadataParam.setIncludeParentAssociations(false);
 
         NodeMetadatas nmds = null;
         try {
@@ -155,6 +156,7 @@ public class AlfrescoWebscriptClient {
                 GetNodeMetadataParam getNodeMetadataParamSingle = new GetNodeMetadataParam();
                 getNodeMetadataParamSingle.setNodeIds(Arrays.asList(dbid));
                 getNodeMetadataParamSingle.setIncludeChildAssociations(false);
+                getNodeMetadataParamSingle.setIncludeParentAssociations(false);
                 try {
                     NodeMetadatas nmdsSingle = getNodeMetadata(getNodeMetadataParamSingle);
                     if(nmdsSingle != null) fallbackResult.addAll(nmdsSingle.getNodes());
