@@ -80,9 +80,9 @@ public class FixMissingTracker extends TransactionTracker{
 
         logger.info("nodes cleaned up:" + nodes.size());
 
-
+        long millis = System.currentTimeMillis();
         List<NodeMetadata> nodeData = client.getNodeMetadata(nodes);
-        logger.info("nodes getMetadata finished. size:" + nodeData.size());
+        logger.info("nodes getMetadata finished. size:" + nodeData.size() +" in " + (System.currentTimeMillis() - millis));
         for(Node node : nodes){
             boolean isPresent = nodeData.stream().filter(n ->  n.getId() == node.getId()).findFirst().isPresent();
             if(!isPresent){
@@ -92,7 +92,7 @@ public class FixMissingTracker extends TransactionTracker{
         }
 
 
-
+        millis = System.currentTimeMillis();
         for(NodeMetadata nodeMetadata : nodeData){
             if(isAllowedType(nodeMetadata)) {
                 //2-4ms
@@ -111,7 +111,7 @@ public class FixMissingTracker extends TransactionTracker{
                 }
             }
         }
-        logger.info("finished reindexing:" + nodeData.size());
+        logger.info("finished reindexing:" + nodeData.size() + " in " + (System.currentTimeMillis() - millis));
     }
 
     private void logNodeProblem(String message, Node node){
