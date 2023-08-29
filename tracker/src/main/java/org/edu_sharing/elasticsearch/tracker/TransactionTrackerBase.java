@@ -18,6 +18,7 @@ import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.ForkJoinPool;
 
 public abstract class TransactionTrackerBase implements TransactionTrackerInterface{
     @Autowired
@@ -38,9 +39,14 @@ public abstract class TransactionTrackerBase implements TransactionTrackerInterf
     @Value("${stack.max:1000}")
     int maxStackSize;
 
+    @Value("${threading.threadCount}")
+    Integer threadCount;
+    protected ForkJoinPool threadPool;
+
     @PostConstruct
-    public void initIndex() throws IOException{
+    public void initBase() throws IOException{
         elasticClient.createIndexIfNotExists(getTransactionIndex());
+        threadPool = new ForkJoinPool(threadCount);
     }
 
 

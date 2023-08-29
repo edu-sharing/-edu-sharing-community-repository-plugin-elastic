@@ -19,8 +19,9 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
-import java.util.Arrays;
-import java.util.List;
+import java.util.*;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 
@@ -80,9 +81,56 @@ public class FixMissingTracker extends TransactionTracker{
 
         logger.info("nodes cleaned up:" + nodes.size());
 
+        //remove duplicates
+        nodes = nodes
+                .stream()
+                .distinct()
+                .collect( Collectors.toList() );
+        logger.info("nodes removed duplicates:" + nodes.size());
+
+
+        //split to partion for high number of nodes (i.e 80.000)
+        Collection<List<Node>> partitions = new Partition<Node>().getPartitions(nodes,500);
+        int c = 0;
+        int p = 0;
+        for(List<Node> partition : partitions){
+            logger.info("indexing main partition " + p + " size:"  + partition.size());
+            c += index(partition);
+            p++;
+        }
+        logger.info("processed " + c +" nodes");
+    }
+
+    /**
+     * returns number of nodes metadata was fetched
+     *
+     * @param nodes
+     * @return
+     * @throws IOException
+     */
+    private int index(List<Node> nodes) throws IOException{
         long millis = System.currentTimeMillis();
-        List<NodeMetadata> nodeData = client.getNodeMetadata(nodes);
-        logger.info("nodes getMetadata finished. size:" + nodeData.size() +" in " + (System.currentTimeMillis() - millis));
+        //partion for parallel processsing
+        Collection<List<Node>> partitions = new Partition<Node>().getPartitions(nodes, 50);
+        List<NodeMetadata> tmpNodeData = Collections.synchronizedList(new ArrayList<>());
+        AtomicInteger counter = new AtomicInteger(0);
+
+        for(List<Node> partition :  partitions) {
+            threadPool.execute(() -> {
+                List<NodeMetadata> tmp = client.getNodeMetadata(partition);
+                tmpNodeData.addAll(tmp);
+                counter.addAndGet(partition.size());
+            });
+        }
+        if(!threadPool.awaitQuiescence(10, TimeUnit.MINUTES)){
+            logger.error("Fatal error while processing nodes: timeout of getNodeMetadata");
+            logger.error(nodes.stream().map(Node::getNodeRef).collect(Collectors.joining(", ")));
+        }
+        //sort to originally order
+        List<NodeMetadata> nodeData = new ArrayList<>();
+        nodes.stream().forEach(n -> nodeData.add(tmpNodeData.stream().filter(nodeMetadata -> nodeMetadata.getId() == n.getId()).findFirst().get()));
+        logger.info("nodes getMetadata finished. size:" + nodeData.size() +" in " + (System.currentTimeMillis() - millis) +" nd size" +nodeData.size());
+
         for(Node node : nodes){
             boolean isPresent = nodeData.stream().filter(n ->  n.getId() == node.getId()).findFirst().isPresent();
             if(!isPresent){
@@ -112,6 +160,7 @@ public class FixMissingTracker extends TransactionTracker{
             }
         }
         logger.info("finished reindexing:" + nodeData.size() + " in " + (System.currentTimeMillis() - millis));
+        return counter.get();
     }
 
     private void logNodeProblem(String message, Node node){

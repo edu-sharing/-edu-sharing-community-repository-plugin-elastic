@@ -38,19 +38,12 @@ public class TransactionTracker extends TransactionTrackerBase{
     @Value("${index.storerefs}")
     List<String> indexStoreRefs;
 
-    @Value("${threading.threadCount}")
-    Integer threadCount;
 
     Logger logger = LoggerFactory.getLogger(TransactionTracker.class);
-    private ForkJoinPool threadPool;
 
     @Value("${statistic.historyInDays}")
     long historyInDays;
 
-    @PostConstruct
-    public void initThreadPool()  throws IOException{
-        threadPool = new ForkJoinPool(threadCount);
-    }
 
     @Override
     public void trackNodes(List<Node> nodes) throws IOException{
