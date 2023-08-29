@@ -128,8 +128,16 @@ public class FixMissingTracker extends TransactionTracker{
         }
         //sort to originally order
         List<NodeMetadata> nodeData = new ArrayList<>();
-        nodes.stream().forEach(n -> nodeData.add(tmpNodeData.stream().filter(nodeMetadata -> nodeMetadata.getId() == n.getId()).findFirst().get()));
-        logger.info("nodes getMetadata finished. size:" + nodeData.size() +" in " + (System.currentTimeMillis() - millis) +" nd size" +nodeData.size());
+        nodes.stream().forEach(n -> {
+            NodeMetadata nodeMetadata = tmpNodeData.stream().filter(nd -> nd.getId() == n.getId()).findFirst().orElse(null);
+            if(nodeMetadata != null){
+                nodeData.add(nodeMetadata);
+            }else{
+                logger.warn("nodeMetadata list is missing node with id " + n.getId());
+            }
+        });
+
+        logger.info("nodes getMetadata finished. nd size:" + nodeData.size() +" n size" +nodes.size() +" in " + (System.currentTimeMillis() - millis));
 
         for(Node node : nodes){
             boolean isPresent = nodeData.stream().filter(n ->  n.getId() == node.getId()).findFirst().isPresent();
