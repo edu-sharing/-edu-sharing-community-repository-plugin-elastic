@@ -6,6 +6,7 @@ import org.apache.logging.log4j.Logger;
 import org.edu_sharing.elasticsearch.tracker.ACLTracker;
 import org.edu_sharing.elasticsearch.tracker.StatisticsTracker;
 import org.edu_sharing.elasticsearch.tracker.TransactionTracker;
+import org.edu_sharing.elasticsearch.tracker.TransactionTrackerInterface;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -18,7 +19,7 @@ public class TrackerJob {
     boolean statisticEnabled;
 
     @Autowired
-    TransactionTracker transactionTracker;
+    TransactionTrackerInterface transactionTracker;
 
     @Autowired
     ACLTracker aclTracker;
