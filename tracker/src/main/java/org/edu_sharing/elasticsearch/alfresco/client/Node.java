@@ -125,7 +125,11 @@ public class Node
                     + ", status=" + this.status + ", tenant=" + this.tenant + ", aclId="
                     + this.aclId + ", shardPropertyValue=" + this.shardPropertyValue + "]";
     }
-    
-    
-   
+
+    @Override
+    public boolean equals(Object obj) {
+        if(obj == null) return false;
+        if(!(obj instanceof Node)) return false;
+        return this.getId() == ((Node)obj).getId();
+    }
 }
