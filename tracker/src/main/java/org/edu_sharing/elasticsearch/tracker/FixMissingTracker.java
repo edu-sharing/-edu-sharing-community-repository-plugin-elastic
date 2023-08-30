@@ -126,6 +126,9 @@ public class FixMissingTracker extends TransactionTracker{
             logger.error("Fatal error while processing nodes: timeout of getNodeMetadata");
             logger.error(nodes.stream().map(Node::getNodeRef).collect(Collectors.joining(", ")));
         }
+        logger.info("finished threaded getMetadata of nodes:" + nodes.size() +" nodeMetadatas:" +tmpNodeData.size());
+
+
         //sort to originally order
         List<NodeMetadata> nodeData = new ArrayList<>();
         nodes.stream().forEach(n -> {
@@ -137,14 +140,26 @@ public class FixMissingTracker extends TransactionTracker{
             }
         });
 
+        logger.info("finished sort nodes:" + nodes.size() +" nodeMetadatas:" +nodeData.size());
+
         logger.info("nodes getMetadata finished. nd size:" + nodeData.size() +" n size" +nodes.size() +" in " + (System.currentTimeMillis() - millis));
 
+        List<Node> missingMetadata = new ArrayList<>();
         for(Node node : nodes){
             boolean isPresent = nodeData.stream().filter(n ->  n.getId() == node.getId()).findFirst().isPresent();
             if(!isPresent){
                 logNodeProblem("Problem fetching NodeMetadata for",node);
                 logUnresolveableNode(new Long(node.getId()).toString());
+                missingMetadata.add(node);
             }
+        }
+
+        if(missingMetadata.size() > 0){
+            List<String> errorNodes = new ArrayList<>();
+            missingMetadata.stream().forEach(n -> {
+                errorNodes.add( n.getNodeRef() +" id:" +n.getId());
+            });
+            throw new RuntimeException("fetching metadata of nodes failed:" + Arrays.toString(errorNodes.toArray()));
         }
 
 
