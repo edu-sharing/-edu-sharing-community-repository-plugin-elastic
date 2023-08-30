@@ -18,8 +18,6 @@ data:
     {{- if default .Values.global.debug .Values.debug }}
     -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=5005
     {{- end }}
-  node.data: "true"
-  node.ingest: "true"
-  node.master: "true"
+  http.max_content_length: "{{ .Values.config.http.maxContentLength }}"
   node.store.allow_mmap: "{{ .Values.config.store.mmap }}"
   xpack.security.enabled: "false"
