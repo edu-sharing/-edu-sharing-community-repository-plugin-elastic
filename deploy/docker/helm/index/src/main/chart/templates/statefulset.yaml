@@ -50,10 +50,13 @@ spec:
         - |
           if [[ ! "$(ls -A /usr/share/elasticsearch/data)" ]]; then
             chown -R {{ .Values.securityContext.runAsUser }}:{{ .Values.podSecurityContext.fsGroup }} /usr/share/elasticsearch/data
+            chown -R {{ .Values.securityContext.runAsUser }}:{{ .Values.podSecurityContext.fsGroup }} /usr/share/elasticsearch/share
           fi
         volumeMounts:
         - name: data
           mountPath: /usr/share/elasticsearch/data
+        - name: share-data
+          mountPath: /usr/share/elasticsearch/share
         {{- with .Values.init.permission.resources }}
         resources: {{ toYaml . | nindent 10 }}
         {{- end }}
@@ -97,6 +100,14 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: status.podIP
+        - name: node.data
+          value: "true"
+        - name: node.ingest
+          value: "true"
+        - name: node.master
+          value: "true"
+        - name: path.repo
+          value: "/usr/share/elasticsearch/share"
         envFrom:
         - configMapRef:
             name: {{ include "edusharing_repository_search_elastic_index.name" . }}-env
@@ -112,6 +123,8 @@ spec:
         volumeMounts:
         - name: data
           mountPath: /usr/share/elasticsearch/data
+        - name: share-data
+          mountPath: /usr/share/elasticsearch/share
         {{- with .Values.startupProbe }}
         startupProbe:
           httpGet:
@@ -211,6 +224,10 @@ spec:
           {{- end }}
         {{- end }}
       {{- end }}
+      volumes:
+      - name: share-data
+        persistentVolumeClaim:
+          claimName: {{ include "edusharing_repository_search_elastic_index.pvc.share.data" . }}
   volumeClaimTemplates:
   - metadata:
       name: data
@@ -266,10 +283,13 @@ spec:
         - |
           if [[ ! "$(ls -A /usr/share/elasticsearch/data)" ]]; then
             chown -R {{ $.Values.securityContext.runAsUser }}:{{ $.Values.podSecurityContext.fsGroup }} /usr/share/elasticsearch/data
+            chown -R {{ $.Values.securityContext.runAsUser }}:{{ $.Values.podSecurityContext.fsGroup }} /usr/share/elasticsearch/share
           fi
         volumeMounts:
         - name: data
           mountPath: /usr/share/elasticsearch/data
+        - name: share-data
+          mountPath: /usr/share/elasticsearch/share
         {{- with $.Values.init.permission.resources }}
         resources: {{ toYaml . | nindent 10 }}
         {{- end }}
@@ -313,6 +333,14 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: status.podIP
+        - name: node.data
+          value: "true"
+        - name: node.ingest
+          value: "true"
+        - name: node.master
+          value: "true"
+        - name: path.repo
+          value: "/usr/share/elasticsearch/share"
         envFrom:
         - configMapRef:
             name: {{ include "edusharing_repository_search_elastic_index.name" $ }}-env
@@ -328,6 +356,8 @@ spec:
         volumeMounts:
         - name: data
           mountPath: /usr/share/elasticsearch/data
+        - name: share-data
+          mountPath: /usr/share/elasticsearch/share
         {{- with $.Values.startupProbe }}
         startupProbe:
           httpGet:
@@ -423,6 +453,10 @@ spec:
           {{- end }}
         {{- end }}
       {{- end }}
+      volumes:
+      - name: share-data
+        persistentVolumeClaim:
+          claimName: {{ include "edusharing_repository_search_elastic_index.pvc.share.data" . }}
   volumeClaimTemplates:
   - metadata:
       name: data
