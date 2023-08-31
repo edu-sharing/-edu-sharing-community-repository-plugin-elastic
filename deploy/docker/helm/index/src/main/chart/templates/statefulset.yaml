@@ -456,7 +456,7 @@ spec:
       volumes:
       - name: share-data
         persistentVolumeClaim:
-          claimName: {{ include "edusharing_repository_search_elastic_index.pvc.share.data" . }}
+          claimName: {{ include "edusharing_repository_search_elastic_index.pvc.share.data" $ }}
   volumeClaimTemplates:
   - metadata:
       name: data
