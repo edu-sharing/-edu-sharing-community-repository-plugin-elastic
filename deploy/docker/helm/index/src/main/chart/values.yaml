@@ -18,7 +18,9 @@ global:
       data:
         permission: false
         spec: {}
-#          storageClassName:
+      share:
+        permission: false
+        spec: {}
 
     sysctl:
       enabled: false
@@ -67,6 +69,9 @@ service:
 
 config:
 
+  http:
+    maxContentLength: "2147483647b"
+
   jvm:
     ram:
       minPercentage: "75.0"
@@ -74,6 +79,18 @@ config:
 
   store:
     mmap: false
+
+########################################################################################################################
+
+multistage:
+
+  enabled: false
+
+  current: ""
+
+  stages: []
+#    - name: blue
+#    - name: green
 
 ########################################################################################################################
 
@@ -96,6 +113,14 @@ persistence:
       resources:
         requests:
           storage: 5Gi
+  share:
+    data:
+      create: true
+      spec:
+        accessModes: [ "ReadWriteMany" ]
+        resources:
+          requests:
+            storage: 5Gi
 
 ########################################################################################################################
 
