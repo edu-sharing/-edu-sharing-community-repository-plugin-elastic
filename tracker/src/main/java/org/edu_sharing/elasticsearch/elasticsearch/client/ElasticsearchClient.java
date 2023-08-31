@@ -1080,7 +1080,13 @@ public class ElasticsearchClient {
     public GetResponse get(String index, String id) throws IOException {
         GetRequest getRequest = new GetRequest(index,id);
         GetResponse resp = client.get(getRequest,RequestOptions.DEFAULT);
+
         return resp;
+    }
+
+    public boolean exists(String index, String id) throws IOException {
+        GetRequest getRequest = new GetRequest(index,id);
+        return client.exists(getRequest,RequestOptions.DEFAULT);
     }
 
     public Tx getTransaction(String index) throws IOException {
