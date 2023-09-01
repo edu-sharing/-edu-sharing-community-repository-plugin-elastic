@@ -167,9 +167,8 @@ public class FixMissingTracker extends TransactionTracker{
         for(NodeMetadata nodeMetadata : nodeData){
             if(isAllowedType(nodeMetadata)) {
                 //2-4ms
-                GetResponse resp = elasticClient.get(ElasticsearchClient.INDEX_WORKSPACE, new Long(nodeMetadata.getId()).toString());
-
-                if (!resp.isExists()) {
+                //GetResponse resp = elasticClient.get(ElasticsearchClient.INDEX_WORKSPACE, new Long(nodeMetadata.getId()).toString());
+                if (!elasticClient.exists(ElasticsearchClient.INDEX_WORKSPACE, new Long(nodeMetadata.getId()).toString())) {
                     logNodeProblem("node does not exist in elastic id:", nodeMetadata);
                     if(repair){
                         indexNodesMetadata(Arrays.asList(nodeMetadata));

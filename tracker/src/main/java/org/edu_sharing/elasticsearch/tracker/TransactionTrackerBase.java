@@ -122,7 +122,7 @@ public abstract class TransactionTrackerBase implements TransactionTrackerInterf
             return true;
 
         } catch (IOException e) {
-            logger.error("problems reaching elastic search server");
+            logger.error(e.getMessage(),e);
             return false;
         }
 
