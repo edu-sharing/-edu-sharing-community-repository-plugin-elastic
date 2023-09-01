@@ -94,7 +94,7 @@ public class FixMissingTracker extends TransactionTracker{
         int c = 0;
         int p = 0;
         for(List<Node> partition : partitions){
-            logger.info("indexing main partition " + p + " size:"  + partition.size());
+            logger.info("indexing main partition " + p + " partition size:"  + partition.size() +" partitions size:" +partitions.size());
             c += index(partition);
             p++;
         }
