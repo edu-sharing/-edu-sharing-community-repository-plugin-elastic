@@ -132,7 +132,10 @@ public class FixMissingTracker extends TransactionTracker{
         //sort to originally order
         List<NodeMetadata> nodeData = new ArrayList<>();
         nodes.stream().forEach(n -> {
-            NodeMetadata nodeMetadata = tmpNodeData.stream().filter(nd -> nd.getId() == n.getId()).findFirst().orElse(null);
+            NodeMetadata nodeMetadata = tmpNodeData.stream().
+                    filter(nd -> nd.getId() == n.getId()).
+                    findFirst().
+                    orElse(null);
             if(nodeMetadata != null){
                 nodeData.add(nodeMetadata);
             }else{
