@@ -94,7 +94,7 @@ public class FixMissingTracker extends TransactionTracker{
         int c = 0;
         int p = 0;
         for(List<Node> partition : partitions){
-            logger.info("indexing main partition " + p + " size:"  + partition.size());
+            logger.info("indexing main partition " + p + " partition size:"  + partition.size() +" partitions size:" +partitions.size());
             c += index(partition);
             p++;
         }
@@ -132,7 +132,10 @@ public class FixMissingTracker extends TransactionTracker{
         //sort to originally order
         List<NodeMetadata> nodeData = new ArrayList<>();
         nodes.stream().forEach(n -> {
-            NodeMetadata nodeMetadata = tmpNodeData.stream().filter(nd -> nd.getId() == n.getId()).findFirst().orElse(null);
+            NodeMetadata nodeMetadata = tmpNodeData.stream().
+                    filter(nd -> nd != null && (nd.getId() == n.getId())).
+                    findFirst().
+                    orElse(null);
             if(nodeMetadata != null){
                 nodeData.add(nodeMetadata);
             }else{

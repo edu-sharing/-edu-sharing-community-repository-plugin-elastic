@@ -71,9 +71,16 @@ public abstract class TransactionTrackerBase implements TransactionTrackerInterf
             long nextTransactionId = lastTransactionId + 1;
             Transactions transactions = client.getTransactions(nextTransactionId, nextTransactionId + transactionsMax, null, null, transactionsMax);
 
+            long maxTrackerTxnId = getMaxTxnId(transactions);
+            Long maxTxnId = transactions.getMaxTxnId();
+            if(nextTransactionId >= maxTrackerTxnId || nextTransactionId >= maxTxnId){
+                logger.info("Tracker "+ this.getClass().getSimpleName() +" is up to date. maxTrackerTxnId:"+ maxTrackerTxnId +" maxTxnId:" + maxTxnId +" lastTransactionId:" +lastTransactionId);
+                return false;
+            }
+
             if(transactions.getTransactions().size() == 0){
-                if(getMaxTxnId(transactions) <= (lastTransactionId + transactionsMax)){
-                    logger.info("index is up to date getMaxTxnId():"+getMaxTxnId(transactions));
+                if(maxTrackerTxnId <= (lastTransactionId + transactionsMax)){
+                    logger.info("index is up to date getMaxTxnId():"+ maxTrackerTxnId);
                     return false;
                 }else{
                     logger.info("did not found new transactions in last transaction block min:" + lastTransactionId +" max:"+(lastTransactionId + transactionsMax)  );
