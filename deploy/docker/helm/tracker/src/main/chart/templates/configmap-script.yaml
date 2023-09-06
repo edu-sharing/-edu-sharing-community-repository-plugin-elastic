@@ -4,7 +4,26 @@ kind: ConfigMap
 metadata:
   name: {{ include "edusharing_repository_search_elastic_tracker.name" . }}-script
   labels: {{ include "edusharing_repository_search_elastic_tracker.labels.app" . | nindent 4 }}
+    {{- if .Values.multistage.enabled }}
+    app.kubernetes.io/stage: ""
+    {{- end }}
 data:
   script.groovy: |
 {{ .Values.config.tracker.customScript | indent 4 }}
-{{- end -}}
+{{- end }}
+{{- if .Values.multistage.enabled }}
+{{- range .Values.multistage.stages }}
+{{- if .spec.config.tracker.customScript }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "edusharing_repository_search_elastic_tracker.name" $ }}-script-{{ .name }}
+  labels: {{ include "edusharing_repository_search_elastic_tracker.labels.app" $ | nindent 4 }}
+    app.kubernetes.io/stage: {{ .name }}
+data:
+  script.groovy: |
+{{ .spec.config.tracker.customScript | indent 4 }}
+{{- end }}
+{{- end }}
+{{- end }}

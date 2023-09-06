@@ -3,16 +3,25 @@ kind: StatefulSet
 metadata:
   name: {{ include "edusharing_repository_search_elastic_index.name" . }}
   labels: {{ include "edusharing_repository_search_elastic_index.labels.app" . | nindent 4 }}
+    {{- if .Values.multistage.enabled }}
+    app.kubernetes.io/stage: ""
+    {{- end }}
 spec:
   podManagementPolicy: Parallel
   replicas: {{ .Values.replicaCount }}
   selector:
     matchLabels: {{ include "edusharing_repository_search_elastic_index.labels.app" . | nindent 6 }}
+      {{- if .Values.multistage.enabled }}
+      app.kubernetes.io/stage: ""
+      {{- end }}
   serviceName: {{ include "edusharing_repository_search_elastic_index.name" . }}-headless
   template:
     metadata:
       name: {{ include "edusharing_repository_search_elastic_index.name" . }}
       labels: {{ include "edusharing_repository_search_elastic_index.labels.app" . | nindent 8 }}
+        {{- if .Values.multistage.enabled }}
+        app.kubernetes.io/stage: ""
+        {{- end }}
       annotations:
         checksum/configmap-env: {{ include (print .Template.BasePath "/configmap-env.yaml") . | sha256sum | trunc 63 }}
         {{- if not .Values.global.metrics.servicemonitor.enabled }}
@@ -40,7 +49,7 @@ spec:
         - "-ec"
         - |
           if [[ ! "$(ls -A /usr/share/elasticsearch/data)" ]]; then
-            chown -R {{ .Values.podSecurityContext.runAsUser }}:{{ .Values.podSecurityContext.fsGroup }} /usr/share/elasticsearch/data
+            chown -R {{ .Values.securityContext.runAsUser }}:{{ .Values.podSecurityContext.fsGroup }} /usr/share/elasticsearch/data
           fi
         volumeMounts:
         - name: data
@@ -74,6 +83,12 @@ spec:
         image: {{ include "edusharing_repository_search_elastic_index.image" . }}{{ .Values.image.prefix }}-deploy-docker-build-elasticsearch:{{ .Values.image.tag }}
         imagePullPolicy: {{ .Values.global.image.pullPolicy }}
         env:
+        - name: cluster.initial_master_nodes
+          value: "{{ range $i := until (.Values.replicaCount | int) }}{{ include "edusharing_repository_search_elastic_index.name" $ }}-{{ $i }},{{ end }}"
+        - name: cluster.name
+          value: "{{ include "edusharing_repository_search_elastic_index.name" . }}"
+        - name: discovery.seed_hosts
+          value: "{{ include "edusharing_repository_search_elastic_index.name" . }}-headless"
         - name: node.name
           valueFrom:
             fieldRef:
@@ -180,6 +195,9 @@ spec:
           - topologyKey: kubernetes.io/hostname
             labelSelector:
               matchLabels: {{ include "edusharing_repository_search_elastic_index.labels.app" . | nindent 16 }}
+                {{- if .Values.multistage.enabled }}
+                app.kubernetes.io/stage: ""
+                {{- end }}
           {{- else if eq .Values.podAntiAffinity "soft" }}
           preferredDuringSchedulingIgnoredDuringExecution:
           - weight: 1
@@ -187,6 +205,9 @@ spec:
               topologyKey: kubernetes.io/hostname
               labelSelector:
                 matchLabels: {{ include "edusharing_repository_search_elastic_index.labels.app" . | nindent 18 }}
+                  {{- if .Values.multistage.enabled }}
+                  app.kubernetes.io/stage: ""
+                  {{- end }}
           {{- end }}
         {{- end }}
       {{- end }}
@@ -195,3 +216,217 @@ spec:
       name: data
       labels: {{ include "edusharing_repository_search_elastic_index.labels.app" . | nindent 8 }}
     spec: {{ merge .Values.persistence.data.spec .Values.global.cluster.storage.data.spec | toYaml | nindent 6 }}
+{{- if .Values.multistage.enabled }}
+{{- range .Values.multistage.stages }}
+{{ $name := printf "%s-%s" (include "edusharing_repository_search_elastic_index.name" $) .name }}
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "edusharing_repository_search_elastic_index.name" $ }}-{{ .name }}
+  labels: {{ include "edusharing_repository_search_elastic_index.labels.app" $ | nindent 4 }}
+    app.kubernetes.io/stage: {{ .name }}
+spec:
+  podManagementPolicy: Parallel
+  replicas: {{ $.Values.replicaCount }}
+  selector:
+    matchLabels: {{ include "edusharing_repository_search_elastic_index.labels.app" $ | nindent 6 }}
+      app.kubernetes.io/stage: {{ .name }}
+  serviceName: {{ include "edusharing_repository_search_elastic_index.name" $ }}-headless-{{ .name }}
+  template:
+    metadata:
+      name: {{ include "edusharing_repository_search_elastic_index.name" $ }}
+      labels: {{ include "edusharing_repository_search_elastic_index.labels.app" $ | nindent 8 }}
+        app.kubernetes.io/stage: {{ .name }}
+      annotations:
+        checksum/configmap-env: {{ include (print $.Template.BasePath "/configmap-env.yaml") $ | sha256sum | trunc 63 }}
+        {{- if not $.Values.global.metrics.servicemonitor.enabled }}
+        prometheus.io/path: "/metrics"
+        prometheus.io/port: "9114"
+        prometheus.io/scrape: {{ $.Values.sidecar.metrics.enabled | quote }}
+        {{- end }}
+        sidecar.istio.io/inject: {{ $.Values.global.cluster.istio.enabled | quote }}
+        {{- if $.Values.global.cluster.istio.enabled }}
+        traffic.sidecar.istio.io/includeInboundPorts: "*"
+        traffic.sidecar.istio.io/excludeOutboundPorts: "9300"
+        traffic.sidecar.istio.io/excludeInboundPorts: "9300"
+        {{- end }}
+        {{- with merge $.Values.podAnnotations $.Values.global.annotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      initContainers:
+      {{- if (default $.Values.global.cluster.storage.data.permission $.Values.persistence.data.permission) }}
+      - name: {{ include "edusharing_repository_search_elastic_index.name" $ }}-init-permission
+        image: {{ include "edusharing_repository_search_elastic_index.image" $ }}{{ $.Values.image.prefix }}-deploy-docker-build-minideb:{{ $.Values.image.tag }}
+        imagePullPolicy: {{ $.Values.global.image.pullPolicy }}
+        command:
+        - "/bin/bash"
+        - "-ec"
+        - |
+          if [[ ! "$(ls -A /usr/share/elasticsearch/data)" ]]; then
+            chown -R {{ $.Values.securityContext.runAsUser }}:{{ $.Values.podSecurityContext.fsGroup }} /usr/share/elasticsearch/data
+          fi
+        volumeMounts:
+        - name: data
+          mountPath: /usr/share/elasticsearch/data
+        {{- with $.Values.init.permission.resources }}
+        resources: {{ toYaml . | nindent 10 }}
+        {{- end }}
+        {{- with $.Values.init.permission.securityContext }}
+        securityContext: {{ toYaml . | nindent 10 }}
+        {{- end }}
+      {{- end }}
+      {{- if $.Values.global.cluster.sysctl.enabled }}
+      - name: {{ include "edusharing_repository_search_elastic_index.name" $ }}-init-sysctl
+        image: {{ include "edusharing_repository_search_elastic_index.image" $ }}{{ $.Values.image.prefix }}-deploy-docker-build-minideb:{{ $.Values.image.tag }}
+        imagePullPolicy: {{ $.Values.global.image.pullPolicy }}
+        command:
+        - "/bin/bash"
+        - "-ec"
+        - |
+          if [[ "$(sysctl -n fs.file-max)" -lt "65536" ]]; then sysctl -w fs.file-max=65536; fi
+          if [[ "$(sysctl -n vm.max_map_count)" -lt "262144" ]]; then sysctl -w vm.max_map_count=262144; fi
+        {{- with $.Values.init.sysctl.resources }}
+        resources: {{ toYaml . | nindent 10 }}
+        {{- end }}
+        {{- with $.Values.init.sysctl.securityContext }}
+        securityContext: {{ toYaml . | nindent 10 }}
+        {{- end }}
+      {{- end }}
+      containers:
+      - name: {{ include "edusharing_repository_search_elastic_index.name" $ }}
+        image: {{ include "edusharing_repository_search_elastic_index.image" $ }}{{ $.Values.image.prefix }}-deploy-docker-build-elasticsearch:{{ $.Values.image.tag }}
+        imagePullPolicy: {{ $.Values.global.image.pullPolicy }}
+        env:
+        - name: cluster.initial_master_nodes
+          value: "{{ range $i := until ($.Values.replicaCount | int) }}{{ $name }}-{{ $i }},{{ end }}"
+        - name: cluster.name
+          value: "{{ include "edusharing_repository_search_elastic_index.name" $ }}-{{ .name }}"
+        - name: discovery.seed_hosts
+          value: "{{ include "edusharing_repository_search_elastic_index.name" $ }}-headless-{{ .name }}"
+        - name: node.name
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: network.publish_host
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+        envFrom:
+        - configMapRef:
+            name: {{ include "edusharing_repository_search_elastic_index.name" $ }}-env
+        ports:
+        - name: api
+          containerPort: 9200
+        - name: gossip
+          containerPort: 9300
+        {{- if default $.Values.global.debug $.Values.debug }}
+        - name: jpda
+          containerPort: 5005
+        {{- end }}
+        volumeMounts:
+        - name: data
+          mountPath: /usr/share/elasticsearch/data
+        {{- with $.Values.startupProbe }}
+        startupProbe:
+          httpGet:
+            path: /_cluster/health?local=true&timeout={{ .timeoutSeconds }}s
+            port: api
+          failureThreshold: {{ .failureThreshold }}
+          initialDelaySeconds: {{ .initialDelaySeconds }}
+          periodSeconds: {{ .periodSeconds }}
+          successThreshold: {{ .successThreshold }}
+          timeoutSeconds: {{ .timeoutSeconds }}
+        {{- end }}
+        {{- with $.Values.livenessProbe }}
+        livenessProbe:
+          tcpSocket:
+            port: api
+          failureThreshold: {{ .failureThreshold }}
+          initialDelaySeconds: {{ .initialDelaySeconds }}
+          periodSeconds: {{ .periodSeconds }}
+          successThreshold: 1
+          timeoutSeconds: {{ .timeoutSeconds }}
+        {{- end }}
+        {{- with $.Values.readinessProbe }}
+        readinessProbe:
+          httpGet:
+            path: /_cluster/health?local=true&timeout={{ .timeoutSeconds }}s
+            port: api
+          failureThreshold: {{ .failureThreshold }}
+          initialDelaySeconds: {{ .initialDelaySeconds }}
+          periodSeconds: {{ .periodSeconds }}
+          successThreshold: {{ .successThreshold }}
+          timeoutSeconds: {{ .timeoutSeconds }}
+        {{- end }}
+        {{- with $.Values.resources }}
+        resources: {{ toYaml . | nindent 10 }}
+        {{- end }}
+        {{- with $.Values.securityContext }}
+        securityContext: {{ toYaml . | nindent 10 }}
+        {{- end }}
+      {{- if $.Values.sidecar.metrics.enabled }}
+      - name: {{ include "edusharing_repository_search_elastic_index.name" $ }}-metrics
+        image: {{ include "edusharing_repository_search_elastic_index.image" $ }}{{ $.Values.image.prefix }}-deploy-docker-build-elasticsearch_exporter:{{ $.Values.image.tag }}
+        imagePullPolicy: {{ $.Values.global.image.pullPolicy }}
+        args:
+        - --es.uri=http://127.0.0.1:9200
+        - --es.all
+        - --es.indices
+        - --es.shards
+        - --web.listen-address=:9114
+        - --web.telemetry-path=/metrics
+        ports:
+        - name: metrics
+          containerPort: 9114
+        {{- with $.Values.sidecar.metrics.resources }}
+        resources: {{ toYaml . | nindent 10 }}
+        {{- end }}
+        {{- with $.Values.sidecar.metrics.securityContext }}
+        securityContext: {{ toYaml . | nindent 10 }}
+        {{- end }}
+      {{- end }}
+      {{- with $.Values.global.image.pullSecrets }}
+      imagePullSecrets: {{ toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with merge $.Values.podSecurityContext $.Values.global.security }}
+      securityContext: {{ toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $.Values.tolerations }}
+      tolerations: {{ toYaml . | nindent 8 }}
+      {{- end }}
+      {{ with $.Values.terminationGracePeriod }}
+      terminationGracePeriodSeconds: {{ . }}
+      {{- end }}
+      {{- if or $.Values.nodeAffinity $.Values.podAntiAffinity }}
+      affinity:
+        {{- with $.Values.nodeAffinity }}
+        nodeAffinity: {{ toYaml . | nindent 10 }}
+        {{- end }}
+        {{- if $.Values.podAntiAffinity }}
+        podAntiAffinity:
+          {{- if eq $.Values.podAntiAffinity "hard" }}
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - topologyKey: kubernetes.io/hostname
+            labelSelector:
+              matchLabels: {{ include "edusharing_repository_search_elastic_index.labels.app" $ | nindent 16 }}
+                app.kubernetes.io/stage: {{ .name }}
+          {{- else if eq $.Values.podAntiAffinity "soft" }}
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 1
+            podAffinityTerm:
+              topologyKey: kubernetes.io/hostname
+              labelSelector:
+                matchLabels: {{ include "edusharing_repository_search_elastic_index.labels.app" $ | nindent 18 }}
+                  app.kubernetes.io/stage: {{ .name }}
+          {{- end }}
+        {{- end }}
+      {{- end }}
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+      labels: {{ include "edusharing_repository_search_elastic_index.labels.app" $ | nindent 8 }}
+    spec: {{ merge $.Values.persistence.data.spec $.Values.global.cluster.storage.data.spec | toYaml | nindent 6 }}
+{{- end }}
+{{- end }}

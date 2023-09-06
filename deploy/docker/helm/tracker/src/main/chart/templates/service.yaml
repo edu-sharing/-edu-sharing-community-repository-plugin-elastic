@@ -3,15 +3,22 @@ kind: Service
 metadata:
   name: {{ include "edusharing_repository_search_elastic_tracker.name" . }}-headless
   labels: {{ include "edusharing_repository_search_elastic_tracker.labels.app" . | nindent 4 }}
+    {{- if .Values.multistage.enabled }}
+    app.kubernetes.io/stage: ""
+    {{- end }}
 spec:
   type: ClusterIP
   clusterIP: None
   publishNotReadyAddresses: true
   selector: {{ include "edusharing_repository_search_elastic_tracker.labels.app" . | nindent 4 }}
+    {{- if .Values.multistage.enabled }}
+    app.kubernetes.io/stage: ""
+    {{- end }}
   ports:
   - name: http-management
     port: {{ .Values.service.port.management }}
-{{- if and .Values.global.metrics.servicemonitor.enabled .Values.config.metrics }}
+{{- if .Values.global.metrics.servicemonitor.enabled }}
+{{- if .Values.config.metrics.enabled }}
 ---
 apiVersion: v1
 kind: Service
@@ -19,11 +26,58 @@ metadata:
   name: {{ include "edusharing_repository_search_elastic_tracker.name" . }}-metrics
   labels: {{ include "edusharing_repository_search_elastic_tracker.labels.app" . | nindent 4 }}
     app.kubernetes.io/component: "metrics"
+    {{- if .Values.multistage.enabled }}
+    app.kubernetes.io/stage: ""
+    {{- end }}
 spec:
   type: ClusterIP
   selector: {{ include "edusharing_repository_search_elastic_tracker.labels.app" . | nindent 4 }}
+    {{- if .Values.multistage.enabled }}
+    app.kubernetes.io/stage: ""
+    {{- end }}
   ports:
     - name: http-management
       port: {{ .Values.service.port.management }}
       targetPort: management
+{{- end }}
+{{- end }}
+{{- if .Values.multistage.enabled }}
+{{- range .Values.multistage.stages }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "edusharing_repository_search_elastic_tracker.name" $ }}-headless-{{ .name }}
+  labels: {{ include "edusharing_repository_search_elastic_tracker.labels.app" $ | nindent 4 }}
+    app.kubernetes.io/stage: {{ .name }}
+spec:
+  type: ClusterIP
+  clusterIP: None
+  publishNotReadyAddresses: true
+  selector: {{ include "edusharing_repository_search_elastic_tracker.labels.app" $ | nindent 4 }}
+    app.kubernetes.io/stage: {{ .name }}
+  ports:
+  - name: http-management
+    port: {{ $.Values.service.port.management }}
+{{- if $.Values.global.metrics.servicemonitor.enabled }}
+{{- if $.Values.config.metrics.enabled }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "edusharing_repository_search_elastic_tracker.name" $ }}-metrics-{{ .name }}
+  labels: {{ include "edusharing_repository_search_elastic_tracker.labels.app" $ | nindent 4 }}
+    app.kubernetes.io/component: "metrics"
+    app.kubernetes.io/stage: {{ .name }}
+spec:
+  type: ClusterIP
+  selector: {{ include "edusharing_repository_search_elastic_tracker.labels.app" $ | nindent 4 }}
+    app.kubernetes.io/stage: {{ .name }}
+  ports:
+  - name: http-management
+    port: {{ $.Values.service.port.management }}
+    targetPort: management
+{{- end }}
+{{- end }}
+{{- end }}
 {{- end }}

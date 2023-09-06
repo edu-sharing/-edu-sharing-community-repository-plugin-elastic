@@ -11,6 +11,9 @@ global:
     istio:
       enabled: false
 
+    pdb:
+      enabled: false
+
   debug: false
 
   image:
@@ -54,7 +57,9 @@ config:
       minPercentage: "90.0"
       maxPercentage: "90.0"
 
-  metrics: true
+  metrics:
+    enabled: true
+    relabelings: []
 
   override: ""
 
@@ -78,6 +83,26 @@ config:
 
 ########################################################################################################################
 
+multistage:
+
+  enabled: false
+
+  stages: []
+#    - name: blue
+#      spec:
+#        config:
+#          override: ""
+#          tracker:
+#              customScript: ""
+#    - name: green
+#      spec:
+#        config:
+#          override: ""
+#          tracker:
+#              customScript: ""
+
+########################################################################################################################
+
 debug: false
 
 ########################################################################################################################
@@ -92,7 +117,6 @@ podAnnotations: {}
 
 podSecurityContext:
 
-  runAsUser: 1000
   fsGroup: 1000
   fsGroupChangePolicy: OnRootMismatch
 
@@ -102,6 +126,7 @@ securityContext:
   capabilities:
     drop:
     - ALL
+  runAsUser: 1000
 
 ########################################################################################################################
 

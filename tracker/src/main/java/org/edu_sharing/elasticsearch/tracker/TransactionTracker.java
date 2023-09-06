@@ -289,6 +289,10 @@ public class TransactionTracker {
 
         List<NodeData> toIndex = client.getNodeData(toIndexMd);
         for(NodeData data: toIndex) {
+            if(data.getNodeMetadata().getNodeRef().startsWith(CCConstants.ARCHIVE_STOREREF) ){
+                //skipping preview and valuespace translation for archived nodes
+                continue;
+            }
             threadPool.execute(() -> {
                 eduSharingClient.addPreview(data);
                 eduSharingClient.translateValuespaceProps(data);

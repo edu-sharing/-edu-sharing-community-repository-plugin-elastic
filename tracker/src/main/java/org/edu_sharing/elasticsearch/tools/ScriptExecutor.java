@@ -87,7 +87,7 @@ public class ScriptExecutor {
 
     private Map<String, Set<VCard>> getContributor(Map<String, Serializable> metadata) {
         Map<String, Set<VCard>> result = new HashMap<>();
-        Set<String> contributorProperties = metadata.keySet().stream().filter(key -> key.matches(ElasticsearchClient.CONTRIBUTOR_REGEX)).collect(Collectors.toSet());
+        Set<String> contributorProperties = metadata.keySet().stream().filter(key -> key != null && key.matches(ElasticsearchClient.CONTRIBUTOR_REGEX)).collect(Collectors.toSet());
         if(contributorProperties.size() > 0){
             VCardEngine vcardEngine = new VCardEngine();
             contributorProperties.forEach(key -> {
