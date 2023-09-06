@@ -33,3 +33,7 @@ app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
 {{- $repository := default .Values.global.image.repository .Values.image.repository -}}
 {{ $registry }}{{ if $registry }}/{{ end }}{{ $repository }}{{ if $repository }}/{{ end }}
 {{- end -}}
+
+{{- define "edusharing_repository_search_elastic_index.pvc.share.data" -}}
+share-data-{{ include "edusharing_repository_search_elastic_index.name" . }}
+{{- end -}}
