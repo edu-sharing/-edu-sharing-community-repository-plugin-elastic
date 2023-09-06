@@ -156,10 +156,15 @@ public class ElasticsearchClient {
         DeleteIndexRequest request = new DeleteIndexRequest(index);
         client.indices().delete(request, RequestOptions.DEFAULT);
     }
-    private void createIndexIfNotExists(String index) throws IOException{
+    public void createIndexIfNotExists(String index) throws IOException{
         GetIndexRequest request = new GetIndexRequest(index);
         if(!client.indices().exists(request,RequestOptions.DEFAULT)){
             CreateIndexRequest createIndexRequest = new CreateIndexRequest(index);
+
+            createIndexRequest.settings(Settings.builder()
+                            .put("index.number_of_shards", indexNumberOfShards)
+                            .put("index.number_of_replicas", indexNumberOfReplicas));
+
             client.indices().create(createIndexRequest, RequestOptions.DEFAULT);
         }
     }
@@ -987,18 +992,14 @@ public class ElasticsearchClient {
                 long dbId = ((Number)hit.getSourceAsMap().get("dbid")).longValue();
                 GetNodeMetadataParam param = new GetNodeMetadataParam();
                 param.setNodeIds(Arrays.asList(new Long[]{dbId}));
-                NodeMetadatas nodeMetadatas = alfrescoClient.getNodeMetadata(param);
-                if(nodeMetadatas == null || nodeMetadatas.getNodes() == null || nodeMetadatas.getNodes().size() == 0){
+                List<NodeMetadata> nodeMetadataByIds = alfrescoClient.getNodeMetadataByIds(Arrays.asList(dbId));
+                if(nodeMetadataByIds == null  || nodeMetadataByIds.size() == 0){
                     logger.error("could not find usage/proposal object in alfresco with dbid:" + dbId);
                     return;
                 }
 
-                NodeMetadata usage = nodeMetadatas.getNodes().get(0);
+                NodeMetadata usage = nodeMetadataByIds.get(0);
                 logger.info("Is update: {}", update);
-                if(update && nodeMetadatas.getNodes().size() > maxCollectionChildItemsUpdateSize){
-                    logger.warn("to much children detected at node {}. Skipping synchronization of children", usage.getNodeRef());
-                    return;
-                }
 
                 logger.info("running indexCollections for usage: " + dbId);
                 indexCollections(usage);
@@ -1035,7 +1036,7 @@ public class ElasticsearchClient {
         }
     }
 
-    public void setTransaction(long txnCommitTime, long transactionId) throws IOException {
+    public void setTransaction(String index, long txnCommitTime, long transactionId) throws IOException {
 
         XContentBuilder builder = jsonBuilder();
         builder.startObject();
@@ -1045,7 +1046,11 @@ public class ElasticsearchClient {
         }
         builder.endObject();
 
-        setNode(INDEX_TRANSACTIONS, ID_TRANSACTION,builder);
+        setNode(index, ID_TRANSACTION,builder);
+    }
+
+    public void setTransaction(long txnCommitTime, long transactionId) throws IOException {
+        setTransaction(INDEX_TRANSACTIONS,txnCommitTime,transactionId);
     }
 
     private void setNode(String index, String id, XContentBuilder builder) throws IOException {
@@ -1072,24 +1077,34 @@ public class ElasticsearchClient {
         }
     }
 
-    private GetResponse get(String index, String id) throws IOException {
+    public GetResponse get(String index, String id) throws IOException {
         GetRequest getRequest = new GetRequest(index,id);
         GetResponse resp = client.get(getRequest,RequestOptions.DEFAULT);
+
         return resp;
     }
 
-    public Tx getTransaction() throws IOException {
+    public boolean exists(String index, String id) throws IOException {
+        GetRequest getRequest = new GetRequest(index,id);
+        return client.exists(getRequest,RequestOptions.DEFAULT);
+    }
 
-        GetResponse resp = this.get(INDEX_TRANSACTIONS, ID_TRANSACTION);
+    public Tx getTransaction(String index) throws IOException {
+
+        GetResponse resp = this.get(index, ID_TRANSACTION);
         Tx transaction = null;
         if(resp.isExists()) {
 
             transaction = new Tx();
-            transaction.setTxnCommitTime((Long) resp.getSource().get("txnCommitTime"));
+            transaction.setTxnCommitTime(((Number) resp.getSource().get("txnCommitTime")).longValue());
             transaction.setTxnId(((Number)resp.getSource().get("txnId")).longValue());
         }
 
         return transaction;
+    }
+
+    public Tx getTransaction() throws IOException {
+        return getTransaction(INDEX_TRANSACTIONS);
     }
 
 
