@@ -85,4 +85,4 @@ grep -q '^[#]*\s*management\.server\.port=' "application.properties" || echo "ma
 
 ########################################################################################################################
 
-exec "java" "-jar" "edu_sharing-community-repository-plugin-elastic-tracker-${org.edu_sharing:edu_sharing-community-repository-plugin-elastic-tracker:jar.version}.jar" "${JAVA_OPTS:-}" "$@"
+exec "java" "${JAVA_OPTS:-}" "-jar" "edu_sharing-community-repository-plugin-elastic-tracker-${org.edu_sharing:edu_sharing-community-repository-plugin-elastic-tracker:jar.version}.jar" "$@"
