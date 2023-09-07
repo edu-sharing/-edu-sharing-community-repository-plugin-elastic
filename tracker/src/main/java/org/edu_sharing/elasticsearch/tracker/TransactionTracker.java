@@ -156,7 +156,11 @@ public class TransactionTracker {
 
         if(nodes.size() == 0){
             lastTransactionId = newLastTransactionId;
-            return true;
+            if(lastTransactionId >= transactions.getMaxTxnId()){
+                logger.info("last transactionid "+lastTransactionId +" >= transactions.getMaxTxnId():" +transactions.getMaxTxnId() + ": no nodes to track after store filter. waiting for new tx's");
+                return false;
+            }else
+                return true;
         }
 
         /**
