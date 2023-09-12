@@ -42,7 +42,7 @@ spec:
       initContainers:
       {{- if (default .Values.global.cluster.storage.data.permission .Values.persistence.data.permission) }}
       - name: {{ include "edusharing_repository_search_elastic_index.name" . }}-init-permission
-        image: {{ include "edusharing_repository_search_elastic_index.image" . }}{{ .Values.image.prefix }}-deploy-docker-build-minideb:{{ .Values.image.tag }}
+        image: {{ include "edusharing_repository_search_elastic_index.image" . }}[]{{ .Values.images.minideb }}
         imagePullPolicy: {{ .Values.global.image.pullPolicy }}
         command:
         - "/bin/bash"
@@ -66,7 +66,7 @@ spec:
       {{- end }}
       {{- if .Values.global.cluster.sysctl.enabled }}
       - name: {{ include "edusharing_repository_search_elastic_index.name" . }}-init-sysctl
-        image: {{ include "edusharing_repository_search_elastic_index.image" . }}{{ .Values.image.prefix }}-deploy-docker-build-minideb:{{ .Values.image.tag }}
+        image: {{ include "edusharing_repository_search_elastic_index.image" . }}{{ .Values.images.minideb }}
         imagePullPolicy: {{ .Values.global.image.pullPolicy }}
         command:
         - "/bin/bash"
@@ -83,7 +83,7 @@ spec:
       {{- end }}
       containers:
       - name: {{ include "edusharing_repository_search_elastic_index.name" . }}
-        image: {{ include "edusharing_repository_search_elastic_index.image" . }}{{ .Values.image.prefix }}-deploy-docker-build-elasticsearch:{{ .Values.image.tag }}
+        image: {{ include "edusharing_repository_search_elastic_index.image" . }}{{ .Values.images.elasticsearch.index }}
         imagePullPolicy: {{ .Values.global.image.pullPolicy }}
         env:
         - name: cluster.initial_master_nodes
@@ -165,7 +165,7 @@ spec:
         {{- end }}
       {{- if .Values.sidecar.metrics.enabled }}
       - name: {{ include "edusharing_repository_search_elastic_index.name" . }}-metrics
-        image: {{ include "edusharing_repository_search_elastic_index.image" . }}{{ .Values.image.prefix }}-deploy-docker-build-elasticsearch_exporter:{{ .Values.image.tag }}
+        image: {{ include "edusharing_repository_search_elastic_index.image" . }}{{ .Values.images.elasticsearch.exporter }}
         imagePullPolicy: {{ .Values.global.image.pullPolicy }}
         args:
         - --es.uri=http://127.0.0.1:9200
@@ -275,7 +275,7 @@ spec:
       initContainers:
       {{- if (default $.Values.global.cluster.storage.data.permission $.Values.persistence.data.permission) }}
       - name: {{ include "edusharing_repository_search_elastic_index.name" $ }}-init-permission
-        image: {{ include "edusharing_repository_search_elastic_index.image" $ }}{{ $.Values.image.prefix }}-deploy-docker-build-minideb:{{ $.Values.image.tag }}
+        image: {{ include "edusharing_repository_search_elastic_index.image" $ }}{{ $.Values.images.minideb }}
         imagePullPolicy: {{ $.Values.global.image.pullPolicy }}
         command:
         - "/bin/bash"
@@ -299,7 +299,7 @@ spec:
       {{- end }}
       {{- if $.Values.global.cluster.sysctl.enabled }}
       - name: {{ include "edusharing_repository_search_elastic_index.name" $ }}-init-sysctl
-        image: {{ include "edusharing_repository_search_elastic_index.image" $ }}{{ $.Values.image.prefix }}-deploy-docker-build-minideb:{{ $.Values.image.tag }}
+        image: {{ include "edusharing_repository_search_elastic_index.image" $ }}{{ $.Values.images.minideb }}
         imagePullPolicy: {{ $.Values.global.image.pullPolicy }}
         command:
         - "/bin/bash"
@@ -316,7 +316,7 @@ spec:
       {{- end }}
       containers:
       - name: {{ include "edusharing_repository_search_elastic_index.name" $ }}
-        image: {{ include "edusharing_repository_search_elastic_index.image" $ }}{{ $.Values.image.prefix }}-deploy-docker-build-elasticsearch:{{ $.Values.image.tag }}
+        image: {{ include "edusharing_repository_search_elastic_index.image" $ }}{{ $.Values.images.elasticsearch.index }}
         imagePullPolicy: {{ $.Values.global.image.pullPolicy }}
         env:
         - name: cluster.initial_master_nodes
@@ -398,7 +398,7 @@ spec:
         {{- end }}
       {{- if $.Values.sidecar.metrics.enabled }}
       - name: {{ include "edusharing_repository_search_elastic_index.name" $ }}-metrics
-        image: {{ include "edusharing_repository_search_elastic_index.image" $ }}{{ $.Values.image.prefix }}-deploy-docker-build-elasticsearch_exporter:{{ $.Values.image.tag }}
+        image: {{ include "edusharing_repository_search_elastic_index.image" $ }}{{ $.Values.images.elasticsearch.exporter }}
         imagePullPolicy: {{ $.Values.global.image.pullPolicy }}
         args:
         - --es.uri=http://127.0.0.1:9200

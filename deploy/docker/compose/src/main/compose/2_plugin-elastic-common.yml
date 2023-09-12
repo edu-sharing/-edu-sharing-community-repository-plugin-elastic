@@ -3,7 +3,7 @@ version: '3.7'
 services:
 
   repository-search-elastic-index:
-    image: "${docker.repository}/${docker.prefix}-deploy-docker-build-elasticsearch:${docker.tag}"
+    image: "${docker.edu_sharing.community.common.elasticsearch}"
     container_name: "repository-search-elastic-index_${COMPOSE_PROJECT_NAME}"
     environment:
       ES_JAVA_OPTS: >-

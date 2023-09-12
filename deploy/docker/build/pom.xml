@@ -40,9 +40,6 @@
   </build>
 
   <modules>
-    <module>elasticsearch</module>
-    <module>elasticsearch_exporter</module>
-    <module>minideb</module>
     <module>service</module>
     <module>tracker</module>
   </modules>

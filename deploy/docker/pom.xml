@@ -20,19 +20,25 @@
 
   <properties>
 
-    <docker.from.elasticsearch.exporter>
-      quay.mirror.docker.edu-sharing.com/prometheuscommunity/elasticsearch-exporter:v1.5.0
-    </docker.from.elasticsearch.exporter>
-    <!--suppress UnresolvedMavenProperty -->
-    <docker.from.elasticsearch.server>
-      elastic.mirror.docker.edu-sharing.com/elasticsearch/elasticsearch:${elasticsearch.version}
-    </docker.from.elasticsearch.server>
-    <docker.from.minideb>
-      dockerio.mirror.docker.edu-sharing.com/bitnami/bitnami-shell:11
-    </docker.from.minideb>
     <docker.from.openjdk>
       dockerio.mirror.docker.edu-sharing.com/openjdk:11-jdk
     </docker.from.openjdk>
+
+    <docker.edu_sharing.communty.common.repository>
+      ${docker.registry}/community/common
+    </docker.edu_sharing.communty.common.repository>
+
+    <docker.edu_sharing.community.common.elasticsearch>
+      ${docker.edu_sharing.communty.common.repository}/edu_sharing-community-common-elasticsearch:7.17.7
+    </docker.edu_sharing.community.common.elasticsearch>
+
+    <docker.edu_sharing.community.common.elasticsearch.exporter>
+      ${docker.edu_sharing.communty.common.repository}/edu_sharing-community-common-elasticsearch-exporter:1.5.0
+    </docker.edu_sharing.community.common.elasticsearch.exporter>
+
+    <docker.edu_sharing.community.common.minideb>
+      ${docker.edu_sharing.communty.common.repository}/edu_sharing-community-common-minideb:11
+    </docker.edu_sharing.community.common.minideb>
 
     <helm.kube.version>&gt;= 1.20.0</helm.kube.version>
     <helm.version>3.10.0</helm.version>

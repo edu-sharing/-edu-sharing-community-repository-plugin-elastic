@@ -48,9 +48,12 @@ global:
 
 nameOverride: edusharing-repository-search-elastic-index
 
-image:
-  prefix: ${docker.prefix}
-  tag: ${docker.tag}
+images:
+  elasticsearch:
+    index: ${docker.edu_sharing.community.common.elasticsearch}
+    exporter: ${docker.edu_sharing.community.common.elasticsearch.exporter}
+  minideb: ${docker.edu_sharing.community.common.minideb}
+
 
 ########################################################################################################################
 
