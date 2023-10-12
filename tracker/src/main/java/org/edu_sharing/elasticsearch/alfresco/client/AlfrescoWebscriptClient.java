@@ -134,6 +134,10 @@ public class AlfrescoWebscriptClient {
 
         List<Long> dbnodeids = new ArrayList<>();
         for (Node node : nodes) {
+            if(node == null) {
+                logger.warn("getNodeMetadata received an null node, total list size: " + nodes.size());
+                continue;
+            }
             dbnodeids.add(node.getId());
         }
 
