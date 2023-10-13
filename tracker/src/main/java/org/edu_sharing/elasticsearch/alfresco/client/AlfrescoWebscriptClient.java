@@ -180,33 +180,35 @@ public class AlfrescoWebscriptClient {
                     NodeData nodeData;
                     if(nodeMetadata.getType().equals("ccm:collection_proposal")) {
                         NodeDataProposal nodeDataProposal = new NodeDataProposal();
-                        String parent = nodeMetadata.getParentAssocs().get(0);
-                        Serializable original = nodeMetadata.getProperties().
-                                get(CCConstants.getValidGlobalName(
-                                                "ccm:collection_proposal_target"
-                                        )
-                                );
-                        if(parent!=null && original != null) {
-                            // no fulltext for the original will be indexed for the proposal to save on complexity
-                            try {
-                                nodeDataProposal.setOriginal(
-                                        getNodeDataMinimal(getNodeMetadataUUID(Tools.getUUID((String) original)))
-                                );
-                            } catch(Throwable t) {
-                                logger.info("Could not track original node for proposal " + nodeMetadata.getNodeRef() +", original: " + original, t);
+                        try {
+                            String parent = nodeMetadata.getParentAssocs().get(0);
+                            Serializable original = nodeMetadata.getProperties().
+                                    get(CCConstants.getValidGlobalName(
+                                                    "ccm:collection_proposal_target"
+                                            )
+                                    );
+                            if(parent!=null && original != null) {
+                                // no fulltext for the original will be indexed for the proposal to save on complexity
+                                try {
+                                    nodeDataProposal.setOriginal(
+                                            getNodeDataMinimal(getNodeMetadataUUID(Tools.getUUID((String) original)))
+                                    );
+                                } catch(Throwable t) {
+                                    logger.info("Could not track original node for proposal " + nodeMetadata.getNodeRef() +", original: " + original, t);
+                                }
+                                try {
+                                    nodeDataProposal.setCollection(
+                                            getNodeDataMinimal(getNodeMetadataUUID(Tools.getUUID(parent)))
+                                    );
+                                }catch(Throwable t) {
+                                    logger.info("Could not track parent collection for proposal " + nodeMetadata.getNodeRef() +", parent " + parent, t);
+                                }
+                            } else {
+                                logger.warn("Collection proposal has no parent or target: " + nodeMetadata.getNodeRef());
                             }
-                            try {
-                                nodeDataProposal.setCollection(
-                                        getNodeDataMinimal(getNodeMetadataUUID(Tools.getUUID(parent)))
-                                );
-                            }catch(Throwable t) {
-                                logger.info("Could not track parent collection for proposal " + nodeMetadata.getNodeRef() +", parent " + parent, t);
-                            }
-                        } else {
-                            logger.warn("Collection proposal has no parent or target: " + nodeMetadata.getNodeRef());
+                        }catch(Throwable t) {
+                            logger.info("Could not track parent collection for proposal " + nodeMetadata.getNodeRef(), t);
                         }
-
-
                         nodeData = nodeDataProposal;
                     } else {
                         nodeData = new NodeData();
