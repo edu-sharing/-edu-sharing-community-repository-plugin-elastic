@@ -29,15 +29,15 @@
     </docker.edu_sharing.communty.common.repository>
 
     <docker.edu_sharing.community.common.elasticsearch>
-      ${docker.edu_sharing.communty.common.repository}/edu_sharing-community-common-elasticsearch:7.17.7
+      ${docker.edu_sharing.communty.common.repository}/edu_sharing-community-common-docker-elasticsearch:7.17.7
     </docker.edu_sharing.community.common.elasticsearch>
 
     <docker.edu_sharing.community.common.elasticsearch.exporter>
-      ${docker.edu_sharing.communty.common.repository}/edu_sharing-community-common-elasticsearch-exporter:1.5.0
+      ${docker.edu_sharing.communty.common.repository}/edu_sharing-community-common-docker-elasticsearch-exporter:1.5.0
     </docker.edu_sharing.community.common.elasticsearch.exporter>
 
     <docker.edu_sharing.community.common.minideb>
-      ${docker.edu_sharing.communty.common.repository}/edu_sharing-community-common-minideb:11
+      ${docker.edu_sharing.communty.common.repository}/edu_sharing-community-common-docker-minideb:11
     </docker.edu_sharing.community.common.minideb>
 
     <helm.kube.version>&gt;= 1.20.0</helm.kube.version>
