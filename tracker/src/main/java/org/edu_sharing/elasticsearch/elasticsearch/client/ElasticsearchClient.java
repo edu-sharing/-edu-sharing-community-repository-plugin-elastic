@@ -149,7 +149,7 @@ public class ElasticsearchClient {
     private void setupElasticConfiguration() throws IOException {
         UpdateSettingsRequest settingsRequest = new UpdateSettingsRequest();
         // we need to increase this value because of the large ccm/cclom model
-        settingsRequest.settings(Settings.builder().put("index.mapping.total_fields.limit", 5000).build());
+        settingsRequest.settings(Settings.builder().put("index.mapping.total_fields.limit", 10000).build());
         client.indices().putSettings(settingsRequest, RequestOptions.DEFAULT);
     }
     public void deleteIndex(String index) throws IOException{
