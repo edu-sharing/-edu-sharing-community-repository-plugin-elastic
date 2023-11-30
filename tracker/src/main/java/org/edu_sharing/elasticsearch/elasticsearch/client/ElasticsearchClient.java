@@ -14,6 +14,7 @@ import org.edu_sharing.elasticsearch.edu_sharing.client.EduSharingClient;
 import org.edu_sharing.elasticsearch.edu_sharing.client.NodeStatistic;
 import org.edu_sharing.elasticsearch.tools.ScriptExecutor;
 import org.edu_sharing.elasticsearch.tools.Tools;
+import org.edu_sharing.elasticsearch.tracker.Partition;
 import org.elasticsearch.action.DocWriteRequest;
 import org.edu_sharing.repository.client.tools.CCConstants;
 import org.elasticsearch.action.DocWriteResponse;
@@ -1593,18 +1594,16 @@ public class ElasticsearchClient {
 
         AtomicBoolean allInIndex = new AtomicBoolean();
         allInIndex.set(true);
-        //boolean allInIndex = true;
-
-        AtomicInteger counter = new AtomicInteger();
-        int chunkSize = 100;
 
         try {
-            nodeStatistics.entrySet().stream().collect(Collectors.groupingBy(e -> counter.getAndIncrement() / chunkSize)).entrySet().forEach(m -> {
-
-                logger.info("starting with page:"+ m.getKey()  +" collection size:"+m.getValue().size());
+            Collection<List<Map.Entry<String, List<NodeStatistic>>>> partitions = new Partition<Map.Entry<String, List<NodeStatistic>>>()
+                    .getPartitions(nodeStatistics.entrySet(), 100);
+            int page = 0;
+            for(List<Map.Entry<String, List<NodeStatistic>>> entries :partitions){
+                logger.info("starting with page:"+ page  +" collection size:"+entries.size());
                 try {
                     List<UpdateRequest> bulk = new ArrayList<>();
-                    for (Map.Entry<String, List<NodeStatistic>> entry : m.getValue()) {
+                    for (Map.Entry<String, List<NodeStatistic>> entry : entries) {
                         String uuid = entry.getKey();
                         List<NodeStatistic> statistics = entry.getValue();
                         if (statistics == null || statistics.size() == 0) continue;
@@ -1634,7 +1633,7 @@ public class ElasticsearchClient {
                                 logger.debug("there is a null value in statistics list:" + nodeRef);
                                 continue;
                             }
-                            if (nodeStatistic.getCounts() == null || nodeStatistic.getCounts().size() == 0) continue;
+                            if (nodeStatistic.getCounts() == null || nodeStatistic.getCounts().isEmpty()) continue;
                             String DOWNLOAD = "DOWNLOAD_MATERIAL";
                             String VIEW = "VIEW_MATERIAL";
                             String fieldNameDownload = "statistic_" + DOWNLOAD + "_" + nodeStatistic.getTimestamp();
@@ -1659,13 +1658,14 @@ public class ElasticsearchClient {
                         bulk.add(request);
                     }
 
-                    if (bulk.size() > 0) {
+                    if (!bulk.isEmpty()) {
                         this.updateBulk(bulk);
                     }
                 } catch (IOException e) {
                     throw new RuntimeException(e);
                 }
-            });
+                page++;
+            }
         }catch (RuntimeException e){throw (IOException)e.getCause();};
         return allInIndex.get();
     }
