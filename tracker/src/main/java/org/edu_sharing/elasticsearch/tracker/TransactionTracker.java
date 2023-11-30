@@ -3,26 +3,20 @@ package org.edu_sharing.elasticsearch.tracker;
 import org.edu_sharing.elasticsearch.alfresco.client.Node;
 import org.edu_sharing.elasticsearch.alfresco.client.NodeData;
 import org.edu_sharing.elasticsearch.alfresco.client.NodeMetadata;
-import org.edu_sharing.elasticsearch.edu_sharing.client.EduSharingClient;
 import org.edu_sharing.elasticsearch.edu_sharing.client.NodeStatistic;
 import org.edu_sharing.elasticsearch.elasticsearch.client.ElasticsearchClient;
 import org.edu_sharing.elasticsearch.tools.Tools;
 import org.edu_sharing.repository.client.tools.CCConstants;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.context.annotation.Conditional;
 import org.springframework.stereotype.Component;
 
-import javax.annotation.PostConstruct;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.*;
-import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 @Component
@@ -43,6 +37,12 @@ public class TransactionTracker extends TransactionTrackerBase{
 
     @Value("${statistic.historyInDays}")
     long historyInDays;
+
+    @Value("${tracker.fetch.size.alfresco}")
+    int fetchSizeAlfresco;
+
+    @Value("${tracker.bulk.size.elastic}")
+    int bulkSizeElastic;
 
 
     @Override
@@ -82,8 +82,7 @@ public class TransactionTracker extends TransactionTrackerBase{
          * index nodes
          */
         //some transactions can have a lot of Nodes which can cause trouble on alfresco so use partitioning
-        int size = 100;
-        Collection<List<Node>> partitions = new Partition<Node>().getPartitions(nodes,size);
+        Collection<List<Node>> partitions = new Partition<Node>().getPartitions(nodes, fetchSizeAlfresco);
 
         int pIdx = 0;
         for(List<Node> partition :  partitions){
@@ -166,7 +165,7 @@ public class TransactionTracker extends TransactionTrackerBase{
         logger.info("final usable: " + toIndexUsagesProposalsMd.size() + " " + toIndex.size());
 
 
-        Collection<List<NodeData>> partitioned = new Partition<NodeData>().getPartitions(toIndex,50);
+        Collection<List<NodeData>> partitioned = new Partition<NodeData>().getPartitions(toIndex, bulkSizeElastic);
         for(List<NodeData> p : partitioned){
             elasticClient.index(p);
         }

@@ -70,7 +70,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
 import static org.elasticsearch.common.xcontent.XContentFactory.jsonBuilder;
 
@@ -106,6 +105,9 @@ public class ElasticsearchClient {
     int indexNumberOfReplicas;
     @Value("${elastic.maxCollectionChildItemsUpdateSize}")
     int maxCollectionChildItemsUpdateSize;
+
+    @Value("${tracker.bulk.size.elastic}")
+    int bulkSizeElastic;
 
     Logger logger = LogManager.getLogger(ElasticsearchClient.class);
 
@@ -897,7 +899,12 @@ public class ElasticsearchClient {
                 }
             }.run(collectionCheckQuery);
         }
-        this.updateBulk(updateRequests);
+
+        Collection<List<UpdateRequest>> partitions = new Partition<UpdateRequest>().getPartitions(updateRequests, bulkSizeElastic);
+        for(List<UpdateRequest> p : partitions){
+            this.updateBulk(p);
+        }
+
         logger.info("returning");
     }
 
@@ -1597,7 +1604,7 @@ public class ElasticsearchClient {
 
         try {
             Collection<List<Map.Entry<String, List<NodeStatistic>>>> partitions = new Partition<Map.Entry<String, List<NodeStatistic>>>()
-                    .getPartitions(nodeStatistics.entrySet(), 100);
+                    .getPartitions(nodeStatistics.entrySet(), bulkSizeElastic);
             int page = 0;
             for(List<Map.Entry<String, List<NodeStatistic>>> entries :partitions){
                 logger.info("starting with page:"+ page  +" collection size:"+entries.size());
