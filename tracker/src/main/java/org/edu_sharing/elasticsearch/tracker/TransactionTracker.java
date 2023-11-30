@@ -82,11 +82,9 @@ public class TransactionTracker extends TransactionTrackerBase{
          * index nodes
          */
         //some transactions can have a lot of Nodes which can cause trouble on alfresco so use partitioning
-        final AtomicInteger counter = new AtomicInteger(0);
-        final int size = 100;
-        Collection<List<Node>> partitions = nodes.stream()
-                .collect(Collectors.groupingBy(it -> counter.getAndIncrement() / size))
-                .values();
+        int size = 100;
+        Collection<List<Node>> partitions = new Partition<Node>().getPartitions(nodes,size);
+
         int pIdx = 0;
         for(List<Node> partition :  partitions){
             logger.info("indexNodes partition " +pIdx);
@@ -167,11 +165,8 @@ public class TransactionTracker extends TransactionTrackerBase{
 
         logger.info("final usable: " + toIndexUsagesProposalsMd.size() + " " + toIndex.size());
 
-        final AtomicInteger counter = new AtomicInteger(0);
-        final int size = 50;
-        final Collection<List<NodeData>> partitioned = toIndex.stream()
-                .collect(Collectors.groupingBy(it -> counter.getAndIncrement() / size))
-                .values();
+
+        Collection<List<NodeData>> partitioned = new Partition<NodeData>().getPartitions(toIndex,50);
         for(List<NodeData> p : partitioned){
             elasticClient.index(p);
         }
