@@ -14,6 +14,7 @@ import org.edu_sharing.elasticsearch.edu_sharing.client.EduSharingClient;
 import org.edu_sharing.elasticsearch.edu_sharing.client.NodeStatistic;
 import org.edu_sharing.elasticsearch.tools.ScriptExecutor;
 import org.edu_sharing.elasticsearch.tools.Tools;
+import org.edu_sharing.elasticsearch.tracker.Partition;
 import org.elasticsearch.action.DocWriteRequest;
 import org.edu_sharing.repository.client.tools.CCConstants;
 import org.elasticsearch.action.DocWriteResponse;
@@ -69,7 +70,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
 import static org.elasticsearch.common.xcontent.XContentFactory.jsonBuilder;
 
@@ -105,6 +105,9 @@ public class ElasticsearchClient {
     int indexNumberOfReplicas;
     @Value("${elastic.maxCollectionChildItemsUpdateSize}")
     int maxCollectionChildItemsUpdateSize;
+
+    @Value("${tracker.bulk.size.elastic}")
+    int bulkSizeElastic;
 
     Logger logger = LogManager.getLogger(ElasticsearchClient.class);
 
@@ -225,7 +228,7 @@ public class ElasticsearchClient {
         String id = updateResponse.getId();
         long version = updateResponse.getVersion();
         if (updateResponse.getResult() == DocWriteResponse.Result.CREATED) {
-            logger.error("object did not exist");
+            logger.info("object did not exist");
         } else if (updateResponse.getResult() == DocWriteResponse.Result.UPDATED) {
 
         } else if (updateResponse.getResult() == DocWriteResponse.Result.DELETED) {
@@ -456,7 +459,7 @@ public class ElasticsearchClient {
 
                 String key = CCConstants.getValidLocalName(prop.getKey());
                 if(key == null){
-                    logger.error("unknown namespace: " + prop.getKey());
+                    logger.warn("unknown namespace: " + prop.getKey());
                     continue;
                 }
 
@@ -524,7 +527,7 @@ public class ElasticsearchClient {
                             try {
                                 result.add(jp.parseMap(mzStatus));
                             }catch (JsonParseException e){
-                                logger.error(e.getMessage());
+                                logger.warn(e.getMessage());
                             }
                         }
                         if(result.size() > 0) {
@@ -550,7 +553,7 @@ public class ElasticsearchClient {
                     try {
                         builder.field(key, value);
                     }catch(MapperParsingException e){
-                        logger.error("error parsing value field:" + key +"v"+value,e);
+                        logger.warn("error parsing value field:" + key +"v"+value,e);
                     }
                 }
             }
@@ -604,9 +607,9 @@ public class ElasticsearchClient {
                                     builder.endObject();
                                 }
                             } catch (VCardParseException e) {
-                                logger.error(e.getMessage(),e);
+                                logger.warn(e.getMessage(),e);
                             }catch (NullPointerException e){
-                                logger.error("node: "+id +" "+ e.getMessage(),e);
+                                logger.warn("node: "+id +" "+ e.getMessage(),e);
                             }
                         }
 
@@ -871,7 +874,7 @@ public class ElasticsearchClient {
                                 }
 
                                 if(collCeckAttValue == null){
-                                    logger.error("replicated collection " + collection.get("dbid") + " does not have a property to check will leave it out");
+                                    logger.info("replicated collection " + collection.get("dbid") + " does not have a property to check will leave it out");
                                     continue;
                                 }
                                 long collectionAttValue = Long.parseLong(collCeckAttValue.toString());
@@ -896,7 +899,12 @@ public class ElasticsearchClient {
                 }
             }.run(collectionCheckQuery);
         }
-        this.updateBulk(updateRequests);
+
+        Collection<List<UpdateRequest>> partitions = new Partition<UpdateRequest>().getPartitions(updateRequests, bulkSizeElastic);
+        for(List<UpdateRequest> p : partitions){
+            this.updateBulk(p);
+        }
+
         logger.info("returning");
     }
 
@@ -994,7 +1002,7 @@ public class ElasticsearchClient {
                 param.setNodeIds(Arrays.asList(new Long[]{dbId}));
                 List<NodeMetadata> nodeMetadataByIds = alfrescoClient.getNodeMetadataByIds(Arrays.asList(dbId));
                 if(nodeMetadataByIds == null  || nodeMetadataByIds.size() == 0){
-                    logger.error("could not find usage/proposal object in alfresco with dbid:" + dbId);
+                    logger.warn("could not find usage/proposal object in alfresco with dbid:" + dbId);
                     return;
                 }
 
@@ -1593,18 +1601,16 @@ public class ElasticsearchClient {
 
         AtomicBoolean allInIndex = new AtomicBoolean();
         allInIndex.set(true);
-        //boolean allInIndex = true;
-
-        AtomicInteger counter = new AtomicInteger();
-        int chunkSize = 100;
 
         try {
-            nodeStatistics.entrySet().stream().collect(Collectors.groupingBy(e -> counter.getAndIncrement() / chunkSize)).entrySet().forEach(m -> {
-
-                logger.info("starting with page:"+ m.getKey()  +" collection size:"+m.getValue().size());
+            Collection<List<Map.Entry<String, List<NodeStatistic>>>> partitions = new Partition<Map.Entry<String, List<NodeStatistic>>>()
+                    .getPartitions(nodeStatistics.entrySet(), bulkSizeElastic);
+            int page = 0;
+            for(List<Map.Entry<String, List<NodeStatistic>>> entries :partitions){
+                logger.info("starting with page:"+ page  +" collection size:"+entries.size());
                 try {
                     List<UpdateRequest> bulk = new ArrayList<>();
-                    for (Map.Entry<String, List<NodeStatistic>> entry : m.getValue()) {
+                    for (Map.Entry<String, List<NodeStatistic>> entry : entries) {
                         String uuid = entry.getKey();
                         List<NodeStatistic> statistics = entry.getValue();
                         if (statistics == null || statistics.size() == 0) continue;
@@ -1634,7 +1640,7 @@ public class ElasticsearchClient {
                                 logger.debug("there is a null value in statistics list:" + nodeRef);
                                 continue;
                             }
-                            if (nodeStatistic.getCounts() == null || nodeStatistic.getCounts().size() == 0) continue;
+                            if (nodeStatistic.getCounts() == null || nodeStatistic.getCounts().isEmpty()) continue;
                             String DOWNLOAD = "DOWNLOAD_MATERIAL";
                             String VIEW = "VIEW_MATERIAL";
                             String fieldNameDownload = "statistic_" + DOWNLOAD + "_" + nodeStatistic.getTimestamp();
@@ -1659,13 +1665,14 @@ public class ElasticsearchClient {
                         bulk.add(request);
                     }
 
-                    if (bulk.size() > 0) {
+                    if (!bulk.isEmpty()) {
                         this.updateBulk(bulk);
                     }
                 } catch (IOException e) {
                     throw new RuntimeException(e);
                 }
-            });
+                page++;
+            }
         }catch (RuntimeException e){throw (IOException)e.getCause();};
         return allInIndex.get();
     }
@@ -1714,7 +1721,7 @@ public class ElasticsearchClient {
                                 propsToRemove.add(entry.getKey());
                             }
                         } catch (ParseException e) {
-                            logger.error("can not get date in: "+entry.getKey());
+                            logger.warn("can not get date in: "+entry.getKey());
                         }
                     }
                 }

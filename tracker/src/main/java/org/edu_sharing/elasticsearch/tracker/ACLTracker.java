@@ -140,7 +140,7 @@ public class ACLTracker {
 
                 Reader reader = readersMap.get(acl.getId());
                 if (reader.getAclId() != acl.getId()) {
-                    logger.error("reader aclid:" + reader.getAclId() + " does not match " + acl.getId());
+                    logger.warn("reader aclid:" + reader.getAclId() + " does not match " + acl.getId());
                     continue;
                 }
 
