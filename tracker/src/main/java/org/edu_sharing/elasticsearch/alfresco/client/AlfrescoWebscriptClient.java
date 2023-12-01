@@ -171,7 +171,7 @@ public class AlfrescoWebscriptClient {
                             .request(MediaType.APPLICATION_JSON)
                             .post(Entity.json(getNodeMetadataParamSingle));
                     String valueAsString = resp.readEntity(String.class);
-                    logger.error("problems with node:" + valueAsString, e);
+                    logger.warn("problems with node:" + valueAsString, e);
                 }
             }
             return fallbackResult;

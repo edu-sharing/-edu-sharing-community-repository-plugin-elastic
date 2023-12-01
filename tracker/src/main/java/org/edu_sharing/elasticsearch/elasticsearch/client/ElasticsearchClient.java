@@ -228,7 +228,7 @@ public class ElasticsearchClient {
         String id = updateResponse.getId();
         long version = updateResponse.getVersion();
         if (updateResponse.getResult() == DocWriteResponse.Result.CREATED) {
-            logger.error("object did not exist");
+            logger.info("object did not exist");
         } else if (updateResponse.getResult() == DocWriteResponse.Result.UPDATED) {
 
         } else if (updateResponse.getResult() == DocWriteResponse.Result.DELETED) {
@@ -459,7 +459,7 @@ public class ElasticsearchClient {
 
                 String key = CCConstants.getValidLocalName(prop.getKey());
                 if(key == null){
-                    logger.error("unknown namespace: " + prop.getKey());
+                    logger.warn("unknown namespace: " + prop.getKey());
                     continue;
                 }
 
@@ -527,7 +527,7 @@ public class ElasticsearchClient {
                             try {
                                 result.add(jp.parseMap(mzStatus));
                             }catch (JsonParseException e){
-                                logger.error(e.getMessage());
+                                logger.warn(e.getMessage());
                             }
                         }
                         if(result.size() > 0) {
@@ -553,7 +553,7 @@ public class ElasticsearchClient {
                     try {
                         builder.field(key, value);
                     }catch(MapperParsingException e){
-                        logger.error("error parsing value field:" + key +"v"+value,e);
+                        logger.warn("error parsing value field:" + key +"v"+value,e);
                     }
                 }
             }
@@ -607,9 +607,9 @@ public class ElasticsearchClient {
                                     builder.endObject();
                                 }
                             } catch (VCardParseException e) {
-                                logger.error(e.getMessage(),e);
+                                logger.warn(e.getMessage(),e);
                             }catch (NullPointerException e){
-                                logger.error("node: "+id +" "+ e.getMessage(),e);
+                                logger.warn("node: "+id +" "+ e.getMessage(),e);
                             }
                         }
 
@@ -874,7 +874,7 @@ public class ElasticsearchClient {
                                 }
 
                                 if(collCeckAttValue == null){
-                                    logger.error("replicated collection " + collection.get("dbid") + " does not have a property to check will leave it out");
+                                    logger.info("replicated collection " + collection.get("dbid") + " does not have a property to check will leave it out");
                                     continue;
                                 }
                                 long collectionAttValue = Long.parseLong(collCeckAttValue.toString());
@@ -1002,7 +1002,7 @@ public class ElasticsearchClient {
                 param.setNodeIds(Arrays.asList(new Long[]{dbId}));
                 List<NodeMetadata> nodeMetadataByIds = alfrescoClient.getNodeMetadataByIds(Arrays.asList(dbId));
                 if(nodeMetadataByIds == null  || nodeMetadataByIds.size() == 0){
-                    logger.error("could not find usage/proposal object in alfresco with dbid:" + dbId);
+                    logger.warn("could not find usage/proposal object in alfresco with dbid:" + dbId);
                     return;
                 }
 
@@ -1721,7 +1721,7 @@ public class ElasticsearchClient {
                                 propsToRemove.add(entry.getKey());
                             }
                         } catch (ParseException e) {
-                            logger.error("can not get date in: "+entry.getKey());
+                            logger.warn("can not get date in: "+entry.getKey());
                         }
                     }
                 }
