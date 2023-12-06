@@ -2,6 +2,14 @@ version: '3.7'
 
 services:
 
+  repository-search-elastic-kibana:
+    image: "${docker.edu_sharing.community.common.kibana}"
+    container_name: "repository-search-elastic-kibana_${COMPOSE_PROJECT_NAME}"
+    environment:
+      ELASTICSEARCH_HOSTS: "http://repository-search-elastic-index:9200"
+    ports:
+      - "${COMMON_BIND_HOST:-127.0.0.1}:${REPOSITORY_SEARCH_ELASTIC_KIBANA_PORT_HTTP:-8400}:5601"
+
   repository-search-elastic-tracker:
     volumes:
       - "${GIT_ROOT}/repository/Backend/services/rest/client/java/target/edu_sharing-community-repository-backend-services-rest-client-java-${org.edu_sharing:edu_sharing-community-repository-backend-services-rest-client-java:jar.version}.jar:/opt/alfresco/tomcat/webapps/edu-sharing/WEB-INF/lib/edu_sharing-community-repository-backend-services-rest-client-java-${org.edu_sharing:edu_sharing-community-repository-backend-services-rest-client-java:jar.version}.jar"
