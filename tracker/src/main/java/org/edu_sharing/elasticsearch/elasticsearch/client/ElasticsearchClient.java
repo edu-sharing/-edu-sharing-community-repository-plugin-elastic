@@ -1,6 +1,22 @@
 package org.edu_sharing.elasticsearch.elasticsearch.client;
 
 
+import co.elastic.clients.elasticsearch._types.*;
+import co.elastic.clients.elasticsearch._types.mapping.DynamicMapping;
+import co.elastic.clients.elasticsearch._types.mapping.DynamicTemplate;
+import co.elastic.clients.elasticsearch._types.mapping.Property;
+import co.elastic.clients.elasticsearch._types.mapping.TypeMapping;
+import co.elastic.clients.elasticsearch._types.query_dsl.Query;
+import co.elastic.clients.elasticsearch.core.*;
+import co.elastic.clients.elasticsearch.core.bulk.BulkOperation;
+import co.elastic.clients.elasticsearch.core.bulk.BulkResponseItem;
+import co.elastic.clients.elasticsearch.core.bulk.IndexOperation;
+import co.elastic.clients.elasticsearch.core.bulk.OperationType;
+import co.elastic.clients.elasticsearch.core.search.Hit;
+import co.elastic.clients.elasticsearch.core.search.HitsMetadata;
+import co.elastic.clients.elasticsearch.indices.CreateIndexRequest;
+import co.elastic.clients.json.JsonData;
+import co.elastic.clients.util.ObjectBuilder;
 import net.sourceforge.cardme.engine.VCardEngine;
 import net.sourceforge.cardme.vcard.VCard;
 import net.sourceforge.cardme.vcard.exceptions.VCardParseException;
@@ -14,43 +30,8 @@ import org.edu_sharing.elasticsearch.edu_sharing.client.EduSharingClient;
 import org.edu_sharing.elasticsearch.edu_sharing.client.NodeStatistic;
 import org.edu_sharing.elasticsearch.tools.ScriptExecutor;
 import org.edu_sharing.elasticsearch.tools.Tools;
-import org.elasticsearch.action.DocWriteRequest;
 import org.edu_sharing.repository.client.tools.CCConstants;
-import org.elasticsearch.action.DocWriteResponse;
-import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
-import org.elasticsearch.action.admin.indices.refresh.RefreshRequest;
-import org.elasticsearch.action.admin.indices.settings.put.UpdateSettingsRequest;
-import org.elasticsearch.action.bulk.BulkItemResponse;
-import org.elasticsearch.action.bulk.BulkRequest;
-import org.elasticsearch.action.bulk.BulkResponse;
-import org.elasticsearch.action.delete.DeleteRequest;
-import org.elasticsearch.action.get.GetRequest;
-import org.elasticsearch.action.get.GetResponse;
-import org.elasticsearch.action.index.IndexRequest;
-import org.elasticsearch.action.index.IndexResponse;
-import org.elasticsearch.action.search.SearchRequest;
-import org.elasticsearch.action.search.SearchResponse;
-import org.elasticsearch.action.support.replication.ReplicationResponse;
-import org.elasticsearch.action.update.UpdateRequest;
-import org.elasticsearch.action.update.UpdateResponse;
 import org.elasticsearch.client.*;
-import org.elasticsearch.client.indices.CreateIndexRequest;
-import org.elasticsearch.client.indices.GetIndexRequest;
-import org.elasticsearch.common.Strings;
-import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.xcontent.XContentBuilder;
-import org.elasticsearch.common.xcontent.XContentFactory;
-import org.elasticsearch.common.xcontent.XContentType;
-import org.elasticsearch.index.mapper.MapperParsingException;
-import org.elasticsearch.index.query.QueryBuilder;
-import org.elasticsearch.index.query.QueryBuilders;
-import org.elasticsearch.index.reindex.BulkByScrollResponse;
-import org.elasticsearch.index.reindex.UpdateByQueryRequest;
-import org.elasticsearch.script.Script;
-import org.elasticsearch.script.ScriptType;
-import org.elasticsearch.search.SearchHit;
-import org.elasticsearch.search.SearchHits;
-import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.json.BasicJsonParser;
@@ -68,11 +49,12 @@ import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
-import static org.elasticsearch.common.xcontent.XContentFactory.jsonBuilder;
-
+@SuppressWarnings("rawtypes")
 @Component
 public class ElasticsearchClient {
 
@@ -118,7 +100,7 @@ public class ElasticsearchClient {
 
     final static String ID_ACL_CHANGESET = "2";
 
-    final static String ID_STATISTICS_TIMESTAMP ="3";
+    final static String ID_STATISTICS_TIMESTAMP = "3";
 
     SimpleDateFormat statisticDateFormatter = new SimpleDateFormat("yyyy-MM-dd");
 
@@ -126,7 +108,7 @@ public class ElasticsearchClient {
     String homeRepoId;
 
     @Autowired
-    RestHighLevelClient client = null;
+    co.elastic.clients.elasticsearch.ElasticsearchClient client = null;
 
     @Autowired
     ScriptExecutor scriptExecutor;
@@ -139,6 +121,8 @@ public class ElasticsearchClient {
     @Autowired
     private AlfrescoWebscriptClient alfrescoClient;
 
+    private final SearchHitsRunner searchHitsRunner = new SearchHitsRunner(this);
+
     @PostConstruct
     public void init() throws IOException {
         createIndexIfNotExists(INDEX_TRANSACTIONS);
@@ -146,200 +130,157 @@ public class ElasticsearchClient {
         setupElasticConfiguration();
         this.homeRepoId = eduSharingClient.getHomeRepository().getId();
     }
+
     private void setupElasticConfiguration() throws IOException {
-        UpdateSettingsRequest settingsRequest = new UpdateSettingsRequest();
         // we need to increase this value because of the large ccm/cclom model
-        settingsRequest.settings(Settings.builder().put("index.mapping.total_fields.limit", 5000).build());
-        client.indices().putSettings(settingsRequest, RequestOptions.DEFAULT);
+        client.indices().putSettings(req -> req.settings(
+                set -> set.index(id -> id.mapping(map -> map.totalFields(tf -> tf.limit(5000))))));
     }
-    public void deleteIndex(String index) throws IOException{
-        DeleteIndexRequest request = new DeleteIndexRequest(index);
-        client.indices().delete(request, RequestOptions.DEFAULT);
+
+    public void deleteIndex(String index) throws IOException {
+        client.indices().delete(req -> req.index(index));
     }
-    public void createIndexIfNotExists(String index) throws IOException{
-        GetIndexRequest request = new GetIndexRequest(index);
-        if(!client.indices().exists(request,RequestOptions.DEFAULT)){
-            CreateIndexRequest createIndexRequest = new CreateIndexRequest(index);
 
-            createIndexRequest.settings(Settings.builder()
-                            .put("index.number_of_shards", indexNumberOfShards)
-                            .put("index.number_of_replicas", indexNumberOfReplicas));
-
-            client.indices().create(createIndexRequest, RequestOptions.DEFAULT);
+    public void createIndexIfNotExists(String index) throws IOException {
+        if (!client.indices().exists(req -> req.index(index)).value()) {
+            client.indices().create(req -> req
+                    .index(index)
+                    .settings(set -> set
+                            .index(id -> id
+                                    .numberOfShards(Integer.toString(indexNumberOfShards))
+                                    .numberOfReplicas(Integer.toString(indexNumberOfReplicas)))));
         }
     }
 
-    public void updatePermissions(long dbid, Map<String,List<String>> permissions) throws IOException {
-        XContentBuilder builder = XContentFactory.jsonBuilder();
-        builder.startObject();
-        {
-            builder.startObject("permissions");
-            for(Map.Entry<String,List<String>> entry: permissions.entrySet()){
-                builder.field(entry.getKey(),entry.getValue());
-            }
-            builder.endObject();
-        }
-        builder.endObject();
+    public void updatePermissions(long dbid, Map<String, List<String>> permissions) throws IOException {
         //remove and add permissions cause its a object that would be merged
         //this.update(dbid,new Script("ctx._source.remove('permissions')"));
-        this.update(dbid,new Script("ctx._source.permissions=null"));
-        this.update(dbid,builder);
+        this.update(dbid, Script.of(scr -> scr.inline(il -> il.source("ctx._source.permissions=null"))));
+        this.update(dbid, Map.of("permissions", permissions));
     }
 
-    public void updateNodesWithAcl(final long aclId, final Map<String,List<String>> permissions) throws IOException {
-        logger.debug("starting: {} ",aclId);
-        UpdateByQueryRequest request = new UpdateByQueryRequest(INDEX_WORKSPACE);
-        request.setQuery(QueryBuilders.termQuery("aclId", aclId));
-        request.setConflicts("proceed");
-        request.setRefresh(true);
-       // Script script = new Script("ctx._source.permissions=null");
+    public void updateNodesWithAcl(final long aclId, final Map<String, List<String>> permissions) throws IOException {
+        logger.debug("starting: {} ", aclId);
+        // Script script = new Script("ctx._source.permissions=null");
 
-        HashMap<String,Object> param = new HashMap<>(permissions);
-        Script script =  new Script(ScriptType.INLINE,Script.DEFAULT_SCRIPT_LANG,"ctx._source.permissions=params",param);
 
-        request.setScript(script);
-        BulkByScrollResponse bulkByScrollResponse = client.updateByQuery(request, RequestOptions.DEFAULT);
-        logger.debug("updated: {}", bulkByScrollResponse.getUpdated());
-        List<BulkItemResponse.Failure> bulkFailures = bulkByScrollResponse.getBulkFailures();
-        for(BulkItemResponse.Failure failure : bulkFailures){
-            logger.error(failure.getMessage(),failure.getCause());
+        UpdateByQueryResponse bulkByScrollResponse = client.updateByQuery(req -> req
+                .index(INDEX_WORKSPACE)
+                .query(q -> q.term(t -> t.field("aclId").value(aclId)))
+                .conflicts(Conflicts.Proceed)
+                .refresh(true)
+                .script(scr -> scr
+                        .inline(il -> il
+                                .source("ctx._source.permissions=params")
+                                .params(permissions.entrySet().stream().collect(Collectors.toMap(Map.Entry::getKey, JsonData::of)))))
+        );
+        logger.debug("updated: {}", bulkByScrollResponse.updated());
+        List<BulkIndexByScrollFailure> bulkFailures = bulkByScrollResponse.failures();
+        for (BulkIndexByScrollFailure failure : bulkFailures) {
+            logger.error(failure.cause().toString(), failure.cause());
         }
     }
 
-    public void update(long dbId, XContentBuilder builder) throws IOException{
-        UpdateRequest request = new UpdateRequest(
-                INDEX_WORKSPACE,
-                Long.toString(dbId)).doc(builder);
-        this.update(request);
+    public void update(long dbId, Object data) throws IOException {
+        this.update(req -> req
+                .index(INDEX_WORKSPACE)
+                .id(Long.toString(dbId))
+                .doc(data), Void.class);
     }
-    public void update(long dbId, Script script) throws IOException{
-        UpdateRequest request = new UpdateRequest(
-                INDEX_WORKSPACE,
-                Long.toString(dbId)).script(script);
-        this.update(request);
+
+    public void update(long dbId, Script script) throws IOException {
+        this.update(req -> req
+                        .index(INDEX_WORKSPACE)
+                        .id(Long.toString(dbId))
+                        .script(script),
+                Void.class);
     }
-    private void update(UpdateRequest request) throws IOException{
-        UpdateResponse updateResponse = client.update(
-                request, RequestOptions.DEFAULT);
-        String index = updateResponse.getIndex();
-        String id = updateResponse.getId();
-        long version = updateResponse.getVersion();
-        if (updateResponse.getResult() == DocWriteResponse.Result.CREATED) {
+
+    private <TDocument, TPartialDocument> void update(Function<
+            UpdateRequest.Builder<TDocument, TPartialDocument>,
+            ObjectBuilder<UpdateRequest<TDocument, TPartialDocument>>
+            > request, Class<TDocument> tDocClass) throws IOException {
+
+        UpdateResponse<TDocument> updateResponse = client.update(request, tDocClass);
+//        String index = updateResponse.index();
+//        String id = updateResponse.id();
+//        long version = updateResponse.version();
+
+        if (Objects.requireNonNull(updateResponse.result()) == Result.Created) {
             logger.error("object did not exist");
-        } else if (updateResponse.getResult() == DocWriteResponse.Result.UPDATED) {
-
-        } else if (updateResponse.getResult() == DocWriteResponse.Result.DELETED) {
-
-        } else if (updateResponse.getResult() == DocWriteResponse.Result.NOOP) {
-
         }
     }
 
-    public void updateBulk(List<UpdateRequest> updateRequests) throws IOException{
-        BulkRequest bulkRequest = new BulkRequest(INDEX_WORKSPACE);
-        for(UpdateRequest updateRequest : updateRequests){
-            bulkRequest.add(updateRequest);
+    public void updateBulk(List<BulkOperation> updateRequests) throws IOException {
+        if (updateRequests.isEmpty()) {
+            return;
         }
-        if(bulkRequest.numberOfActions() > 0){
-            BulkResponse response = client.bulk(bulkRequest, RequestOptions.DEFAULT);
-            for(BulkItemResponse item : response.getItems()){
-                if(item.getFailure() != null){
-                    logger.error(item.getFailureMessage());
-                }
+
+        BulkResponse response = client.bulk(req -> req.index(INDEX_WORKSPACE).operations(updateRequests));
+        for (BulkResponseItem item : response.items()) {
+            if (item.error() != null) {
+                logger.error(item.error().reason());
             }
         }
     }
 
 
+    public void index(List<NodeData> nodes) throws IOException {
+        logger.info("starting bulk index for {}", nodes.size());
 
-    public void index(List<NodeData> nodes) throws IOException{
-        logger.info("starting bulk index for {}",nodes.size());
+        BulkRequest bulkRequest = new BulkRequest.Builder().index(INDEX_WORKSPACE).build();
 
-        BulkRequest bulkRequest = new BulkRequest(INDEX_WORKSPACE);
         boolean useBulkUpdate = true;
 
-        for(NodeData nodeData: nodes) {
+        for (NodeData nodeData : nodes) {
             NodeMetadata node = nodeData.getNodeMetadata();
-            XContentBuilder builder = get(nodeData,null);
+            Object data = get(nodeData, null).build();
 
-            IndexRequest indexRequest = new IndexRequest(INDEX_WORKSPACE)
-                    .id(Long.toString(node.getId())).source(builder);
+            bulkRequest.operations()
+                    .add(BulkOperation.of(op -> op.index(iop -> iop
+                            .index(INDEX_WORKSPACE)
+                            .id(Long.toString(node.getId()))
+                            .document(data))));
 
-            if(useBulkUpdate){
-                bulkRequest.add(indexRequest);
-            }else{
-                IndexResponse indexResponse = client.index(indexRequest, RequestOptions.DEFAULT);
-                String index = indexResponse.getIndex();
-                String id = indexResponse.getId();
-                if (indexResponse.getResult() == DocWriteResponse.Result.CREATED) {
-                    logger.debug("created node in elastic:" + node);
-                } else if (indexResponse.getResult() == DocWriteResponse.Result.UPDATED) {
-                    logger.debug("updated node in elastic:" + node);
-                    if(node.getType().equals("ccm:map") && node.getAspects().contains("ccm:collection")){
-                        this.refresh(INDEX_WORKSPACE);
-                        onUpdateRefreshUsageCollectionReplicas(nodeData.getNodeMetadata(), indexResponse.getResult() == DocWriteResponse.Result.UPDATED);
-                    }
-                }
-                ReplicationResponse.ShardInfo shardInfo = indexResponse.getShardInfo();
-                if (shardInfo.getTotal() != shardInfo.getSuccessful()) {
-                    logger.debug("shardInfo.getTotal() "+shardInfo.getTotal() +"!="+ "shardInfo.getSuccessful():" +shardInfo.getSuccessful());
-                }
-                if (shardInfo.getFailed() > 0) {
-                    for (ReplicationResponse.ShardInfo.Failure failure :
-                            shardInfo.getFailures()) {
-                        String reason = failure.reason();
-                        logger.error(failure.nodeId() +" reason:"+reason);
-                    }
-                }
-            }
-            if(nodeCounter.addAndGet(1)%100 == 0){
-                logger.info("Processed " + nodeCounter.get() +" nodes (" + (System.currentTimeMillis() - lastNodeCount.get()) + "ms per last 100 nodes)");
+            if (nodeCounter.addAndGet(1) % 100 == 0) {
+                logger.info("Processed " + nodeCounter.get() + " nodes (" + (System.currentTimeMillis() - lastNodeCount.get()) + "ms per last 100 nodes)");
                 lastNodeCount.set(System.currentTimeMillis());
             }
         }
 
-        if(useBulkUpdate && bulkRequest.numberOfActions() > 0) {
+        if (useBulkUpdate && !bulkRequest.operations().isEmpty()) {
             logger.info("starting bulk update:");
-            BulkResponse bulkResponse = client.bulk(bulkRequest, RequestOptions.DEFAULT);
+            BulkResponse bulkResponse = client.bulk(bulkRequest);
             logger.info("finished bulk update:");
 
-            Map<Long,NodeData> collectionNodes = new HashMap<>();
-            for(NodeData nodeData: nodes) {
+            Map<Long, NodeData> collectionNodes = new HashMap<>();
+            for (NodeData nodeData : nodes) {
                 NodeMetadata node = nodeData.getNodeMetadata();
-                if((node.getType().equals("ccm:map") && node.getAspects().contains("ccm:collection"))
-                        || (node.getType().equals("ccm:io") && !node.getAspects().contains("ccm:collection_io_reference"))){
-                    collectionNodes.put(node.getId(),nodeData);
+                if ((node.getType().equals("ccm:map") && node.getAspects().contains("ccm:collection"))
+                        || (node.getType().equals("ccm:io") && !node.getAspects().contains("ccm:collection_io_reference"))) {
+                    collectionNodes.put(node.getId(), nodeData);
                 }
             }
             logger.info("start refresh index");
             this.refresh(INDEX_WORKSPACE);
             try {
                 logger.info("start RefreshCollectionReplicas");
-                for (BulkItemResponse item : bulkResponse.getItems()) {
-                    if (item.isFailed()) {
-
-                        if(item.getResponse() != null){
-                            logger.error("Failed indexing of " + item.getResponse().getId());
-                        }else{
-                            BulkItemResponse bir = (BulkItemResponse)item;
-                            if(bir.getFailure() != null){
-                                logger.error("bulk indexing error:", bir.getFailure().getCause());
-                            }
-                            logger.error("Failed indexing of " + bir.getFailureMessage());
-                        }
-
-                        logger.error("Failed indexing of " + ((item.getResponse() == null) ? item : item.getResponse().getId()));
+                for (BulkResponseItem item : bulkResponse.items()) {
+                    if (item.error() != null) {
+                        logger.error("Failed indexing of " + item.id());
+                        logger.error("Failed indexing of " + item.error().causedBy());
                         continue;
                     }
-                    Long dbId = Long.parseLong(item.getResponse().getId());
+
+                    Long dbId = item.id() != null ? Long.parseLong(item.id()) : null;
                     NodeData nodeData = collectionNodes.get(dbId);
                     if (nodeData != null) {
-                        onUpdateRefreshUsageCollectionReplicas(nodeData.getNodeMetadata(), item.getOpType() == DocWriteRequest.OpType.UPDATE || item.getOpType() == DocWriteRequest.OpType.INDEX);
+                        onUpdateRefreshUsageCollectionReplicas(nodeData.getNodeMetadata(), item.operationType() == OperationType.Update || item.operationType() == OperationType.Index);
                     }
                 }
                 logger.info("finished RefreshCollectionReplicas");
-            }catch(Throwable e){
-                logger.error(e.getMessage(),e);
+            } catch (Throwable e) {
+                logger.error(e.getMessage(), e);
                 throw e;
             }
 
@@ -347,63 +288,70 @@ public class ElasticsearchClient {
         logger.info("returning");
     }
 
-    private XContentBuilder get(NodeData nodeData,XContentBuilder builder) throws IOException {
-        return get(nodeData,builder,null);
+    private DataBuilder get(NodeData nodeData, DataBuilder builder) throws IOException {
+        return get(nodeData, builder, null);
     }
-    private XContentBuilder get(NodeData nodeData,XContentBuilder builder, String objectName) throws IOException {
+
+    private DataBuilder get(NodeData nodeData, DataBuilder builder, String objectName) throws IOException {
 
         NodeMetadata node = nodeData.getNodeMetadata();
         String storeRefProtocol = Tools.getProtocol(node.getNodeRef());
         String storeRefIdentifier = Tools.getIdentifier(node.getNodeRef());
 
-        if(builder == null){
-            builder = jsonBuilder();
+        if (builder == null) {
+            builder = new DataBuilder();
         }
 
-        if(objectName != null) builder.startObject(objectName); else builder.startObject();
+        if (objectName != null) {
+            builder.startObject(objectName);
+        } else {
+            builder.startObject();
+        }
+
+
         {
-            builder.field("aclId",  node.getAclId());
-            builder.field("txnId",node.getTxnId());
-            builder.field("dbid",node.getId());
+            builder.field("aclId", node.getAclId());
+            builder.field("txnId", node.getTxnId());
+            builder.field("dbid", node.getId());
 
             List<String> parentUuids = Arrays.asList(node.getPaths().get(0).getApath().split("/"));
-            String parentUuid = parentUuids.stream().skip(parentUuids.size() -1).findFirst().get();
+            String parentUuid = parentUuids.stream().skip(parentUuids.size() - 1).findFirst().get();
             //getAncestors() is not sorted
             String primaryParentRef = node.getAncestors().stream().filter(s -> s.contains(parentUuid)).findAny().get();
             builder.startObject("parentRef")
                     .startObject("storeRef")
-                        .field("protocol",Tools.getProtocol(primaryParentRef))
-                        .field("identifier",Tools.getIdentifier(primaryParentRef))
+                    .field("protocol", Tools.getProtocol(primaryParentRef))
+                    .field("identifier", Tools.getIdentifier(primaryParentRef))
                     .endObject()
-                    .field("id",Tools.getUUID(primaryParentRef))
-            .endObject();
+                    .field("id", Tools.getUUID(primaryParentRef))
+                    .endObject();
 
             String id = node.getNodeRef().split("://")[1].split("/")[1];
             builder.startObject("nodeRef")
                     .startObject("storeRef")
-                    .field("protocol",storeRefProtocol)
-                    .field("identifier",storeRefIdentifier)
+                    .field("protocol", storeRefProtocol)
+                    .field("identifier", storeRefIdentifier)
                     .endObject()
-                    .field("id",id)
+                    .field("id", id)
                     .endObject();
 
             builder.field("owner", node.getOwner());
-            builder.field("type",node.getType());
+            builder.field("type", node.getType());
 
             scriptExecutor.addCustomPropertiesByScript(builder, nodeData);
 
             //valuespaces
-            if(nodeData.getValueSpaces().size() > 0){
+            if (!nodeData.getValueSpaces().isEmpty()) {
                 builder.startObject("i18n");
-                for(Map.Entry<String,Map<String,List<String>>> entry : nodeData.getValueSpaces().entrySet())      {
+                for (Map.Entry<String, Map<String, List<String>>> entry : nodeData.getValueSpaces().entrySet()) {
                     String language = entry.getKey().split("-")[0];
                     builder.startObject(language);
-                    for(Map.Entry<String,List<String>> valuespace : entry.getValue().entrySet() ){
+                    for (Map.Entry<String, List<String>> valuespace : entry.getValue().entrySet()) {
 
                         String key = CCConstants.getValidLocalName(valuespace.getKey());
-                        if(key != null) {
+                        if (key != null) {
                             builder.field(key, valuespace.getValue());
-                        }else{
+                        } else {
                             builder.field(valuespace.getKey(), valuespace.getValue());
                             // logger.error("unknown valuespace property: " + valuespace.getKey());
                         }
@@ -413,14 +361,14 @@ public class ElasticsearchClient {
                 builder.endObject();
             }
 
-            if(node.getPaths() != null && node.getPaths().size() > 0){
+            if (node.getPaths() != null && !node.getPaths().isEmpty()) {
                 addNodePath(builder, node);
             }
 
             builder.startObject("permissions");
-            builder.field("read",nodeData.getReader().getReaders());
-            for(Map.Entry<String,List<String>> entry : nodeData.getPermissions().entrySet()){
-                builder.field(entry.getKey(),entry.getValue());
+            builder.field("read", nodeData.getReader().getReaders());
+            for (Map.Entry<String, List<String>> entry : nodeData.getPermissions().entrySet()) {
+                builder.field(entry.getKey(), entry.getValue());
             }
             builder.endObject();
 
@@ -434,8 +382,9 @@ public class ElasticsearchClient {
              *    "size": "8385"
              * },
              */
-            LinkedHashMap content = (LinkedHashMap)node.getProperties().get("{http://www.alfresco.org/model/content/1.0}content");
-            if(content != null){
+            @SuppressWarnings("unchecked")
+            LinkedHashMap<String, Object> content = (LinkedHashMap<String, Object>) node.getProperties().get("{http://www.alfresco.org/model/content/1.0}content");
+            if (content != null) {
 
                 builder.startObject("content");
                 builder.field("contentId", content.get("contentId"));
@@ -443,101 +392,102 @@ public class ElasticsearchClient {
                 builder.field("locale", content.get("locale"));
                 builder.field("mimetype", content.get("mimetype"));
                 builder.field("size", content.get("size"));
-                if(nodeData.getFullText() != null){
+                if (nodeData.getFullText() != null) {
                     builder.field("fulltext", nodeData.getFullText());
                 }
                 builder.endObject();
             }
 
 
-            HashMap<String,Serializable> contributorProperties = new HashMap<>();
+            HashMap<String, Serializable> contributorProperties = new HashMap<>();
             builder.startObject("properties");
-            for(Map.Entry<String, Serializable> prop : node.getProperties().entrySet()) {
+            for (Map.Entry<String, Serializable> prop : node.getProperties().entrySet()) {
 
                 String key = CCConstants.getValidLocalName(prop.getKey());
-                if(key == null){
+                if (key == null) {
                     logger.error("unknown namespace: " + prop.getKey());
                     continue;
                 }
 
                 Serializable value = prop.getValue();
-                if(key.matches(CONTRIBUTOR_REGEX)){
-                    if(value != null){
-                        contributorProperties.put(key,value);
+                if (key.matches(CONTRIBUTOR_REGEX)) {
+                    if (value != null) {
+                        contributorProperties.put(key, value);
                     }
                 }
 
-                if(prop.getValue() instanceof List){
-                    List listvalue = (List)prop.getValue();
+                if (prop.getValue() instanceof List) {
+                    List listvalue = (List) prop.getValue();
 
                     //i.e. cm:title
-                    if( !listvalue.isEmpty() && listvalue.get(0) instanceof Map){
+                    if (!listvalue.isEmpty() && listvalue.get(0) instanceof Map) {
                         value = getMultilangValue(listvalue);
                     }
 
                     //i.e. cclom:general_keyword
-                    if( !listvalue.isEmpty() && listvalue.get(0) instanceof List){
+                    if (!listvalue.isEmpty() && listvalue.get(0) instanceof List) {
                         List<String> mvValue = new ArrayList<String>();
-                        for(Object l : listvalue){
-                            String mlv = getMultilangValue((List)l);
-                            if(mlv != null) {
+                        for (Object l : listvalue) {
+                            String mlv = getMultilangValue((List) l);
+                            if (mlv != null) {
                                 mvValue.add(mlv);
                             }
                         }
-                        if(mvValue.size() > 0){
+                        if (!mvValue.isEmpty()) {
                             value = (Serializable) mvValue;
                         }//fix: mapper_parsing_exception Preview of field's value: '{locale=de_}']] (empty keyword)
-                        else{
-                            logger.info("fallback to \\”\\” for prop "+key +" v:" + value);
+                        else {
+                            logger.info("fallback to \\”\\” for prop " + key + " v:" + value);
                             value = "";
                         }
                     }
                 }
-                if("cm:modified".equals(key) || "cm:created".equals(key)){
+                if ("cm:modified".equals(key) || "cm:created".equals(key)) {
 
-                    if(prop.getValue() != null) {
+                    if (prop.getValue() != null) {
                         value = Date.from(Instant.parse((String) prop.getValue())).getTime();
                     }
                 }
 
                 //prevent Elasticsearch exception failed to parse field's value: '1-01-07T01:00:00.000+01:00'
-                if("ccm:replicationmodified".equals(key)){
-                    if(prop.getValue() != null) {
+                if ("ccm:replicationmodified".equals(key)) {
+                    if (prop.getValue() != null) {
                         value = prop.getValue().toString();
                     }
                 }
 
                 //elastic maps this on date field, it gets a  failed to parse field exception when it's empty
-                if("ccm:replicationsourcetimestamp".equals(key)){
-                    if(value != null && value.toString().trim().equals("")){
+                if ("ccm:replicationsourcetimestamp".equals(key)) {
+                    if (value != null && value.toString().trim().isEmpty()) {
                         value = null;
                     }
                 }
 
-                if("ccm:mediacenter".equals(key)){
-                    ArrayList<Map> mediacenters = null;
-                    if(value != null && !value.toString().trim().equals("")){
+                if ("ccm:mediacenter".equals(key)) {
+                    ArrayList<Map<String, Object>> mediacenters = null;
+                    if (value != null && !value.toString().trim().isEmpty()) {
                         JsonParser jp = new BasicJsonParser();
-                        List<String> mzStatusList = (List<String>)value;
-                        ArrayList<Map> result = new ArrayList<>();
-                        for(String mzStatus : mzStatusList){
+                        @SuppressWarnings("unchecked")
+                        List<String> mzStatusList = (List<String>) value;
+                        ArrayList<Map<String, Object>> result = new ArrayList<>();
+                        for (String mzStatus : mzStatusList) {
                             try {
                                 result.add(jp.parseMap(mzStatus));
-                            }catch (JsonParseException e){
+                            } catch (JsonParseException e) {
                                 logger.error(e.getMessage());
                             }
                         }
-                        if(result.size() > 0) {
+                        if (!result.isEmpty()) {
                             value = result;
                             mediacenters = result;
                         }
                     }
 
-                    if(mediacenters != null){
+                    if (mediacenters != null) {
                         builder.startObject("ccm:mediacenter_sort");
-                        for(Map mediacenter : mediacenters){
-                            builder.startObject((String)mediacenter.get("name"));
-                            builder.field("activated",mediacenter.get("activated"));
+                        for (Map<String, Object> mediacenter : mediacenters) {
+                            builder.startObject((String) mediacenter.get("name"));
+                            builder.field("activated", mediacenter.get("activated"));
                             builder.endObject();
                         }
                         builder.endObject();
@@ -545,12 +495,12 @@ public class ElasticsearchClient {
 
                 }
 
-                if(value != null) {
+                if (value != null) {
 
                     try {
                         builder.field(key, value);
-                    }catch(MapperParsingException e){
-                        logger.error("error parsing value field:" + key +"v"+value,e);
+                    } catch (Exception e) {
+                        logger.error("error parsing value field:" + key + "v" + value, e);
                     }
                 }
             }
@@ -558,55 +508,55 @@ public class ElasticsearchClient {
 
             builder.field("aspects", node.getAspects());
 
-            if(contributorProperties.size() > 0){
+            if (!contributorProperties.isEmpty()) {
                 VCardEngine vcardEngine = new VCardEngine();
                 builder.startArray("contributor");
-                for(Map.Entry<String,Serializable> entry : contributorProperties.entrySet()){
-                    if(entry.getValue() instanceof List){
-
-                        List<String> val = (List<String>)entry.getValue();
-                        for(String v : val){
+                for (Map.Entry<String, Serializable> entry : contributorProperties.entrySet()) {
+                    if (entry.getValue() instanceof List) {
+                        @SuppressWarnings("unchecked")
+                        List<String> val = (List<String>) entry.getValue();
+                        for (String v : val) {
                             try {
-                                if(v == null) continue;
+                                if (v == null) continue;
                                 VCard vcard = vcardEngine.parse(v);
-                                if(vcard != null){
+                                if (vcard != null) {
 
                                     builder.startObject();
-                                    builder.field("property",entry.getKey());
-                                    if(vcard.getN() != null){
-                                        builder.field("firstname",vcard.getN().getGivenName());
-                                        builder.field("lastname",vcard.getN().getFamilyName());
+                                    builder.field("property", entry.getKey());
+                                    if (vcard.getN() != null) {
+                                        builder.field("firstname", vcard.getN().getGivenName());
+                                        builder.field("lastname", vcard.getN().getFamilyName());
                                     }
-                                    if(vcard.getEmails() != null && vcard.getEmails().size() > 0){
-                                        builder.field("email",vcard.getEmails().get(0).getEmail());
+                                    if (vcard.getEmails() != null && !vcard.getEmails().isEmpty()) {
+                                        builder.field("email", vcard.getEmails().get(0).getEmail());
                                     }
-                                    if(vcard.getUid() != null){
-                                        builder.field("uuid",vcard.getUid().getUid());
+                                    if (vcard.getUid() != null) {
+                                        builder.field("uuid", vcard.getUid().getUid());
                                     }
-                                    if(vcard.getUrls() != null && vcard.getUrls().size() > 0){
-                                        builder.field("url",vcard.getUrls().get(0).getRawUrl());
+                                    if (vcard.getUrls() != null && !vcard.getUrls().isEmpty()) {
+                                        builder.field("url", vcard.getUrls().get(0).getRawUrl());
                                     }
-                                    if(vcard.getOrg() != null){
-                                        builder.field("org",vcard.getOrg().getOrgName());
+                                    if (vcard.getOrg() != null) {
+                                        builder.field("org", vcard.getOrg().getOrgName());
                                     }
 
                                     List<ExtendedType> extendedTypes = vcard.getExtendedTypes();
-                                    if(extendedTypes != null){
-                                        for(ExtendedType et : extendedTypes){
-                                            if(et.getExtendedValue() != null && !et.getExtendedValue().trim().equals("")){
+                                    if (extendedTypes != null) {
+                                        for (ExtendedType et : extendedTypes) {
+                                            if (et.getExtendedValue() != null && !et.getExtendedValue().trim().isEmpty()) {
                                                 builder.field(et.getExtendedName(), et.getExtendedValue());
                                             }
                                         }
                                     }
 
 
-                                    builder.field("vcard",v);
+                                    builder.field("vcard", v);
                                     builder.endObject();
                                 }
                             } catch (VCardParseException e) {
-                                logger.error(e.getMessage(),e);
-                            }catch (NullPointerException e){
-                                logger.error("node: "+id +" "+ e.getMessage(),e);
+                                logger.error(e.getMessage(), e);
+                            } catch (NullPointerException e) {
+                                logger.error("node: " + id + " " + e.getMessage(), e);
                             }
                         }
 
@@ -614,7 +564,7 @@ public class ElasticsearchClient {
                 }
                 builder.endArray();
             }
-            if(nodeData.getNodePreview() != null) {
+            if (nodeData.getNodePreview() != null) {
                 builder.startObject("preview").
                         field("mimetype", nodeData.getNodePreview().getMimetype()).
                         field("type", nodeData.getNodePreview().getType()).
@@ -624,277 +574,275 @@ public class ElasticsearchClient {
                                 endObject();
             }
 
-            if(nodeData.getChildren().size() > 0){
+            if (!nodeData.getChildren().isEmpty()) {
                 builder.startArray("children");
-                for(NodeData child : nodeData.getChildren()){
-                    get(child,builder);
+                for (NodeData child : nodeData.getChildren()) {
+                    get(child, builder);
                 }
                 builder.endArray();
 
-                Map<Date,List<Double>> ratingsAtDay = new HashMap<>();
-                Map<Date,Double> ratingsAtDayAverage = new HashMap<>();
+                Map<Date, List<Double>> ratingsAtDay = new HashMap<>();
+                Map<Date, Double> ratingsAtDayAverage = new HashMap<>();
                 double ratingAll = 0;
-                for(NodeData child : nodeData.getChildren()){
-                    if("ccm:rating".equals(child.getNodeMetadata().getType())){
+                for (NodeData child : nodeData.getChildren()) {
+                    if ("ccm:rating".equals(child.getNodeMetadata().getType())) {
                         Date modified = Date.from(Instant.parse((String) child.getNodeMetadata().getProperties().get(CCConstants.getValidGlobalName("cm:modified"))));
                         Calendar cal = Calendar.getInstance();
                         cal.setTime(modified);
-                        cal.set(Calendar.HOUR_OF_DAY,0);
+                        cal.set(Calendar.HOUR_OF_DAY, 0);
                         cal.clear(Calendar.MINUTE);
                         cal.clear(Calendar.SECOND);
                         cal.clear(Calendar.MILLISECOND);
                         Date date = cal.getTime();
-                        Double rating = Double.parseDouble((String)child.getNodeMetadata().getProperties().get(CCConstants.getValidGlobalName("ccm:rating_value")));
-                        List<Double> dayRatings = ratingsAtDay.get(date);
-                        if(dayRatings == null){
-                            dayRatings = new ArrayList<>();
-                            ratingsAtDay.put(date,dayRatings);
-                        }
+                        Double rating = Double.parseDouble((String) child.getNodeMetadata().getProperties().get(CCConstants.getValidGlobalName("ccm:rating_value")));
+                        List<Double> dayRatings = ratingsAtDay.computeIfAbsent(date, k -> new ArrayList<>());
                         dayRatings.add(rating);
                     }
                 }
                 //average at day
-                for(Map.Entry<Date,List<Double>> entry : ratingsAtDay.entrySet()){
-                    ratingsAtDayAverage.put(entry.getKey(),entry.getValue().stream().mapToDouble(x -> x).summaryStatistics().getAverage());
+                for (Map.Entry<Date, List<Double>> entry : ratingsAtDay.entrySet()) {
+                    ratingsAtDayAverage.put(entry.getKey(), entry.getValue().stream().mapToDouble(x -> x).summaryStatistics().getAverage());
                 }
                 //average all
                 ratingAll = ratingsAtDayAverage.values().stream().mapToDouble(x -> x).summaryStatistics().getAverage();
 
-                for(Map.Entry<Date,Double> rating : ratingsAtDayAverage.entrySet()){
-                    builder.field("statistic_RATING_"+statisticDateFormatter.format(rating.getKey()),rating.getValue());
+                for (Map.Entry<Date, Double> rating : ratingsAtDayAverage.entrySet()) {
+                    builder.field("statistic_RATING_" + statisticDateFormatter.format(rating.getKey()), rating.getValue());
                 }
-                if("ccm:io".equals(nodeData.getNodeMetadata().getType())) {
+                if ("ccm:io".equals(nodeData.getNodeMetadata().getType())) {
                     builder.field("statistic_RATING_null", ratingAll);
                 }
             }
         }
-        if(nodeData instanceof NodeDataProposal) {
+
+        if (nodeData instanceof NodeDataProposal) {
             builder = getProposalData((NodeDataProposal) nodeData, builder);
         }
 
         builder.endObject();
+
         return builder;
     }
 
-    private XContentBuilder getProposalData(NodeDataProposal nodeData, XContentBuilder builder) throws IOException {
-        if(nodeData.getCollection() != null) {
+    private DataBuilder getProposalData(NodeDataProposal nodeData, DataBuilder builder) throws IOException {
+        if (nodeData.getCollection() != null) {
             builder.startArray("collections");
             builder = get(nodeData.getCollection(), builder);
             builder.endArray();
         }
-        if(nodeData.getOriginal() != null) {
+        if (nodeData.getOriginal() != null) {
             builder = get(nodeData.getOriginal(), builder, "original");
         }
         return builder;
     }
 
-    private void addNodePath(XContentBuilder builder, NodeMetadata node) throws IOException {
+    private void addNodePath(DataBuilder builder, NodeMetadata node) throws IOException {
         String[] pathEle = node.getPaths().get(0).getApath().split("/");
-        builder.field("path", Arrays.copyOfRange(pathEle,1,pathEle.length ));
-        builder.field("fullpath", StringUtils.join(Arrays.asList(Arrays.copyOfRange(pathEle,1,pathEle.length)), '/'));
+        builder.field("path", Arrays.copyOfRange(pathEle, 1, pathEle.length));
+        builder.field("fullpath", StringUtils.join(Arrays.asList(Arrays.copyOfRange(pathEle, 1, pathEle.length)), '/'));
     }
 
-    public void refresh(String index) throws IOException{
+    public void refresh(String index) throws IOException {
         logger.debug("starting");
-        RefreshRequest request = new RefreshRequest(index);
-        client.indices().refresh(request, RequestOptions.DEFAULT);
+        client.indices().refresh(req -> req.index(index));
         logger.debug("returning");
     }
 
-    public void indexCollections(NodeMetadata usageOrProposal) throws IOException{
+    public void indexCollections(NodeMetadata usageOrProposal) throws IOException {
 
         String nodeIdCollection = null;
         String nodeIdIO = null;
 
-        if(!(usageOrProposal.getType().equals("ccm:usage") || usageOrProposal.getType().equals("ccm:collection_proposal"))){
-            throw new IOException("wrong type:"+usageOrProposal.getType());
+        if (!(usageOrProposal.getType().equals("ccm:usage") || usageOrProposal.getType().equals("ccm:collection_proposal"))) {
+            throw new IOException("wrong type:" + usageOrProposal.getType());
         }
 
-        if(usageOrProposal.getType().equals("ccm:usage")){
+        if (usageOrProposal.getType().equals("ccm:usage")) {
             String propertyUsageAppId = "{http://www.campuscontent.de/model/1.0}usageappid";
             String propertyUsageCourseId = "{http://www.campuscontent.de/model/1.0}usagecourseid";
             String propertyUsageParentNodeId = "{http://www.campuscontent.de/model/1.0}usageparentnodeid";
 
-            nodeIdCollection = (String)usageOrProposal.getProperties().get(propertyUsageCourseId);
-            nodeIdIO = (String)usageOrProposal.getProperties().get(propertyUsageParentNodeId);
-            String usageAppId = (String)usageOrProposal.getProperties().get(propertyUsageAppId);
+            nodeIdCollection = (String) usageOrProposal.getProperties().get(propertyUsageCourseId);
+            nodeIdIO = (String) usageOrProposal.getProperties().get(propertyUsageParentNodeId);
+            String usageAppId = (String) usageOrProposal.getProperties().get(propertyUsageAppId);
 
             //check if it is an collection usage
-            if(!homeRepoId.equals(usageAppId)){
+            if (!homeRepoId.equals(usageAppId)) {
                 return;
             }
         }
-        if(usageOrProposal.getType().equals("ccm:collection_proposal")){
+        if (usageOrProposal.getType().equals("ccm:collection_proposal")) {
             List<String> parentUuids = Arrays.asList(usageOrProposal.getPaths().get(0).getApath().split("/"));
-            nodeIdCollection = parentUuids.stream().skip(parentUuids.size() -1).findFirst().get();
+            nodeIdCollection = parentUuids.stream().skip(parentUuids.size() - 1).findFirst().get();
             Serializable ioNodeRef = usageOrProposal.getProperties().get("{http://www.campuscontent.de/model/1.0}collection_proposal_target");
-            if(ioNodeRef == null) {
+            if (ioNodeRef == null) {
                 logger.warn("no proposal target found for: " + usageOrProposal.getNodeRef());
                 return;
             }
             nodeIdIO = Tools.getUUID(ioNodeRef.toString());
         }
 
-        QueryBuilder collectionQuery = QueryBuilders.termQuery("properties.sys:node-uuid",nodeIdCollection);
-        QueryBuilder ioQuery = QueryBuilders.termQuery("properties.sys:node-uuid",nodeIdIO);
+        final String finalNodeIdCollection = nodeIdCollection;
+        final String finalnodeIdIO = nodeIdIO;
+        Query collectionQuery = Query.of(q -> q.term(t -> t.field("properties.sys:node-uuid").value(finalNodeIdCollection)));
+        Query ioQuery = Query.of(q -> q.term(t -> t.field("properties.sys:node-uuid").value(finalnodeIdIO)));
 
-        SearchHits searchHitsCollection = this.search(INDEX_WORKSPACE,collectionQuery,0,1);
-        if(searchHitsCollection == null || searchHitsCollection.getTotalHits().value == 0){
+        HitsMetadata<Map> searchHitsCollection = this.search(INDEX_WORKSPACE, collectionQuery, 0, 1);
+        if (searchHitsCollection == null || searchHitsCollection.total().value() == 0) {
             logger.warn("no collection found for: " + nodeIdCollection);
             return;
         }
-        SearchHit searchHitCollection = searchHitsCollection.getHits()[0];
+        Hit<Map> searchHitCollection = searchHitsCollection.hits().get(0);
 
-        SearchHits ioSearchHits = this.search(INDEX_WORKSPACE,ioQuery,0,1);
-        if(ioSearchHits == null || ioSearchHits.getTotalHits().value == 0){
+        HitsMetadata<Map> ioSearchHits = this.search(INDEX_WORKSPACE, ioQuery, 0, 1);
+        if (ioSearchHits == null || ioSearchHits.total().value() == 0) {
             logger.warn("no io found for: " + nodeIdIO);
             return;
         }
 
-        SearchHit hitIO = ioSearchHits.getHits()[0];
+        Hit<Map> hitIO = ioSearchHits.hits().get(0);
 
-        Map propsIo = (Map)hitIO.getSourceAsMap().get("properties");
-        Map propsCollection = (Map)searchHitCollection.getSourceAsMap().get("properties");
+        Map propsIo = (Map) hitIO.source().get("properties");
+        Map propsCollection = (Map) searchHitCollection.source().get("properties");
 
 
-        logger.info("adding collection data: " + propsCollection.get("cm:name") +" "+propsCollection.get("sys:node-dbid") +" IO: "+propsIo.get("cm:name") +" "+propsIo.get("sys:node-dbid"));
+        logger.info("adding collection data: " + propsCollection.get("cm:name") + " " + propsCollection.get("sys:node-dbid") + " IO: " + propsIo.get("cm:name") + " " + propsIo.get("sys:node-dbid"));
 
-        List<Map<String, Object>> collections = (List<Map<String, Object>>)ioSearchHits.getHits()[0].getSourceAsMap().get("collections");
-        XContentBuilder builder = XContentFactory.jsonBuilder();
+        List<Map<String, Object>> collections = (List<Map<String, Object>>) hitIO.source().get("collections");
+        DataBuilder builder = new DataBuilder();
         builder.startObject();
         {
-           builder.startArray("collections");
-                if(collections != null && collections.size() > 0){
-                    for(Map<String,Object> collection : collections){
-                        boolean colIsTheSame = searchHitCollection.getSourceAsMap().get("dbid").equals(collection.get("dbid"));
+            builder.startArray("collections");
+            if (collections != null && collections.size() > 0) {
+                for (Map<String, Object> collection : collections) {
+                    boolean colIsTheSame = searchHitCollection.source().get("dbid").equals(collection.get("dbid"));
 
-                        Map<String,Object> relation = (Map<String,Object>)collection.get("relation");
-                        if(relation != null) {
-                            long dbidRelation = ((Number) (relation.get("dbid"))).longValue();
-                            if (!colIsTheSame || (colIsTheSame && dbidRelation != usageOrProposal.getId())) {
-                                builder.startObject();
-                                for (Map.Entry<String, Object> entry : collection.entrySet()) {
-                                    if (entry.getKey().equals("children")) continue;
-                                    builder.field(entry.getKey(), entry.getValue());
-                                }
-                                builder.endObject();
+                    Map<String, Object> relation = (Map<String, Object>) collection.get("relation");
+                    if (relation != null) {
+                        long dbidRelation = ((Number) (relation.get("dbid"))).longValue();
+                        if (!colIsTheSame || (colIsTheSame && dbidRelation != usageOrProposal.getId())) {
+                            builder.startObject();
+                            for (Map.Entry<String, Object> entry : collection.entrySet()) {
+                                if (entry.getKey().equals("children")) continue;
+                                builder.field(entry.getKey(), entry.getValue());
                             }
+                            builder.endObject();
                         }
                     }
                 }
+            }
 
-                builder.startObject();
-                for (Map.Entry<String, Object> entry : searchHitCollection.getSourceAsMap().entrySet()) {
-                    if(entry.getKey().equals("children")) continue;
-                    builder.field(entry.getKey(), entry.getValue());
-                }
+            builder.startObject();
+            for (Map.Entry<String, Object> entry : ((Map<String, Object>) searchHitCollection.source()).entrySet()) {
+                if (entry.getKey().equals("children")) continue;
+                builder.field(entry.getKey(), entry.getValue());
+            }
 
-                /**
-                 * check performance, if this call is to slow we could build the metadata structure by hand (instead using get)
-                 * for usages: we could resolve the collection_ref object to have alternate metadata and store it in relation field
-                 * but it would be another call and could make the indexing process slower.
-                 * for the future: maybe it's better to react on collection_ref object index actions than usage index actions
-                 */
-                get(alfrescoClient.getNodeData(Arrays.asList(new NodeMetadata[]{usageOrProposal})).get(0), builder,"relation");
+            /**
+             * check performance, if this call is to slow we could build the metadata structure by hand (instead using get)
+             * for usages: we could resolve the collection_ref object to have alternate metadata and store it in relation field
+             * but it would be another call and could make the indexing process slower.
+             * for the future: maybe it's better to react on collection_ref object index actions than usage index actions
+             */
+            get(alfrescoClient.getNodeData(List.of(usageOrProposal)).get(0), builder, "relation");
 
-                builder.endObject();
+            builder.endObject();
             builder.endArray();
         }
         builder.endObject();
-        int dbid = Integer.parseInt(hitIO.getId());
-        this.update(dbid,builder);
+        int dbid = Integer.parseInt(hitIO.id());
+        this.update(dbid, builder.build());
         this.refresh(INDEX_WORKSPACE);
     }
 
     /**
      * checks if its a collection usage by searching for collections.usagedbid, and removes replicated collection object
+     *
      * @param nodes
      * @throws IOException
      */
-    public void beforeDeleteCleanupCollectionReplicas(List<Node> nodes) throws IOException{
+    public void beforeDeleteCleanupCollectionReplicas(List<Node> nodes) throws IOException {
         logger.info("starting: " + nodes.size());
 
-        if(nodes.size() == 0){
+        if (nodes.isEmpty()) {
             logger.info("returning 0");
             return;
         }
 
-        List<UpdateRequest> updateRequests = new ArrayList<>();
-        for(Node node : nodes){
+        List<BulkOperation> updateRequests = new ArrayList<>();
+        for (Node node : nodes) {
 
-            QueryBuilder collectionCheckQuery = null;
+            Query collectionCheckQuery = null;
             /**
              * try it is a usage or proposal
              */
-            QueryBuilder queryUsage = QueryBuilders.termQuery("collections.relation.dbid",node.getId());
-            SearchHits searchHitsIO = this.search(INDEX_WORKSPACE,queryUsage,0,1);
-            if(searchHitsIO.getTotalHits().value > 0){
+            Query queryUsage = Query.of(q -> q.term(t -> t.field("collections.relation.dbid").value(node.getId())));
+            HitsMetadata<Map> searchHitsIO = this.search(INDEX_WORKSPACE, queryUsage, 0, 1);
+            if (searchHitsIO.total().value() > 0) {
                 collectionCheckQuery = queryUsage;
             }
 
             /**
              * try it is an collection
              */
-            QueryBuilder queryCollection = QueryBuilders.termQuery("collections.dbid", node.getId());
-            if(collectionCheckQuery == null) {
+            Query queryCollection = Query.of(q -> q.term(t -> t.field("collections.dbid").value(node.getId())));
+            if (collectionCheckQuery == null) {
                 searchHitsIO = this.search(INDEX_WORKSPACE, queryCollection, 0, 1);
-                if (searchHitsIO.getTotalHits().value > 0) {
+                if (!searchHitsIO.hits().isEmpty()) {
                     collectionCheckQuery = queryCollection;
                 }
             }
 
 
-
             //nothing to cleanup
-            if(collectionCheckQuery == null){
+            if (collectionCheckQuery == null) {
                 continue;
             }
             boolean collectionDeleted = collectionCheckQuery.equals(queryCollection);
-            logger.info("cleanup collection cause " + (collectionDeleted? "collection deleted" : "usage/proposal deleted"));
-            new SearchHitsRunner(this){
-                @Override
-                public void execute(SearchHit hitIO) throws IOException {
-                    List<Map<String, Object>> collections = (List<Map<String, Object>>) hitIO.getSourceAsMap().get("collections");
-                    XContentBuilder builder = XContentFactory.jsonBuilder();
-                    builder.startObject();
-                    {
-                        builder.startArray("collections");
-                        if (collections != null && collections.size() > 0) {
-                            for (Map<String, Object> collection : collections) {
-                                long nodeDbId = node.getId();
+            logger.info("cleanup collection cause " + (collectionDeleted ? "collection deleted" : "usage/proposal deleted"));
 
-                                Object collCeckAttValue = null;
-                                if(collectionDeleted){
-                                    collCeckAttValue = collection.get("dbid");
-                                }else{
-                                    collCeckAttValue = ((HashMap)collection.get("relation")).get("dbid");
-                                }
+            searchHitsRunner.run(collectionCheckQuery, hitIO -> {
+                @SuppressWarnings("unchecked")
+                List<Map<String, Object>> collections = (List<Map<String, Object>>) hitIO.source().get("collections");
+                DataBuilder builder = new DataBuilder();
+                builder.startObject();
+                {
+                    builder.startArray("collections");
+                    if (collections != null && collections.size() > 0) {
+                        for (Map<String, Object> collection : collections) {
+                            long nodeDbId = node.getId();
 
-                                if(collCeckAttValue == null){
-                                    logger.error("replicated collection " + collection.get("dbid") + " does not have a property to check will leave it out");
-                                    continue;
+                            Object collCeckAttValue = null;
+                            if (collectionDeleted) {
+                                collCeckAttValue = collection.get("dbid");
+                            } else {
+                                collCeckAttValue = ((HashMap) collection.get("relation")).get("dbid");
+                            }
+
+                            if (collCeckAttValue == null) {
+                                logger.error("replicated collection " + collection.get("dbid") + " does not have a property to check will leave it out");
+                                continue;
+                            }
+                            long collectionAttValue = Long.parseLong(collCeckAttValue.toString());
+                            if (nodeDbId != collectionAttValue) {
+                                builder.startObject();
+                                for (Map.Entry<String, Object> entry : collection.entrySet()) {
+                                    builder.field(entry.getKey(), entry.getValue());
                                 }
-                                long collectionAttValue = Long.parseLong(collCeckAttValue.toString());
-                                if (nodeDbId != collectionAttValue) {
-                                    builder.startObject();
-                                    for (Map.Entry<String, Object> entry : collection.entrySet()) {
-                                        builder.field(entry.getKey(), entry.getValue());
-                                    }
-                                    builder.endObject();
-                                }
+                                builder.endObject();
                             }
                         }
-                        builder.endArray();
                     }
-                    builder.endObject();
-                    int dbid = Integer.parseInt(hitIO.getId());
-
-                    UpdateRequest request = new UpdateRequest(
-                            INDEX_WORKSPACE,
-                            Long.toString(dbid)).doc(builder);
-                    updateRequests.add(request);
+                    builder.endArray();
                 }
-            }.run(collectionCheckQuery);
+                builder.endObject();
+                int dbid = Integer.parseInt(hitIO.id());
+
+                updateRequests.add(BulkOperation.of(op -> op
+                        .update(up -> up.index(INDEX_WORKSPACE)
+                                .id(Long.toString(dbid))
+                                .action(a -> a.doc(builder.build())))));
+            });
         }
         this.updateBulk(updateRequests);
         logger.info("returning");
@@ -902,202 +850,198 @@ public class ElasticsearchClient {
 
     /**
      * update ios collection metdata, that are containted inside a collection
+     *
      * @param nodeCollection
      * @throws IOException
-     *
      * @deprecated
      */
     private void _onUpdateRefreshCollectionReplicas(Node nodeCollection) throws IOException {
-        List<UpdateRequest> updateRequests = new ArrayList<>();
-        QueryBuilder queryCollection = QueryBuilders.termQuery("collections.dbid", nodeCollection.getId());
-        new SearchHitsRunner(this)
-        {
-            @Override
-            public void execute(SearchHit hit) throws IOException{
-                logger.info("updating collection data for:"+hit.getSourceAsMap().get("dbid"));
-                QueryBuilder collectionQuery = QueryBuilders.termQuery("properties.sys:node-uuid",Tools.getUUID(nodeCollection.getNodeRef()));
-                SearchHits searchHitsCollection = this.elasticClient.search(INDEX_WORKSPACE,collectionQuery,0,1);
+        List<BulkOperation> updateRequests = new ArrayList<>();
+        Query queryCollection = Query.of(q -> q.term(t -> t.field("collections.dbid").value(nodeCollection.getId())));
 
-                if(searchHitsCollection == null || searchHitsCollection.getTotalHits().value == 0){
-                    return;
-                }
-
-                List<Map<String, Object>> collectionReplicas = (List<Map<String, Object>>) hit.getSourceAsMap().get("collections");
-                XContentBuilder builder = XContentFactory.jsonBuilder();
-                builder.startObject();
-                {
-                    builder.startArray("collections");
-
-                    for (Map<String, Object> collectionReplica : collectionReplicas) {
-                        long collReplDbid = ((Number)collectionReplica.get("dbid")).longValue();
-                        if (collReplDbid == nodeCollection.getId()) {
-                            builder.startObject();
-                            for(Map.Entry<String, Object> entry : searchHitsCollection.getHits()[0].getSourceAsMap().entrySet()){
-                                builder.field(entry.getKey(), entry.getValue());
-                            }
-                            builder.endObject();
-                        }else{
-                            builder.startObject();
-                            for (Map.Entry<String, Object> entry : collectionReplica.entrySet()) {
-                                builder.field(entry.getKey(), entry.getValue());
-                            }
-                            builder.endObject();
-                        }
-                    }
-
-                    builder.endArray();
-                }
-                builder.endObject();
-                int dbid = Integer.parseInt(hit.getId());
-                UpdateRequest request = new UpdateRequest(
-                        INDEX_WORKSPACE,
-                        Long.toString(dbid)).doc(builder);
-                updateRequests.add(request);
-
+        searchHitsRunner.run(queryCollection, hit -> {
+            logger.info("updating collection data for:" + hit.source().get("dbid"));
+            Query collectionQuery = Query.of(q -> q.term(t -> t.field("properties.sys:node-uuid").value(Tools.getUUID(nodeCollection.getNodeRef()))));
+            HitsMetadata<Map> searchHitsCollection = null;
+            try {
+                searchHitsCollection = this.search(INDEX_WORKSPACE, collectionQuery, 0, 1);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
             }
-        }.run(queryCollection);
 
+            if (searchHitsCollection == null || searchHitsCollection.total().value() == 0) {
+                return;
+            }
+
+            @SuppressWarnings("unchecked")
+            List<Map<String, Object>> collectionReplicas = (List<Map<String, Object>>) hit.source().get("collections");
+            DataBuilder builder = new DataBuilder();
+            builder.startObject();
+            {
+                builder.startArray("collections");
+
+                for (Map<String, Object> collectionReplica : collectionReplicas) {
+                    long collReplDbid = ((Number) collectionReplica.get("dbid")).longValue();
+                    if (collReplDbid == nodeCollection.getId()) {
+                        builder.startObject();
+                        //noinspection unchecked
+                        for (Map.Entry<String, Object> entry : ((Map<String, Object>) searchHitsCollection.hits().get(0).source()).entrySet()) {
+                            builder.field(entry.getKey(), entry.getValue());
+                        }
+                        builder.endObject();
+                    } else {
+                        builder.startObject();
+                        for (Map.Entry<String, Object> entry : collectionReplica.entrySet()) {
+                            builder.field(entry.getKey(), entry.getValue());
+                        }
+                        builder.endObject();
+                    }
+                }
+
+                builder.endArray();
+            }
+            builder.endObject();
+            int dbid = Integer.parseInt(hit.id());
+            updateRequests.add(BulkOperation.of(op -> op.update(u -> u.index(INDEX_WORKSPACE).id(Long.toString(dbid)).action(a -> a.doc(builder.build())))));
+        });
         this.updateBulk(updateRequests);
     }
 
     private void onUpdateRefreshUsageCollectionReplicas(NodeMetadata node, boolean update) throws IOException {
 
-        String query = null;
-        String queryProposal = null;
-        if("ccm:map".equals(node.getType())){
+        final String query;
+        final String queryProposal;
+        if ("ccm:map".equals(node.getType())) {
             query = "properties.ccm:usagecourseid.keyword";
             queryProposal = "parentRef.id";
-        }else if("ccm:io".equals(node.getType())){
+        } else if ("ccm:io".equals(node.getType())) {
             query = "properties.ccm:usageparentnodeid.keyword";
             queryProposal = "properties.ccm:collection_proposal_target.keyword";
-        }else{
+        } else {
             logger.info("can not handle collections for type:" + node.getType());
             return;
         }
 
-        logger.info("updateing collections for " + node.getType() +" " +node.getId());
+        logger.info("updateing collections for " + node.getType() + " " + node.getId());
 
-       //find usages for collection
-        QueryBuilder queryUsages = QueryBuilders.boolQuery().must(QueryBuilders.termQuery(query, Tools.getUUID(node.getNodeRef())))
-                .must(QueryBuilders.termQuery("type","ccm:usage"));
-        QueryBuilder queryProposals = ("ccm:io".equals(node.getType()))
-                ? QueryBuilders.termQuery(queryProposal, node.getNodeRef())
-                : QueryBuilders.termQuery(queryProposal, Tools.getUUID(node.getNodeRef()));
-        queryProposals = QueryBuilders.boolQuery().must(queryProposals)
-                .must(QueryBuilders.termQuery("type","ccm:collection_proposal"));
-        SearchHitsRunner shr = new SearchHitsRunner(this){
+        //find usages for collection
+        Query queryUsages = Query.of(q -> q.bool(b -> b
+                .must(m -> m.term(t -> t.field(query).value(Tools.getUUID(node.getNodeRef()))))
+                .must(m -> m.term(t -> t.field("type").value("ccm:usage")))));
 
-            @Override
-            public void execute(SearchHit hit) throws IOException {
-                long dbId = ((Number)hit.getSourceAsMap().get("dbid")).longValue();
-                GetNodeMetadataParam param = new GetNodeMetadataParam();
-                param.setNodeIds(Arrays.asList(new Long[]{dbId}));
-                List<NodeMetadata> nodeMetadataByIds = alfrescoClient.getNodeMetadataByIds(Arrays.asList(dbId));
-                if(nodeMetadataByIds == null  || nodeMetadataByIds.size() == 0){
-                    logger.error("could not find usage/proposal object in alfresco with dbid:" + dbId);
-                    return;
-                }
+        final Query queryProposalBase = ("ccm:io".equals(node.getType()))
+                ? Query.of(q -> q.term(t -> t.field(queryProposal).value(node.getNodeRef())))
+                : Query.of(q -> q.term(t -> t.field(queryProposal).value(Tools.getUUID(node.getNodeRef()))));
 
-                NodeMetadata usage = nodeMetadataByIds.get(0);
-                logger.info("Is update: {}", update);
+        Query queryProposals = Query.of(q -> q.bool(b -> b.must(queryProposalBase).must(m -> m.term(t -> t.field("type").value("ccm:collection_proposal")))));
 
-                logger.info("running indexCollections for usage: " + dbId);
+        Consumer<Hit<Map>> action = hit -> {
+            long dbId = ((Number) hit.source().get("dbid")).longValue();
+            GetNodeMetadataParam param = new GetNodeMetadataParam();
+            param.setNodeIds(Arrays.asList(new Long[]{dbId}));
+            List<NodeMetadata> nodeMetadataByIds = alfrescoClient.getNodeMetadataByIds(List.of(dbId));
+            if (nodeMetadataByIds == null || nodeMetadataByIds.isEmpty()) {
+                logger.error("could not find usage/proposal object in alfresco with dbid:" + dbId);
+                return;
+            }
+
+            NodeMetadata usage = nodeMetadataByIds.get(0);
+            logger.info("Is update: {}", update);
+
+            logger.info("running indexCollections for usage: " + dbId);
+            try {
                 indexCollections(usage);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
             }
         };
-        shr.run(queryUsages, 5, update ? maxCollectionChildItemsUpdateSize: null);
-        shr.run(queryProposals, 5, update ? maxCollectionChildItemsUpdateSize: null);
+        searchHitsRunner.run(queryUsages, 5, update ? maxCollectionChildItemsUpdateSize : null, action);
+        searchHitsRunner.run(queryProposals, 5, update ? maxCollectionChildItemsUpdateSize : null, action);
     }
 
-    private String getMultilangValue(List listvalue){
-        if(listvalue.size() > 1){
+    private String getMultilangValue(List listvalue) {
+        if (listvalue.size() > 1) {
             // find german value i.e for Documents/Images edu folder
             String value = null;
             String defaultValue = null;
 
-            for(Object o : listvalue){
-                Map m = (Map)o;
+            for (Object o : listvalue) {
+                Map m = (Map) o;
                 //default is {key="locale",value="de"},{key="value",value="Deutsch"}
-                if(m.size() > 2){
+                if (m.size() > 2) {
                     throw new RuntimeException("language map has only one value");
                 }
-                defaultValue = (String)m.get("value");
-                if("de".equals(m.get("locale")) || "de_".equals(m.get("locale"))){
-                    value = (String)m.get("value");
+                defaultValue = (String) m.get("value");
+                if ("de".equals(m.get("locale")) || "de_".equals(m.get("locale"))) {
+                    value = (String) m.get("value");
                 }
             }
-            if(value == null) value = defaultValue;
+            if (value == null) value = defaultValue;
             return value;
-        }else if(listvalue.size() == 1){
+        } else if (listvalue.size() == 1) {
             Map multilangValue = (Map) listvalue.get(0);
             return (String) multilangValue.get("value");
-        }else{
+        } else {
             return null;
         }
     }
 
     public void setTransaction(String index, long txnCommitTime, long transactionId) throws IOException {
 
-        XContentBuilder builder = jsonBuilder();
+        DataBuilder builder = new DataBuilder();
         builder.startObject();
         {
             builder.field("txnId", transactionId);
-            builder.field("txnCommitTime",txnCommitTime);
+            builder.field("txnCommitTime", txnCommitTime);
         }
         builder.endObject();
 
-        setNode(index, ID_TRANSACTION,builder);
+        setNode(index, ID_TRANSACTION, builder);
     }
 
     public void setTransaction(long txnCommitTime, long transactionId) throws IOException {
-        setTransaction(INDEX_TRANSACTIONS,txnCommitTime,transactionId);
+        setTransaction(INDEX_TRANSACTIONS, txnCommitTime, transactionId);
     }
 
-    private void setNode(String index, String id, XContentBuilder builder) throws IOException {
-        IndexRequest indexRequest = new IndexRequest(index)
-                .id(id).source(builder);
+    private void setNode(String index, String id, DataBuilder builder) throws IOException {
 
-        IndexResponse indexResponse = client.index(indexRequest, RequestOptions.DEFAULT);
+        IndexResponse indexResponse = client.index(IndexRequest.of(req -> req.index(index).id(id).document(builder.build())));
 
-        if (indexResponse.getResult() == DocWriteResponse.Result.CREATED) {
+        if (indexResponse.result() == Result.Created) {
             logger.debug("created node in elastic:" + builder);
-        } else if (indexResponse.getResult() == DocWriteResponse.Result.UPDATED) {
+        } else if (indexResponse.result() == Result.Updated) {
             logger.debug("updated node in elastic:" + builder);
         }
-        ReplicationResponse.ShardInfo shardInfo = indexResponse.getShardInfo();
-        if (shardInfo.getTotal() != shardInfo.getSuccessful()) {
-            logger.debug("shardInfo.getTotal() "+shardInfo.getTotal() +"!="+ "shardInfo.getSuccessful():" +shardInfo.getSuccessful());
+
+        ShardStatistics shardInfo = indexResponse.shards();
+        if (shardInfo.total().longValue() != shardInfo.successful().longValue()) {
+            logger.debug("shardInfo.total().longValue() " + shardInfo.total().longValue() + "!=" + "shardInfo.successful().longValue():" + shardInfo.successful().longValue());
         }
-        if (shardInfo.getFailed() > 0) {
-            for (ReplicationResponse.ShardInfo.Failure failure :
-                    shardInfo.getFailures()) {
-                String reason = failure.reason();
-                logger.error(failure.nodeId() +" reason:"+reason);
+
+        if (shardInfo.failed().longValue() > 0) {
+            for (ShardFailure failure : shardInfo.failures()) {
+                String reason = failure.reason().reason();
+                logger.error(failure.node() + " reason:" + reason);
             }
         }
     }
 
-    public GetResponse get(String index, String id) throws IOException {
-        GetRequest getRequest = new GetRequest(index,id);
-        GetResponse resp = client.get(getRequest,RequestOptions.DEFAULT);
-
-        return resp;
+    public GetResponse<Map> get(String index, String id) throws IOException {
+        return client.get(GetRequest.of(req -> req.index(index).id(id)), Map.class);
     }
 
     public boolean exists(String index, String id) throws IOException {
-        GetRequest getRequest = new GetRequest(index,id);
-        return client.exists(getRequest,RequestOptions.DEFAULT);
+        return client.exists(ExistsRequest.of(req -> req.index(index).id(id))).value();
     }
 
     public Tx getTransaction(String index) throws IOException {
 
-        GetResponse resp = this.get(index, ID_TRANSACTION);
+        GetResponse<Map> resp = this.get(index, ID_TRANSACTION);
         Tx transaction = null;
-        if(resp.isExists()) {
-
+        if (resp.found()) {
             transaction = new Tx();
-            transaction.setTxnCommitTime(((Number) resp.getSource().get("txnCommitTime")).longValue());
-            transaction.setTxnId(((Number)resp.getSource().get("txnId")).longValue());
+            transaction.setTxnCommitTime(((Number) resp.source().get("txnCommitTime")).longValue());
+            transaction.setTxnId(((Number) resp.source().get("txnId")).longValue());
         }
 
         return transaction;
@@ -1109,69 +1053,66 @@ public class ElasticsearchClient {
 
 
     public void setACLChangeSet(final long aclChangeSetTime, final long aclChangeSetId) throws IOException {
-            XContentBuilder builder = jsonBuilder();
-            builder.startObject();
-            {
-                builder.field("aclChangeSetId", aclChangeSetId);
-                builder.field("aclChangeSetCommitTime", aclChangeSetTime);
-            }
-            builder.endObject();
+        DataBuilder builder = new DataBuilder();
+        builder.startObject();
+        {
+            builder.field("aclChangeSetId", aclChangeSetId);
+            builder.field("aclChangeSetCommitTime", aclChangeSetTime);
+        }
+        builder.endObject();
 
-            setNode(INDEX_TRANSACTIONS, ID_ACL_CHANGESET, builder);
+        setNode(INDEX_TRANSACTIONS, ID_ACL_CHANGESET, builder);
     }
 
     public ACLChangeSet getACLChangeSet() throws IOException {
-        GetResponse resp = this.get(INDEX_TRANSACTIONS, ID_ACL_CHANGESET);
+        GetResponse<Map> resp = this.get(INDEX_TRANSACTIONS, ID_ACL_CHANGESET);
 
         ACLChangeSet aclChangeSet = null;
-        if(resp.isExists()) {
+        if (resp.found()) {
             aclChangeSet = new ACLChangeSet();
-            aclChangeSet.setAclChangeSetCommitTime(Long.parseLong(resp.getSource().get("aclChangeSetCommitTime").toString()));
-            aclChangeSet.setAclChangeSetId((int)resp.getSource().get("aclChangeSetId"));
+            aclChangeSet.setAclChangeSetCommitTime(Long.parseLong(resp.source().get("aclChangeSetCommitTime").toString()));
+            aclChangeSet.setAclChangeSetId((int) resp.source().get("aclChangeSetId"));
         }
 
         return aclChangeSet;
     }
 
     public void setStatisticTimestamp(long statisticTimestamp, boolean allInIndex) throws IOException {
-        XContentBuilder builder = jsonBuilder();
+        DataBuilder builder = new DataBuilder();
         builder.startObject();
         {
             builder.field("statisticTimestamp", statisticTimestamp);
-            builder.field("allInIndex",allInIndex);
+            builder.field("allInIndex", allInIndex);
         }
         builder.endObject();
         setNode(INDEX_TRANSACTIONS, ID_STATISTICS_TIMESTAMP, builder);
     }
 
     public StatisticTimestamp getStatisticTimestamp() throws IOException {
-        GetResponse resp = this.get(INDEX_TRANSACTIONS, ID_STATISTICS_TIMESTAMP);
+        GetResponse<Map> resp = this.get(INDEX_TRANSACTIONS, ID_STATISTICS_TIMESTAMP);
         StatisticTimestamp sTs = null;
-        if(resp.isExists()){
+        if (resp.found()) {
             sTs = new StatisticTimestamp();
-            sTs.setStatisticTimestamp(Long.parseLong(resp.getSource().get("statisticTimestamp").toString()));
-            Boolean allInIndex = (Boolean)resp.getSource().get("allInIndex");
+            sTs.setStatisticTimestamp(Long.parseLong(resp.source().get("statisticTimestamp").toString()));
+            Boolean allInIndex = (Boolean) resp.source().get("allInIndex");
             sTs.setAllInIndex((allInIndex == null) ? false : allInIndex);
         }
         return sTs;
     }
 
     public void delete(List<Node> nodes) throws IOException {
-        logger.info("starting size:"+nodes.size());
-        BulkRequest bulkRequest = new BulkRequest(INDEX_WORKSPACE);
-        for(Node node : nodes){
+        logger.info("starting size:" + nodes.size());
+        if (!nodes.isEmpty()) {
+            BulkResponse response = client.bulk(BulkRequest.of(req -> req
+                    .index(INDEX_WORKSPACE)
+                    .operations(op -> {
+                        nodes.forEach(n -> op.delete(d -> d.index(INDEX_WORKSPACE).id(Long.toString(n.getId()))));
+                        return op;
+                    })));
 
-            DeleteRequest request = new DeleteRequest(
-                    INDEX_WORKSPACE,
-                    Long.toString(node.getId()));
-
-            bulkRequest.add(request);
-        }
-        if(bulkRequest.numberOfActions() > 0){
-            BulkResponse response = client.bulk(bulkRequest,RequestOptions.DEFAULT);
-            for(BulkItemResponse item : response.getItems()){
-                if(item.getFailure() != null){
-                    logger.error(item.getFailureMessage());
+            for (BulkResponseItem item : response.items()) {
+                if (item.error() != null) {
+                    logger.error(item.error().causedBy());
                 }
             }
         }
@@ -1179,417 +1120,230 @@ public class ElasticsearchClient {
     }
 
     /**
-     * @TODO
      * @throws IOException
+     * @TODO
      */
     public void createIndexWorkspace() throws IOException {
         try {
-            GetIndexRequest request = new GetIndexRequest(INDEX_WORKSPACE);
 
-            if(client.indices().exists(request,RequestOptions.DEFAULT)){
+            if (client.indices().exists(co.elastic.clients.elasticsearch.indices.ExistsRequest.of(req -> req.index(INDEX_WORKSPACE))).value()) {
                 return;
             }
 
-            CreateIndexRequest indexRequest = new CreateIndexRequest(INDEX_WORKSPACE);
+            @SuppressWarnings("unchecked")
+            CreateIndexRequest indexRequest = CreateIndexRequest.of(req -> req
+                    .index(INDEX_WORKSPACE)
+                    .settings(s -> s.index(id -> id
+                            .numberOfShards(Integer.toString(indexNumberOfShards))
+                            .numberOfReplicas(Integer.toString(indexNumberOfReplicas))
+                            .analysis(analysis -> analysis
+                                    .analyzer("trigram", a -> a
+                                            .custom(c -> c
+                                                    .tokenizer("standard")
+                                                    .filter("lowercase", "shingle")))
+                                    .analyzer("reverse", a -> a
+                                            .custom(c -> c
+                                                    .tokenizer("standard")
+                                                    .filter("lowercase", "reverse")))
+                                    .filter("shingle", f -> f
+                                            .definition(def -> def
+                                                    .shingle(shingle -> shingle
+                                                            .minShingleSize("2")
+                                                            .maxShingleSize("3")))))
+                    )).mappings(mapping -> mapping
+                            .dynamic(DynamicMapping.True)
+                            .numericDetection(true)
+                            .dynamicTemplates(Map.of("aggregated_type", DynamicTemplate.of(dt -> dt
+                                            .matchMappingType("string")
+                                            .pathMatch("properties_aggregated.*")
+                                            .mapping(mp -> mp.keyword(kw -> kw.ignoreAbove(256).store(true))))),
 
-            indexRequest.settings(Settings.builder()
-                    .put("index.number_of_shards", indexNumberOfShards)
-                    .put("index.number_of_replicas", indexNumberOfReplicas)
-                    .loadFromSource(Strings.toString(jsonBuilder()
-                            .startObject()
-                                .startObject("analysis")
-                                    .startObject("analyzer")
-                                        .startObject("trigram")
-                                            .field("type", "custom")
-                                            .field("tokenizer", "standard")
-                                            .field("filter", new String[]{"lowercase", "shingle"})
-                                        .endObject()
-                                        .startObject("reverse")
-                                            .field("type", "custom")
-                                            .field("tokenizer", "standard")
-                                            .field("filter", new String[]{"lowercase", "reverse"})
-                                        .endObject()
-                                    .endObject()
-                                    .startObject("filter")
-                                        .startObject("shingle")
-                                            .field("type","shingle")
-                                            .field("min_shingle_size",2)
-                                            .field("max_shingle_size",3)
-                                        .endObject()
-                                    .endObject()
-                                .endObject()
-                            .endObject()), XContentType.JSON)
-            );
+                                    Map.of("convert_date", DynamicTemplate.of(dt -> dt
+                                            .matchMappingType("date")
+                                            .pathMatch("*properties.*")
+                                            .mapping(mp -> mp.text(t -> t.store(true)
+                                                    .fields("keyword", f -> f.keyword(kw -> kw.ignoreAbove(256)))
+                                                    .fields("date", f -> f.date(v -> v.ignoreMalformed(true))))))),
 
-            XContentBuilder builder = XContentFactory.jsonBuilder();
-            builder.startObject();
-            {
-                /*
+                                    Map.of("convert_numeric_long", DynamicTemplate.of(dt -> dt
+                                            .matchMappingType("long")
+                                            .pathMatch("*properties.*")
+                                            .mapping(mp -> mp.text(t -> t.store(true)
+                                                    .fields("keyword", f -> f.keyword(kw -> kw.ignoreAbove(256)))
+                                                    .fields("number", f -> f.long_(v -> v.ignoreMalformed(true))))))),
 
-                "mappings": {
-                "dynamic": "true",
-                        "dynamic_templates": [
-                {
-                    "aggregated_type": {
-                    "path_match":   "*properties_aggregated.*",
-                            "mapping": {
-                        "type":"keyword"
-                    }
-                }
-                },{
-                    "copy_facettes": {
-                        "path_match":   "*properties.*",
-                                "mapping": {
-                            "type":"text",
-                                    "copy_to":"properties_aggregated.{name}",
-                                    "fields": {
-                                "keyword": {
-                                    "type":  "keyword",
-                                            "ignore_above": 256
-                                }
-                            }
-                        }
-                    }
-                }
-    ],*/
-                // dynamic copy to fields for facettes across collection refs
-                builder
-                        .field("dynamic", true)
-                        // auto detect string based numbers and convert them
-                        .field("numeric_detection", true)
-                        .startArray("dynamic_templates")
-                            .startObject()
-                                .startObject("aggregated_type")
-                                    .field("match_mapping_type","string")
-                                    .field("path_match","properties_aggregated.*")
-                                    .startObject("mapping")
-                                        .field("type", "keyword")
-                                        .field("store", true)
-                                        /**
-                                         * prevent
-                                         * type=illegal_argument_exception, reason=Document contains at least one immense term in field="properties_aggregated.ccm:ph_history" (whose UTF8 encoding is longer than the max length 32766)
-                                         *
-                                         * https://www.elastic.co/guide/en/elasticsearch/reference/current/ignore-above.html
-                                         */
-                                        .field("ignore_above",256)
-                                    .endObject()
-                                .endObject()
-                            .endObject()
-                            .startObject()
-                                .startObject("convert_date")
-                                    .field("match_mapping_type","date")
-                                    .field("path_match","*properties.*")
-                                    .startObject("mapping")
-                                        .field("type", "text")
-                                        .field("store", true)
-                                        .startObject("fields")
-                                            .startObject("keyword").field("type", "keyword").field("ignore_above", 256).endObject()
-                                            .startObject("date").
-                                                field("type", "date").
-                                                field("ignore_malformed", true)
-                                            .endObject()
-                                        .endObject()
-                                    .endObject()
-                                .endObject()
-                            .endObject()
-                            .startObject()
-                                .startObject("convert_numeric_long")
-                                    .field("match_mapping_type","long")
-                                    .field("path_match","*properties.*")
-                                    .startObject("mapping")
-                                        .field("type", "text")
-                                        .field("store", true)
-                                        .startObject("fields")
-                                            .startObject("keyword").field("type", "keyword").field("ignore_above", 256).endObject()
-                                            .startObject("number").
-                                                field("type", "long").
-                                                field("ignore_malformed", true)
-                                            .endObject()
-                                        .endObject()
-                                    .endObject()
-                                .endObject()
-                            .endObject()
-                            .startObject()
-                                .startObject("convert_numeric_double")
-                                    .field("match_mapping_type","double")
-                                    .field("path_match","*properties.*")
-                                    .startObject("mapping")
-                                        .field("type", "text")
-                                        .field("store", true)
-                                        .startObject("fields")
-                                            .startObject("keyword").field("type", "keyword").field("ignore_above", 256).endObject()
-                                            .startObject("number").
-                                                field("type", "float").
-                                                field("ignore_malformed", true)
-                                            .endObject()
-                                        .endObject()
-                                    .endObject()
-                                .endObject()
-                            .endObject()
-                            .startObject()
-                                .startObject("convert_date_aggregated")
-                                    .field("match_mapping_type","date")
-                                    .field("path_match","*properties_aggregated.*")
-                                    .startObject("mapping")
-                                        .field("type", "text")
-                                        .field("store", true)
-                                        .startObject("fields")
-                                            .startObject("keyword").field("type", "keyword").field("ignore_above", 256).endObject()
-                                            .startObject("date").
-                                                field("type", "date").
-                                                field("ignore_malformed", true)
-                                            .endObject()
-                                        .endObject()
-                                    .endObject()
-                                .endObject()
-                            .endObject()
-                            .startObject()
-                                .startObject("convert_numeric_long_aggregated")
-                                    .field("match_mapping_type","long")
-                                    .field("path_match","*properties_aggregated.*")
-                                    .startObject("mapping")
-                                        .field("type", "text")
-                                        .field("store", true)
-                                        .startObject("fields")
-                                            .startObject("keyword").field("type", "keyword").field("ignore_above", 256).endObject()
-                                            .startObject("number").
-                                                field("type", "long").
-                                                field("ignore_malformed", true)
-                                            .endObject()
-                                        .endObject()
-                                    .endObject()
-                                .endObject()
-                            .endObject()
-                            .startObject()
-                                .startObject("convert_numeric_double_aggregated")
-                                    .field("match_mapping_type","double")
-                                    .field("path_match","*properties_aggregated.*")
-                                    .startObject("mapping")
-                                        .field("type", "text")
-                                        .field("store", true)
-                                        .startObject("fields")
-                                            .startObject("keyword").field("type", "keyword").field("ignore_above", 256).endObject()
-                                            .startObject("number").
-                                                field("type", "float").
-                                                field("ignore_malformed", true)
-                                            .endObject()
-                                        .endObject()
-                                    .endObject()
-                                .endObject()
-                            .endObject()
-                            .startObject()
-                                .startObject("copy_facettes")
-                                    .field("path_match", "*properties.*")
-                                    .field("match_mapping_type","string")
-                                    .startObject("mapping")
-                                        .field("type", "text")
-                                        .field("copy_to", "properties_aggregated.{name}")
-                                        .startObject("fields")
-                                            .startObject("keyword")
-                                                .field("type", "keyword")
-                                                .field("ignore_above",  256)
-                                            .endObject()
-                                        .endObject()
-                                    .endObject()
-                                .endObject()
-                            .endObject()
-                            .startObject()
-                                .startObject("statistics_rating")
-                                    .field("path_match", "statistic_RATING_*")
-                                    .startObject("mapping")
-                                        .field("type", "float")
-                                    .endObject()
-                                .endObject()
-                            .endObject()
-                            .startObject()
-                                .startObject("statistics_generic")
-                                    .field("path_match", "statistic_*")
-                                    .startObject("mapping")
-                                        .field("type", "long")
-                                    .endObject()
-                                .endObject()
-                            .endObject()
-                        .endArray();
-                builder.startObject("properties");
-                {
+                                    Map.of("convert_numeric_double", DynamicTemplate.of(dt -> dt
+                                            .matchMappingType("double")
+                                            .pathMatch("*properties.*")
+                                            .mapping(mp -> mp.text(t -> t.store(true)
+                                                    .fields("keyword", f -> f.keyword(kw -> kw.ignoreAbove(256)))
+                                                    .fields("number", f -> f.float_(v -> v.ignoreMalformed(true))))))),
 
-                    builder.startObject("aclId").field("type", "long").endObject();
-                    builder.startObject("txnId").field("type", "long").endObject();
-                    builder.startObject("dbid").field("type", "long").endObject();
-                    builder.startObject("parentRef")
-                            .startObject("properties")
-                                .startObject("storeRef")
-                                    .startObject("properties")
-                                        .startObject("protocol").field("type","keyword").endObject()
-                                        .startObject("identifier").field("type","keyword").endObject()
-                                    .endObject()
-                                .endObject()
-                                .startObject("id").field("type","keyword").endObject()
-                            .endObject()
-                    .endObject();
-                    builder.startObject("nodeRef")
-                            .startObject("properties")
-                                .startObject("storeRef")
-                                    .startObject("properties")
-                                        .startObject("protocol").field("type","keyword").endObject()
-                                        .startObject("identifier").field("type","keyword").endObject()
-                                    .endObject()
-                                .endObject()
-                                .startObject("id").field("type","keyword").endObject()
-                            .endObject()
-                    .endObject();
-                    builder.startObject("owner").field("type","keyword").endObject();
-                    builder.startObject("type").field("type","keyword").endObject();
-                    //leave out i18n cause it is dynamic
-                    builder.startObject("path").field("type","keyword").endObject();
-                    builder.startObject("fullpath").field("type","keyword").endObject();
-                    builder.startObject("permissions")
-                            .startObject("properties")
-                                .startObject("read").field("type","keyword").endObject()
-                            .endObject()
-                    .endObject();
-                    addContentDefinition(builder);
-                    builder.startObject("properties")
-                            .startObject("properties")
-                                .startObject("ccm:original").field("type","keyword").endObject()
-                                .startObject("cclom:location").field("type","keyword").endObject()
-                                .startObject("sys:node-uuid").field("type","keyword").endObject()
-                                .startObject("cclom:format").field("type","keyword").endObject()
-                                .startObject("cm:versionLabel").field("type","keyword").endObject()
-                                .startObject("cclom:title")
-                                    .field("type","text")
-                                    .startObject("fields")
-                                        .startObject("keyword")
-                                            .field("type","keyword")
-                                            .field("ignore_above",256)
-                                        .endObject()
-                                        .startObject("trigram")
-                                            .field("type","text")
-                                            .field("analyzer","trigram")
-                                        .endObject()
-                                        .startObject("reverse")
-                                            .field("type","text")
-                                            .field("analyzer","reverse")
-                                        .endObject()
-                                    .endObject()
-                                    .array("copy_to","properties_aggregated.cclom:title")
-                                .endObject()
-                                //the others are default
-                            .endObject()
-                    .endObject();
-                    builder.startObject("children")
-                            .field("type", "object")
-                            .startObject("properties")
-                                .startObject("type").field("type", "keyword").endObject()
-                                .startObject("aspects").field("type", "keyword").endObject();
-                                addContentDefinition(builder);
-                            builder.endObject()
-                    .endObject();
-                    builder.startObject("aspects").field("type","keyword").endObject();
-                    builder.startObject("collections")
+                                    Map.of("convert_date_aggregated", DynamicTemplate.of(dt -> dt
+                                            .matchMappingType("date")
+                                            .pathMatch("*properties_aggregated.*")
+                                            .mapping(mp -> mp.text(t -> t.store(true)
+                                                    .fields("keyword", f -> f.keyword(kw -> kw.ignoreAbove(256)))
+                                                    .fields("date", f -> f.date(v -> v.ignoreMalformed(true))))))),
 
-                            .startObject("properties")
-                                .startObject("dbid").field("type","long").endObject()
-                                .startObject("aclId").field("type","long").endObject()
-                            .endObject()
+                                    Map.of("convert_numeric_long_aggregated", DynamicTemplate.of(dt -> dt
+                                            .matchMappingType("long")
+                                            .pathMatch("*properties_aggregated.*")
+                                            .mapping(mp -> mp.text(t -> t.store(true)
+                                                    .fields("keyword", f -> f.keyword(kw -> kw.ignoreAbove(256)))
+                                                    .fields("number", f -> f.long_(v -> v.ignoreMalformed(true))))))),
 
-                    .endObject();
+                                    Map.of("convert_numeric_double_aggregated", DynamicTemplate.of(dt -> dt
+                                            .matchMappingType("double")
+                                            .pathMatch("*properties_aggregated.*")
+                                            .mapping(mp -> mp.text(t -> t.store(true)
+                                                    .fields("keyword", f -> f.keyword(kw -> kw.ignoreAbove(256)))
+                                                    .fields("number", f -> f.float_(v -> v.ignoreMalformed(true))))))),
 
-                    builder.startObject("preview")
-                            .startObject("properties");
-                    {
-                        builder.startObject("mimetype").field("type", "keyword").endObject();
-                        builder.startObject("type").field("type", "keyword").endObject();
-                        builder.startObject("icon").field("type", "boolean").endObject();
-                        builder.startObject("small").field("type", "binary").endObject();
-                        //builder.startObject("large").field("type", "binary").endObject();
-                    }
-                    builder.endObject()
-                            .endObject();
+                                    Map.of("copy_facettes", DynamicTemplate.of(dt -> dt
+                                            .matchMappingType("string")
+                                            .pathMatch("*properties.*")
+                                            .mapping(mp -> mp.text(t -> t.copyTo("properties_aggregated.{name}")
+                                                    .fields("keyword", f -> f.keyword(kw -> kw.ignoreAbove(256))))))),
 
-                }
-                builder.endObject();
+                                    Map.of("statistics_rating", DynamicTemplate.of(dt -> dt
+                                            .pathMatch("statistic_RATING_*")
+                                            .mapping(mp -> mp.float_(f -> f)))),
 
-            }
-            builder.endObject();
+                                    Map.of("statistics_generic", DynamicTemplate.of(dt -> dt
+                                            .pathMatch("statistic_*")
+                                            .mapping(mp -> mp.long_(l -> l))))
+                            )
+                            .properties("aclId", prop -> prop.long_(v -> v))
+                            .properties("txnId", prop -> prop.long_(v -> v))
+                            .properties("dbid", prop -> prop.long_(v -> v))
+                            .properties("parentRef", parentRefProp -> parentRefProp
+                                    .object(parentRefObj -> parentRefObj
+                                            .properties("id", storeRefProp -> storeRefProp.keyword(v -> v))
+                                            .properties("storeRef", storeRefProp -> storeRefProp
+                                                    .object(storeRefObj -> storeRefObj
+                                                            .properties("protocol", protProp -> protProp.keyword(v -> v))
+                                                            .properties("identifier", idProp -> idProp.keyword(v -> v))))))
+                            .properties("nodeRef", parentRefProp -> parentRefProp
+                                    .object(parentRefObj -> parentRefObj
+                                            .properties("id", storeRefProp -> storeRefProp.keyword(v -> v))
+                                            .properties("storeRef", storeRefProp -> storeRefProp
+                                                    .object(storeRefObj -> storeRefObj
+                                                            .properties("protocol", protProp -> protProp.keyword(v -> v))
+                                                            .properties("identifier", idProp -> idProp.keyword(v -> v))))))
 
-            indexRequest.mapping(builder);
-            client.indices().create(indexRequest, RequestOptions.DEFAULT);
-
-
-        }catch(Exception e) {
-            logger.error(e.getMessage(),e);
+                            .properties("owner", prop -> prop.keyword(v -> v))
+                            .properties("owntypeer", prop -> prop.keyword(v -> v))
+                            .properties("path", prop -> prop.keyword(v -> v))
+                            .properties("fullpath", prop -> prop.keyword(v -> v))
+                            .properties("permissions", prop -> prop
+                                    .object(permObj -> permObj
+                                            .properties("read", readProp -> readProp.keyword(v -> v))))
+                            .properties(addContentDefinition())
+                            .properties("properties", propProp -> propProp
+                                    .object(propObj -> propObj
+                                            .properties("ccm:original", prop -> prop.keyword(v -> v))
+                                            .properties("cclom:location", prop -> prop.keyword(v -> v))
+                                            .properties("sys:node-uuid", prop -> prop.keyword(v -> v))
+                                            .properties("cclom:format", prop -> prop.keyword(v -> v))
+                                            .properties("cm:versionLabel", prop -> prop.keyword(v -> v))
+                                            .properties("cclom:title", titleProp -> titleProp
+                                                    .text(t -> t.copyTo("properties_aggregated.cclom:title")
+                                                            .fields("keyword", prop -> prop.keyword(v -> v.ignoreAbove(256)))
+                                                            .fields("trigram", prop -> prop.text(v -> v.analyzer("trigram")))
+                                                            .fields("reverse", prop -> prop.text(v -> v.analyzer("reverse")))))))
+                            .properties("children", childProp -> childProp
+                                    .object(childObj -> childObj
+                                            .properties("type", prop -> prop.keyword(v -> v))
+                                            .properties("aspects", prop -> prop.keyword(v -> v))
+                                            .properties(addContentDefinition())
+                                    ))
+                            .properties("aspects", prop -> prop.keyword(v -> v))
+                            .properties("collections", colProp -> colProp
+                                    .object(colObj -> colObj
+                                            .properties("dbid", prop -> prop.long_(v -> v))
+                                            .properties("aclId", prop -> prop.long_(v -> v))
+                                            .properties(addContentDefinition())
+                                    ))
+                            .properties("preview", previewProp -> previewProp
+                                    .object(previewObj -> previewObj
+                                            .properties("mimetype", prop -> prop.keyword(v -> v))
+                                            .properties("type", prop -> prop.keyword(v -> v))
+                                            .properties("icon", prop -> prop.keyword(v -> v))
+                                            .properties("small", prop -> prop.keyword(v -> v))))
+                    ));
+            client.indices().create(indexRequest);
+        } catch (Exception e) {
+            logger.error(e.getMessage(), e);
             throw e;
         }
     }
 
-    private void addContentDefinition(XContentBuilder builder) throws IOException {
-        builder.startObject("content")
-            .startObject("properties")
-                .startObject("fulltext").field("type","text").endObject()
-                .startObject("contentId").field("type","long").endObject()
-                .startObject("size").field("type","long").endObject()
-                .startObject("encoding").field("type","keyword").endObject()
-                .startObject("locale").field("type","keyword").endObject()
-                .startObject("mimetype").field("type","keyword").endObject()
-            .endObject()
-        .endObject();
+    private Map<String, Property> addContentDefinition() {
+        return Map.of("content", Property.of(contentProps -> contentProps
+                .object(obj -> obj
+                        .properties("fulltext", prop -> prop.text(v -> v))
+                        .properties("contentId", prop -> prop.long_(v -> v))
+                        .properties("size", prop -> prop.long_(v -> v))
+                        .properties("encoding", prop -> prop.keyword(v -> v))
+                        .properties("locale", prop -> prop.keyword(v -> v))
+                        .properties("mimetype", prop -> prop.keyword(v -> v)))));
     }
 
-    public SearchHits search(String index, QueryBuilder queryBuilder, int from, int size) throws IOException {
-        return this.search(index,queryBuilder,from,size,null);
+    public HitsMetadata<Map> search(String index, Query queryBuilder, int from, int size) throws IOException {
+        return this.search(index, queryBuilder, from, size, null);
     }
-    public SearchHits search(String index, QueryBuilder queryBuilder, int from, int size, List<String> excludes) throws IOException {
-        SearchRequest searchRequest = new SearchRequest(index);
-        SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
-        searchSourceBuilder.query(queryBuilder);
-        searchSourceBuilder.from(from);
-        searchSourceBuilder.size(size);
-        if(excludes != null && excludes.size() > 0){
-            searchSourceBuilder.fetchSource(null,excludes.toArray(new String[]{}));
-        }
-        searchRequest.source(searchSourceBuilder);
-        SearchResponse searchResponse = client.search(searchRequest, RequestOptions.DEFAULT);
-        return searchResponse.getHits();
+
+    public HitsMetadata<Map> search(String index, Query query, int from, int size, List<String> excludes) throws IOException {
+        SearchResponse<Map> searchResponse = client.search(req -> req
+                        .index(index)
+                        .query(query)
+                        .from(from)
+                        .size(size)
+                        .trackTotalHits(t -> t.enabled(true))
+                        .source(src -> src.filter(fetch -> fetch.excludes(excludes)))
+                , Map.class);
+        return searchResponse.hits();
     }
 
     public Serializable getProperty(String nodeRef, String property) throws IOException {
         List<String> excludes = new ArrayList<>();
         excludes.add("preview");
         excludes.add("content");
-        Map<String,Object> sourceMap = getSourceMap(nodeRef,excludes);
-        return (sourceMap == null) ? null: (Serializable)sourceMap.get(property);
+        Map<String, Object> sourceMap = getSourceMap(nodeRef, excludes);
+        return (sourceMap == null) ? null : (Serializable) sourceMap.get(property);
     }
 
-    public Map<String,Object> getSourceMap(String nodeRef) throws IOException {
-        return this.getSourceMap(nodeRef,null);
+    public Map<String, Object> getSourceMap(String nodeRef) throws IOException {
+        return this.getSourceMap(nodeRef, null);
     }
-    public Map<String,Object> getSourceMap(String nodeRef, List<String> excludes) throws IOException {
+
+    public Map<String, Object> getSourceMap(String nodeRef, List<String> excludes) throws IOException {
 
         String uuid = Tools.getUUID(nodeRef);
         String protocol = Tools.getProtocol(nodeRef);
         String identifier = Tools.getIdentifier(nodeRef);
-        QueryBuilder qb = QueryBuilders.boolQuery()
-                .must(QueryBuilders.termQuery("nodeRef.id",uuid))
-                .must(QueryBuilders.termQuery("nodeRef.storeRef.protocol",protocol))
-                .must(QueryBuilders.termQuery("nodeRef.storeRef.identifier",identifier));
+        Query query = Query.of(q -> q.bool(b -> b
+                .must(must -> must.term(t -> t.field("nodeRef.id").value(uuid)))
+                .must(must -> must.term(t -> t.field("nodeRef.storeRef.protocol").value(protocol)))
+                .must(must -> must.term(t -> t.field("nodeRef.storeRef.identifier").value(identifier)))));
 
-        SearchHits sh = this.search(INDEX_WORKSPACE,qb,0,1, excludes);
-        if(sh == null || sh.getTotalHits().value == 0){
+        HitsMetadata<Map> sh = this.search(INDEX_WORKSPACE, query, 0, 1, excludes);
+        if (sh == null || sh.total().value() == 0) {
             return null;
         }
 
-        SearchHit searchHit = sh.getHits()[0];
-        return searchHit.getSourceAsMap();
+        Hit<Map> searchHit = sh.hits().get(0);
+        //noinspection unchecked
+        return (Map<String, Object>) searchHit.source();
     }
 
     /**
-     *
      * @param nodeStatistics
      * @return true when all uuids already exist in index
      * @throws IOException
      */
-    public boolean updateNodeStatistics(Map<String,List<NodeStatistic>> nodeStatistics) throws IOException{
+    public boolean updateNodeStatistics(Map<String, List<NodeStatistic>> nodeStatistics) throws IOException {
 
         AtomicBoolean allInIndex = new AtomicBoolean();
         allInIndex.set(true);
@@ -1599,15 +1353,15 @@ public class ElasticsearchClient {
         int chunkSize = 100;
 
         try {
-            nodeStatistics.entrySet().stream().collect(Collectors.groupingBy(e -> counter.getAndIncrement() / chunkSize)).entrySet().forEach(m -> {
+            nodeStatistics.entrySet().stream().collect(Collectors.groupingBy(e -> counter.getAndIncrement() / chunkSize)).forEach((groupKey, group) -> {
 
-                logger.info("starting with page:"+ m.getKey()  +" collection size:"+m.getValue().size());
+                logger.info("starting with page:" + groupKey + " collection size:" + group.size());
                 try {
-                    List<UpdateRequest> bulk = new ArrayList<>();
-                    for (Map.Entry<String, List<NodeStatistic>> entry : m.getValue()) {
+                    List<BulkOperation> bulk = new ArrayList<>();
+                    for (Map.Entry<String, List<NodeStatistic>> entry : group) {
                         String uuid = entry.getKey();
                         List<NodeStatistic> statistics = entry.getValue();
-                        if (statistics == null || statistics.size() == 0) continue;
+                        if (statistics == null || statistics.isEmpty()) continue;
 
                         String nodeRef = CCConstants.STORE_WORKSPACES_SPACES + "/" + uuid;
                         Serializable value = this.getProperty(nodeRef, "dbid");
@@ -1624,7 +1378,7 @@ public class ElasticsearchClient {
 
                         Long dbid = ((Number) value).longValue();
 
-                        XContentBuilder builder = jsonBuilder();
+                        DataBuilder builder = new DataBuilder();
                         Map<String, Integer> dayCountsView = new HashMap<>();
                         Map<String, Integer> dayCountsDownload = new HashMap<>();
 
@@ -1651,29 +1405,28 @@ public class ElasticsearchClient {
                         }
 
                         builder.endObject();
-
-                        UpdateRequest request = new UpdateRequest(
-                                INDEX_WORKSPACE,
-                                Long.toString(dbid)).doc(builder);
-
-                        bulk.add(request);
+                        bulk.add(BulkOperation.of(req -> req
+                                .update(i -> i
+                                        .index(INDEX_WORKSPACE)
+                                        .id(Long.toString(dbid))
+                                        .action(a -> a.doc(builder.build())))));
                     }
-
-                    if (bulk.size() > 0) {
-                        this.updateBulk(bulk);
-                    }
+                    this.updateBulk(bulk);
                 } catch (IOException e) {
                     throw new RuntimeException(e);
                 }
             });
-        }catch (RuntimeException e){throw (IOException)e.getCause();};
+        } catch (RuntimeException e) {
+            throw (IOException) e.getCause();
+        }
+
         return allInIndex.get();
     }
 
 
     public void cleanUpNodeStatistics(List<String> nodeUuids) throws IOException {
         logger.info("starting cleanUpNodeStatistics");
-        for(String uuid : nodeUuids){
+        for (String uuid : nodeUuids) {
             cleanUpNodeStatistics(uuid);
         }
         logger.info("returning cleanUpNodeStatistics");
@@ -1685,52 +1438,57 @@ public class ElasticsearchClient {
         List<String> excludes = new ArrayList<>();
         excludes.add("preview");
         excludes.add("content");
-        Map<String, Object> sourceMap = getSourceMap("workspace://SpacesStore/" + nodeUuid,excludes);
-        if(sourceMap == null){
+        Map<String, Object> sourceMap = getSourceMap("workspace://SpacesStore/" + nodeUuid, excludes);
+        if (sourceMap == null) {
             return;
         }
 
-        long dbid = ((Number)sourceMap.get("dbid")).longValue();
-        String id = new Long(dbid).toString();
-        String type = (String)sourceMap.get("type");
+        long dbid = ((Number) sourceMap.get("dbid")).longValue();
+        String id = Long.toString(dbid);
+        String type = (String) sourceMap.get("type");
 
-        if("ccm:io".equals(type)){
+        if ("ccm:io".equals(type)) {
             List<String> propsToRemove = new ArrayList<>();
 
             Calendar cal = Calendar.getInstance();
-            cal.add(Calendar.DAY_OF_YEAR,-statisticHistoryInDays);
-            for(Map.Entry<String,Object> entry : sourceMap.entrySet()){
-                if(entry.getKey().startsWith("statistic_")
-                        && !entry.getKey().startsWith("statistic_RATING")){
-                    String prefixPattern = "statistic_[a-zA-Z_]*";
-                    String datePattern = "[0-9]{4}-[0-9]{2}-[0-9]{2}";
-                    if(entry.getKey().matches(prefixPattern+datePattern)){
-                        String[] split = Pattern.compile(prefixPattern).split(entry.getKey());
+            cal.add(Calendar.DAY_OF_YEAR, -statisticHistoryInDays);
+            for (Map.Entry<String, Object> entry : sourceMap.entrySet()) {
+                if (!entry.getKey().startsWith("statistic_") || entry.getKey().startsWith("statistic_RATING")) {
+                    continue;
+                }
 
-                        try {
+                String prefixPattern = "statistic_[a-zA-Z_]*";
+                String datePattern = "[0-9]{4}-[0-9]{2}-[0-9]{2}";
+                if (!entry.getKey().matches(prefixPattern + datePattern)) {
+                    continue;
+                }
 
-                            Date date = statisticDateFormatter.parse(split[1]);
-                            if(cal.getTime().getTime() > date.getTime()){
-                                propsToRemove.add(entry.getKey());
-                            }
-                        } catch (ParseException e) {
-                            logger.error("can not get date in: "+entry.getKey());
-                        }
+                String[] split = Pattern.compile(prefixPattern).split(entry.getKey());
+                try {
+                    Date date = statisticDateFormatter.parse(split[1]);
+                    if (cal.getTime().getTime() > date.getTime()) {
+                        propsToRemove.add(entry.getKey());
                     }
+                } catch (ParseException e) {
+                    logger.error("can not get date in: " + entry.getKey());
                 }
             }
-            if(propsToRemove.size() == 0) return;
-            Map<String,Object> params = new HashMap<>();
-            params.put("propsToRemove",propsToRemove);
-            Script inline = new Script(ScriptType.INLINE,
-                    "painless",
-                    "for(String prop : params.propsToRemove){ctx._source.remove(prop)}",
-                     params);
-            UpdateRequest request = new UpdateRequest(INDEX_WORKSPACE,id);
-            request.script(inline);
-            logger.info("remove for "+id+": "+String.join(",",propsToRemove));
 
-            this.update(request);
+            if (propsToRemove.isEmpty()) {
+                return;
+            }
+
+            logger.info("remove for " + id + ": " + String.join(",", propsToRemove));
+
+            this.update(req -> req
+                            .index(INDEX_WORKSPACE)
+                            .id(id)
+                            .script(scr -> scr
+                                    .inline(il -> il
+                                            .lang("painless")
+                                            .source("for(String prop : params.propsToRemove){ctx._source.remove(prop)}")
+                                            .params("propsToRemove", JsonData.of(propsToRemove)))),
+                    Map.class);
         }
     }
 

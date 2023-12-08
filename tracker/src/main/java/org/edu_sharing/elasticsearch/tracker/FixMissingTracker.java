@@ -6,7 +6,6 @@ import org.edu_sharing.elasticsearch.alfresco.client.Transactions;
 import org.edu_sharing.elasticsearch.elasticsearch.client.ElasticsearchClient;
 import org.edu_sharing.elasticsearch.elasticsearch.client.Tx;
 import org.edu_sharing.elasticsearch.tools.Tools;
-import org.elasticsearch.action.get.GetResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -152,7 +151,7 @@ public class FixMissingTracker extends TransactionTracker{
             boolean isPresent = nodeData.stream().filter(n ->  n.getId() == node.getId()).findFirst().isPresent();
             if(!isPresent){
                 logNodeProblem("Problem fetching NodeMetadata for",node);
-                logUnresolveableNode(new Long(node.getId()).toString());
+                logUnresolveableNode(Long.toString(node.getId()));
                 missingMetadata.add(node);
             }
         }
@@ -171,7 +170,7 @@ public class FixMissingTracker extends TransactionTracker{
             if(isAllowedType(nodeMetadata)) {
                 //2-4ms
                 //GetResponse resp = elasticClient.get(ElasticsearchClient.INDEX_WORKSPACE, new Long(nodeMetadata.getId()).toString());
-                if (!elasticClient.exists(ElasticsearchClient.INDEX_WORKSPACE, new Long(nodeMetadata.getId()).toString())) {
+                if (!elasticClient.exists(ElasticsearchClient.INDEX_WORKSPACE, Long.toString(nodeMetadata.getId()))) {
                     logNodeProblem("node does not exist in elastic id:", nodeMetadata);
                     if(repair){
                         indexNodesMetadata(Arrays.asList(nodeMetadata));

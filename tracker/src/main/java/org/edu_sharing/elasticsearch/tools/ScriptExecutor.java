@@ -8,9 +8,9 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.edu_sharing.elasticsearch.alfresco.client.NodeData;
 import org.edu_sharing.elasticsearch.edu_sharing.client.EduSharingClient;
+import org.edu_sharing.elasticsearch.elasticsearch.client.DataBuilder;
 import org.edu_sharing.elasticsearch.elasticsearch.client.ElasticsearchClient;
 import org.edu_sharing.repository.client.tools.CCConstants;
-import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -44,7 +44,7 @@ public class ScriptExecutor {
         init();
     }
 
-    public boolean addCustomPropertiesByScript(XContentBuilder builder, NodeData nodeData) throws IOException {
+    public boolean addCustomPropertiesByScript(DataBuilder builder, NodeData nodeData) throws IOException {
         boolean hasData = false;
         Map<String, Serializable> metadata = nodeData.getNodeMetadata().getProperties().entrySet().stream()
                 .collect(HashMap::new, (m,v)->m.put(CCConstants.getValidLocalName(v.getKey()), v.getValue()), HashMap::putAll);

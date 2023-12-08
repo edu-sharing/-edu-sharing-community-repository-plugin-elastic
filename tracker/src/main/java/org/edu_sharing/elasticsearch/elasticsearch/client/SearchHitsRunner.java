@@ -1,49 +1,48 @@
 package org.edu_sharing.elasticsearch.elasticsearch.client;
 
-import org.elasticsearch.index.query.QueryBuilder;
-import org.elasticsearch.search.SearchHit;
-import org.elasticsearch.search.SearchHits;
+import co.elastic.clients.elasticsearch._types.query_dsl.Query;
+import co.elastic.clients.elasticsearch.core.search.Hit;
+import co.elastic.clients.elasticsearch.core.search.HitsMetadata;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.Map;
+import java.util.function.Consumer;
 
-public abstract class SearchHitsRunner {
+public final class SearchHitsRunner {
 
     private static final Logger logger = LoggerFactory.getLogger(SearchHitsRunner.class);
 
-    protected ElasticsearchClient elasticClient;
+    private ElasticsearchClient elasticClient;
     public SearchHitsRunner(ElasticsearchClient elasticClient){
         this.elasticClient = elasticClient;
     }
 
-    public void run(QueryBuilder queryBuilder)throws IOException {
-        this.run(queryBuilder,5);
+    public void run(Query query, Consumer<Hit<Map>> hitConsumer)throws IOException {
+        this.run(query,5, hitConsumer);
     }
 
-    public void run(QueryBuilder queryBuilder, int pageSize)throws IOException {
-        this.run(queryBuilder,pageSize, null);
+    public void run(Query query, int pageSize, Consumer<Hit<Map>> hitConsumer)throws IOException {
+        this.run(query,pageSize, null, hitConsumer);
     }
 
-    public void run(QueryBuilder queryBuilder, int pageSize, Integer maxResultsSize)throws IOException {
-
+    public void run(Query query, int pageSize, Integer maxResultsSize,  Consumer<Hit<Map>> hitConsumer)throws IOException {
         int page = 0;
-        SearchHits searchHits = null;
+        HitsMetadata<Map> searchHits = null;
         do{
             if(searchHits != null){
                 page+=pageSize;
             }
-            searchHits = elasticClient.search(ElasticsearchClient.INDEX_WORKSPACE, queryBuilder, page, pageSize);
-            if(maxResultsSize != null && searchHits.getTotalHits().value > maxResultsSize){
-                logger.warn("max result size has been reached: found {} of {} allowed", searchHits.getTotalHits().value, maxResultsSize);
+            searchHits = elasticClient.search(ElasticsearchClient.INDEX_WORKSPACE, query, page, pageSize);
+            if(maxResultsSize != null && searchHits.total().value() > maxResultsSize){
+                logger.warn("max result size has been reached: found {} of {} allowed", searchHits.total().value(), maxResultsSize);
                 return;
             }
-            for(SearchHit searchHit : searchHits.getHits()){
-                execute(searchHit);
+            for(Hit<Map> searchHit : searchHits.hits()){
+                hitConsumer.accept(searchHit);
             }
 
-        }while(searchHits.getTotalHits().value > page);
+        }while(searchHits.total() != null && searchHits.total().value() > page);
     }
-
-    public abstract void execute(SearchHit hit) throws IOException;
 }

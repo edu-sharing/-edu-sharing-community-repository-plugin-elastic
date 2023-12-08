@@ -25,7 +25,7 @@
     </docker.from.openjdk>
 
     <elastic.stack.version>
-      7.17.14
+      8.11.1
     </elastic.stack.version>
 
     <docker.edu_sharing.communty.common.repository>

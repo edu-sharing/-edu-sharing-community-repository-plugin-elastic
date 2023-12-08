@@ -1,12 +1,14 @@
 package org.edu_sharing.elasticsearch.elasticsearch.client;
 
+import co.elastic.clients.elasticsearch.ElasticsearchClient;
+import co.elastic.clients.json.jackson.JacksonJsonpMapper;
+import co.elastic.clients.transport.ElasticsearchTransport;
+import co.elastic.clients.transport.rest_client.RestClientTransport;
 import org.apache.http.HttpHost;
 import org.elasticsearch.client.RestClient;
-import org.elasticsearch.client.RestHighLevelClient;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.scheduling.annotation.EnableScheduling;
 
 @Configuration
 public class ElasticsearchConfig {
@@ -29,13 +31,24 @@ public class ElasticsearchConfig {
     @Value("${elastic.connectionRequestTimeout}")
     int elasticConnectionRequestTimeout;
 
-    @Bean(destroyMethod = "close")
-    public RestHighLevelClient client() {
-        return new RestHighLevelClient(
-                RestClient.builder(new HttpHost(elasticHost, elasticPort, elasticProtocol)).setRequestConfigCallback(
-                        requestConfigBuilder -> requestConfigBuilder
-                                .setConnectTimeout(elasticConnectTimeout)
-                                .setSocketTimeout(elasticSocketTimeout)
-                                .setConnectionRequestTimeout(elasticConnectionRequestTimeout)));
+    @Bean
+    public RestClient restClient(){
+        return  RestClient.builder(new HttpHost(elasticHost, elasticPort, elasticProtocol))
+                .setRequestConfigCallback(requestConfigBuilder -> requestConfigBuilder
+                        .setConnectTimeout(elasticConnectTimeout)
+                        .setSocketTimeout(elasticSocketTimeout)
+                        .setConnectionRequestTimeout(elasticConnectionRequestTimeout))
+                .build();
+    }
+
+    @Bean
+    public ElasticsearchTransport transport(RestClient restClient){
+        return new RestClientTransport(restClient, new JacksonJsonpMapper());
+    }
+
+    @Bean
+    public ElasticsearchClient client(ElasticsearchTransport transport) {
+        return new ElasticsearchClient(transport);
+
     }
 }

@@ -21,7 +21,7 @@ class ScriptLoaderConfiguration {
 
     private final FilenameFilter filter = (file, s) -> s.toLowerCase().endsWith(".groovy");
     @Bean
-    @Profile("default & !debug")
+//    @Profile("default & !debug")
     ScriptLoaderService realPathService() {
         logger.info("Getting scripts by location: " + scriptLocation);
         return new ScriptLoaderService(
@@ -29,14 +29,14 @@ class ScriptLoaderConfiguration {
         );
     }
 
-    @Bean
-    @Profile("debug")
-    ScriptLoaderService jarPathService() throws IOException {
-        logger.info("Getting scripts from spring resources folder");
-        return new ScriptLoaderService(
-                new ClassPathResource("scripts").getFile().listFiles(filter)
-        );
-    }
+//    @Bean
+//    @Profile("debug")
+//    ScriptLoaderService jarPathService() throws IOException {
+//        logger.info("Getting scripts from spring resources folder");
+//        return new ScriptLoaderService(
+//                new ClassPathResource("scripts").getFile().listFiles(filter)
+//        );
+//    }
 
 
     static class ScriptLoaderService {
