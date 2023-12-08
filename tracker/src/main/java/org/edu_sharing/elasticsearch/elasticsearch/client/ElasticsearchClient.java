@@ -137,7 +137,7 @@ public class ElasticsearchClient {
     private AtomicLong lastNodeCount = new AtomicLong(System.currentTimeMillis());
 
     @Autowired
-    private AlfrescoWebscriptClient alfrescoClient;
+    AlfrescoWebscriptClient alfrescoClient;
 
     @PostConstruct
     public void init() throws IOException {
@@ -169,7 +169,7 @@ public class ElasticsearchClient {
         }
     }
 
-    public void updatePermissions(long dbid, Map<String,List<String>> permissions) throws IOException {
+    XContentBuilder updatePermissions(long dbid, Map<String,List<String>> permissions) throws IOException {
         XContentBuilder builder = XContentFactory.jsonBuilder();
         builder.startObject();
         {
@@ -184,6 +184,7 @@ public class ElasticsearchClient {
         //this.update(dbid,new Script("ctx._source.remove('permissions')"));
         this.update(dbid,new Script("ctx._source.permissions=null"));
         this.update(dbid,builder);
+        return builder;
     }
 
     public void updateNodesWithAcl(final long aclId, final Map<String,List<String>> permissions) throws IOException {
@@ -350,7 +351,7 @@ public class ElasticsearchClient {
     private XContentBuilder get(NodeData nodeData,XContentBuilder builder) throws IOException {
         return get(nodeData,builder,null);
     }
-    private XContentBuilder get(NodeData nodeData,XContentBuilder builder, String objectName) throws IOException {
+    XContentBuilder get(NodeData nodeData,XContentBuilder builder, String objectName) throws IOException {
 
         NodeMetadata node = nodeData.getNodeMetadata();
         String storeRefProtocol = Tools.getProtocol(node.getNodeRef());
@@ -701,7 +702,7 @@ public class ElasticsearchClient {
         logger.debug("returning");
     }
 
-    public void indexCollections(NodeMetadata usageOrProposal) throws IOException{
+    public XContentBuilder indexCollections(NodeMetadata usageOrProposal) throws IOException{
 
         String nodeIdCollection = null;
         String nodeIdIO = null;
@@ -721,7 +722,7 @@ public class ElasticsearchClient {
 
             //check if it is an collection usage
             if(!homeRepoId.equals(usageAppId)){
-                return;
+                return null;
             }
         }
         if(usageOrProposal.getType().equals("ccm:collection_proposal")){
@@ -730,7 +731,7 @@ public class ElasticsearchClient {
             Serializable ioNodeRef = usageOrProposal.getProperties().get("{http://www.campuscontent.de/model/1.0}collection_proposal_target");
             if(ioNodeRef == null) {
                 logger.warn("no proposal target found for: " + usageOrProposal.getNodeRef());
-                return;
+                return null;
             }
             nodeIdIO = Tools.getUUID(ioNodeRef.toString());
         }
@@ -741,14 +742,14 @@ public class ElasticsearchClient {
         SearchHits searchHitsCollection = this.search(INDEX_WORKSPACE,collectionQuery,0,1);
         if(searchHitsCollection == null || searchHitsCollection.getTotalHits().value == 0){
             logger.warn("no collection found for: " + nodeIdCollection);
-            return;
+            return null;
         }
         SearchHit searchHitCollection = searchHitsCollection.getHits()[0];
 
         SearchHits ioSearchHits = this.search(INDEX_WORKSPACE,ioQuery,0,1);
         if(ioSearchHits == null || ioSearchHits.getTotalHits().value == 0){
             logger.warn("no io found for: " + nodeIdIO);
-            return;
+            return null;
         }
 
         SearchHit hitIO = ioSearchHits.getHits()[0];
@@ -804,6 +805,7 @@ public class ElasticsearchClient {
         int dbid = Integer.parseInt(hitIO.getId());
         this.update(dbid,builder);
         this.refresh(INDEX_WORKSPACE);
+        return builder;
     }
 
     /**
@@ -1192,34 +1194,7 @@ public class ElasticsearchClient {
 
             CreateIndexRequest indexRequest = new CreateIndexRequest(INDEX_WORKSPACE);
 
-            indexRequest.settings(Settings.builder()
-                    .put("index.number_of_shards", indexNumberOfShards)
-                    .put("index.number_of_replicas", indexNumberOfReplicas)
-                    .loadFromSource(Strings.toString(jsonBuilder()
-                            .startObject()
-                                .startObject("analysis")
-                                    .startObject("analyzer")
-                                        .startObject("trigram")
-                                            .field("type", "custom")
-                                            .field("tokenizer", "standard")
-                                            .field("filter", new String[]{"lowercase", "shingle"})
-                                        .endObject()
-                                        .startObject("reverse")
-                                            .field("type", "custom")
-                                            .field("tokenizer", "standard")
-                                            .field("filter", new String[]{"lowercase", "reverse"})
-                                        .endObject()
-                                    .endObject()
-                                    .startObject("filter")
-                                        .startObject("shingle")
-                                            .field("type","shingle")
-                                            .field("min_shingle_size",2)
-                                            .field("max_shingle_size",3)
-                                        .endObject()
-                                    .endObject()
-                                .endObject()
-                            .endObject()), XContentType.JSON)
-            );
+            indexRequest.settings(getIndexSettings());
 
             XContentBuilder builder = XContentFactory.jsonBuilder();
             builder.startObject();
@@ -1252,263 +1227,8 @@ public class ElasticsearchClient {
                     }
                 }
     ],*/
-                // dynamic copy to fields for facettes across collection refs
-                builder
-                        .field("dynamic", true)
-                        // auto detect string based numbers and convert them
-                        .field("numeric_detection", true)
-                        .startArray("dynamic_templates")
-                            .startObject()
-                                .startObject("aggregated_type")
-                                    .field("match_mapping_type","string")
-                                    .field("path_match","properties_aggregated.*")
-                                    .startObject("mapping")
-                                        .field("type", "keyword")
-                                        .field("store", true)
-                                        /**
-                                         * prevent
-                                         * type=illegal_argument_exception, reason=Document contains at least one immense term in field="properties_aggregated.ccm:ph_history" (whose UTF8 encoding is longer than the max length 32766)
-                                         *
-                                         * https://www.elastic.co/guide/en/elasticsearch/reference/current/ignore-above.html
-                                         */
-                                        .field("ignore_above",256)
-                                    .endObject()
-                                .endObject()
-                            .endObject()
-                            .startObject()
-                                .startObject("convert_date")
-                                    .field("match_mapping_type","date")
-                                    .field("path_match","*properties.*")
-                                    .startObject("mapping")
-                                        .field("type", "text")
-                                        .field("store", true)
-                                        .startObject("fields")
-                                            .startObject("keyword").field("type", "keyword").field("ignore_above", 256).endObject()
-                                            .startObject("date").
-                                                field("type", "date").
-                                                field("ignore_malformed", true)
-                                            .endObject()
-                                        .endObject()
-                                    .endObject()
-                                .endObject()
-                            .endObject()
-                            .startObject()
-                                .startObject("convert_numeric_long")
-                                    .field("match_mapping_type","long")
-                                    .field("path_match","*properties.*")
-                                    .startObject("mapping")
-                                        .field("type", "text")
-                                        .field("store", true)
-                                        .startObject("fields")
-                                            .startObject("keyword").field("type", "keyword").field("ignore_above", 256).endObject()
-                                            .startObject("number").
-                                                field("type", "long").
-                                                field("ignore_malformed", true)
-                                            .endObject()
-                                        .endObject()
-                                    .endObject()
-                                .endObject()
-                            .endObject()
-                            .startObject()
-                                .startObject("convert_numeric_double")
-                                    .field("match_mapping_type","double")
-                                    .field("path_match","*properties.*")
-                                    .startObject("mapping")
-                                        .field("type", "text")
-                                        .field("store", true)
-                                        .startObject("fields")
-                                            .startObject("keyword").field("type", "keyword").field("ignore_above", 256).endObject()
-                                            .startObject("number").
-                                                field("type", "float").
-                                                field("ignore_malformed", true)
-                                            .endObject()
-                                        .endObject()
-                                    .endObject()
-                                .endObject()
-                            .endObject()
-                            .startObject()
-                                .startObject("convert_date_aggregated")
-                                    .field("match_mapping_type","date")
-                                    .field("path_match","*properties_aggregated.*")
-                                    .startObject("mapping")
-                                        .field("type", "text")
-                                        .field("store", true)
-                                        .startObject("fields")
-                                            .startObject("keyword").field("type", "keyword").field("ignore_above", 256).endObject()
-                                            .startObject("date").
-                                                field("type", "date").
-                                                field("ignore_malformed", true)
-                                            .endObject()
-                                        .endObject()
-                                    .endObject()
-                                .endObject()
-                            .endObject()
-                            .startObject()
-                                .startObject("convert_numeric_long_aggregated")
-                                    .field("match_mapping_type","long")
-                                    .field("path_match","*properties_aggregated.*")
-                                    .startObject("mapping")
-                                        .field("type", "text")
-                                        .field("store", true)
-                                        .startObject("fields")
-                                            .startObject("keyword").field("type", "keyword").field("ignore_above", 256).endObject()
-                                            .startObject("number").
-                                                field("type", "long").
-                                                field("ignore_malformed", true)
-                                            .endObject()
-                                        .endObject()
-                                    .endObject()
-                                .endObject()
-                            .endObject()
-                            .startObject()
-                                .startObject("convert_numeric_double_aggregated")
-                                    .field("match_mapping_type","double")
-                                    .field("path_match","*properties_aggregated.*")
-                                    .startObject("mapping")
-                                        .field("type", "text")
-                                        .field("store", true)
-                                        .startObject("fields")
-                                            .startObject("keyword").field("type", "keyword").field("ignore_above", 256).endObject()
-                                            .startObject("number").
-                                                field("type", "float").
-                                                field("ignore_malformed", true)
-                                            .endObject()
-                                        .endObject()
-                                    .endObject()
-                                .endObject()
-                            .endObject()
-                            .startObject()
-                                .startObject("copy_facettes")
-                                    .field("path_match", "*properties.*")
-                                    .field("match_mapping_type","string")
-                                    .startObject("mapping")
-                                        .field("type", "text")
-                                        .field("copy_to", "properties_aggregated.{name}")
-                                        .startObject("fields")
-                                            .startObject("keyword")
-                                                .field("type", "keyword")
-                                                .field("ignore_above",  256)
-                                            .endObject()
-                                        .endObject()
-                                    .endObject()
-                                .endObject()
-                            .endObject()
-                            .startObject()
-                                .startObject("statistics_rating")
-                                    .field("path_match", "statistic_RATING_*")
-                                    .startObject("mapping")
-                                        .field("type", "float")
-                                    .endObject()
-                                .endObject()
-                            .endObject()
-                            .startObject()
-                                .startObject("statistics_generic")
-                                    .field("path_match", "statistic_*")
-                                    .startObject("mapping")
-                                        .field("type", "long")
-                                    .endObject()
-                                .endObject()
-                            .endObject()
-                        .endArray();
-                builder.startObject("properties");
-                {
-
-                    builder.startObject("aclId").field("type", "long").endObject();
-                    builder.startObject("txnId").field("type", "long").endObject();
-                    builder.startObject("dbid").field("type", "long").endObject();
-                    builder.startObject("parentRef")
-                            .startObject("properties")
-                                .startObject("storeRef")
-                                    .startObject("properties")
-                                        .startObject("protocol").field("type","keyword").endObject()
-                                        .startObject("identifier").field("type","keyword").endObject()
-                                    .endObject()
-                                .endObject()
-                                .startObject("id").field("type","keyword").endObject()
-                            .endObject()
-                    .endObject();
-                    builder.startObject("nodeRef")
-                            .startObject("properties")
-                                .startObject("storeRef")
-                                    .startObject("properties")
-                                        .startObject("protocol").field("type","keyword").endObject()
-                                        .startObject("identifier").field("type","keyword").endObject()
-                                    .endObject()
-                                .endObject()
-                                .startObject("id").field("type","keyword").endObject()
-                            .endObject()
-                    .endObject();
-                    builder.startObject("owner").field("type","keyword").endObject();
-                    builder.startObject("type").field("type","keyword").endObject();
-                    //leave out i18n cause it is dynamic
-                    builder.startObject("path").field("type","keyword").endObject();
-                    builder.startObject("fullpath").field("type","keyword").endObject();
-                    builder.startObject("permissions")
-                            .startObject("properties")
-                                .startObject("read").field("type","keyword").endObject()
-                            .endObject()
-                    .endObject();
-                    addContentDefinition(builder);
-                    builder.startObject("properties")
-                            .startObject("properties")
-                                .startObject("ccm:original").field("type","keyword").endObject()
-                                .startObject("cclom:location").field("type","keyword").endObject()
-                                .startObject("sys:node-uuid").field("type","keyword").endObject()
-                                .startObject("cclom:format").field("type","keyword").endObject()
-                                .startObject("cm:versionLabel").field("type","keyword").endObject()
-                                .startObject("cclom:title")
-                                    .field("type","text")
-                                    .startObject("fields")
-                                        .startObject("keyword")
-                                            .field("type","keyword")
-                                            .field("ignore_above",256)
-                                        .endObject()
-                                        .startObject("trigram")
-                                            .field("type","text")
-                                            .field("analyzer","trigram")
-                                        .endObject()
-                                        .startObject("reverse")
-                                            .field("type","text")
-                                            .field("analyzer","reverse")
-                                        .endObject()
-                                    .endObject()
-                                    .array("copy_to","properties_aggregated.cclom:title")
-                                .endObject()
-                                //the others are default
-                            .endObject()
-                    .endObject();
-                    builder.startObject("children")
-                            .field("type", "object")
-                            .startObject("properties")
-                                .startObject("type").field("type", "keyword").endObject()
-                                .startObject("aspects").field("type", "keyword").endObject();
-                                addContentDefinition(builder);
-                            builder.endObject()
-                    .endObject();
-                    builder.startObject("aspects").field("type","keyword").endObject();
-                    builder.startObject("collections")
-
-                            .startObject("properties")
-                                .startObject("dbid").field("type","long").endObject()
-                                .startObject("aclId").field("type","long").endObject()
-                            .endObject()
-
-                    .endObject();
-
-                    builder.startObject("preview")
-                            .startObject("properties");
-                    {
-                        builder.startObject("mimetype").field("type", "keyword").endObject();
-                        builder.startObject("type").field("type", "keyword").endObject();
-                        builder.startObject("icon").field("type", "boolean").endObject();
-                        builder.startObject("small").field("type", "binary").endObject();
-                        //builder.startObject("large").field("type", "binary").endObject();
-                    }
-                    builder.endObject()
-                            .endObject();
-
-                }
-                builder.endObject();
+                addDynamicMappings(builder);
+                addMappings(builder);
 
             }
             builder.endObject();
@@ -1521,6 +1241,298 @@ public class ElasticsearchClient {
             logger.error(e.getMessage(),e);
             throw e;
         }
+    }
+
+    Settings.Builder getIndexSettings() throws IOException {
+        return Settings.builder()
+                .put("index.number_of_shards", indexNumberOfShards)
+                .put("index.number_of_replicas", indexNumberOfReplicas)
+                .loadFromSource(Strings.toString(jsonBuilder()
+                        .startObject()
+                        .startObject("analysis")
+                        .startObject("analyzer")
+                        .startObject("trigram")
+                        .field("type", "custom")
+                        .field("tokenizer", "standard")
+                        .field("filter", new String[]{"lowercase", "shingle"})
+                        .endObject()
+                        .startObject("reverse")
+                        .field("type", "custom")
+                        .field("tokenizer", "standard")
+                        .field("filter", new String[]{"lowercase", "reverse"})
+                        .endObject()
+                        .endObject()
+                        .startObject("filter")
+                        .startObject("shingle")
+                        .field("type", "shingle")
+                        .field("min_shingle_size", 2)
+                        .field("max_shingle_size", 3)
+                        .endObject()
+                        .endObject()
+                        .endObject()
+                        .endObject()), XContentType.JSON);
+    }
+
+    void addMappings(XContentBuilder builder) throws IOException {
+        builder.startObject("properties");
+        {
+
+            builder.startObject("aclId").field("type", "long").endObject();
+            builder.startObject("txnId").field("type", "long").endObject();
+            builder.startObject("dbid").field("type", "long").endObject();
+            builder.startObject("parentRef")
+                    .startObject("properties")
+                    .startObject("storeRef")
+                    .startObject("properties")
+                    .startObject("protocol").field("type","keyword").endObject()
+                    .startObject("identifier").field("type","keyword").endObject()
+                    .endObject()
+                    .endObject()
+                    .startObject("id").field("type","keyword").endObject()
+                    .endObject()
+                    .endObject();
+            builder.startObject("nodeRef")
+                    .startObject("properties")
+                    .startObject("storeRef")
+                    .startObject("properties")
+                    .startObject("protocol").field("type","keyword").endObject()
+                    .startObject("identifier").field("type","keyword").endObject()
+                    .endObject()
+                    .endObject()
+                    .startObject("id").field("type","keyword").endObject()
+                    .endObject()
+                    .endObject();
+            builder.startObject("owner").field("type","keyword").endObject();
+            builder.startObject("type").field("type","keyword").endObject();
+            //leave out i18n cause it is dynamic
+            builder.startObject("path").field("type","keyword").endObject();
+            builder.startObject("fullpath").field("type","keyword").endObject();
+            builder.startObject("permissions")
+                    .startObject("properties")
+                    .startObject("read").field("type","keyword").endObject()
+                    .endObject()
+                    .endObject();
+            addContentDefinition(builder);
+            builder.startObject("properties")
+                    .startObject("properties")
+                    .startObject("ccm:original").field("type","keyword").endObject()
+                    .startObject("cclom:location").field("type","keyword").endObject()
+                    .startObject("sys:node-uuid").field("type","keyword").endObject()
+                    .startObject("cclom:format").field("type","keyword").endObject()
+                    .startObject("cm:versionLabel").field("type","keyword").endObject()
+                    .startObject("cclom:title")
+                    .field("type","text")
+                    .startObject("fields")
+                    .startObject("keyword")
+                    .field("type","keyword")
+                    .field("ignore_above",256)
+                    .endObject()
+                    .startObject("trigram")
+                    .field("type","text")
+                    .field("analyzer","trigram")
+                    .endObject()
+                    .startObject("reverse")
+                    .field("type","text")
+                    .field("analyzer","reverse")
+                    .endObject()
+                    .endObject()
+                    .array("copy_to","properties_aggregated.cclom:title")
+                    .endObject()
+                    //the others are default
+                    .endObject()
+                    .endObject();
+            builder.startObject("children")
+                    .field("type", "object")
+                    .startObject("properties")
+                    .startObject("type").field("type", "keyword").endObject()
+                    .startObject("aspects").field("type", "keyword").endObject();
+            addContentDefinition(builder);
+            builder.endObject()
+                    .endObject();
+            builder.startObject("aspects").field("type","keyword").endObject();
+            builder.startObject("collections")
+
+                    .startObject("properties")
+                    .startObject("dbid").field("type","long").endObject()
+                    .startObject("aclId").field("type","long").endObject()
+                    .endObject()
+
+                    .endObject();
+
+            builder.startObject("preview")
+                    .startObject("properties");
+            {
+                builder.startObject("mimetype").field("type", "keyword").endObject();
+                builder.startObject("type").field("type", "keyword").endObject();
+                builder.startObject("icon").field("type", "boolean").endObject();
+                builder.startObject("small").field("type", "binary").endObject();
+                //builder.startObject("large").field("type", "binary").endObject();
+            }
+            builder.endObject()
+                    .endObject();
+
+        }
+        builder.endObject();
+    }
+    void addDynamicMappings(XContentBuilder builder) throws IOException {
+        // dynamic copy to fields for facettes across collection refs
+        builder
+                .field("dynamic", true)
+                // auto detect string based numbers and convert them
+                .field("numeric_detection", true)
+                .startArray("dynamic_templates")
+                .startObject()
+                .startObject("aggregated_type")
+                .field("match_mapping_type","string")
+                .field("path_match","properties_aggregated.*")
+                .startObject("mapping")
+                .field("type", "keyword")
+                .field("store", true)
+                /**
+                 * prevent
+                 * type=illegal_argument_exception, reason=Document contains at least one immense term in field="properties_aggregated.ccm:ph_history" (whose UTF8 encoding is longer than the max length 32766)
+                 *
+                 * https://www.elastic.co/guide/en/elasticsearch/reference/current/ignore-above.html
+                 */
+                .field("ignore_above",256)
+                .endObject()
+                .endObject()
+                .endObject()
+                .startObject()
+                .startObject("convert_date")
+                .field("match_mapping_type","date")
+                .field("path_match","*properties.*")
+                .startObject("mapping")
+                .field("type", "text")
+                .field("store", true)
+                .startObject("fields")
+                .startObject("keyword").field("type", "keyword").field("ignore_above", 256).endObject()
+                .startObject("date").
+                field("type", "date").
+                field("ignore_malformed", true)
+                .endObject()
+                .endObject()
+                .endObject()
+                .endObject()
+                .endObject()
+                .startObject()
+                .startObject("convert_numeric_long")
+                .field("match_mapping_type","long")
+                .field("path_match","*properties.*")
+                .startObject("mapping")
+                .field("type", "text")
+                .field("store", true)
+                .startObject("fields")
+                .startObject("keyword").field("type", "keyword").field("ignore_above", 256).endObject()
+                .startObject("number").
+                field("type", "long").
+                field("ignore_malformed", true)
+                .endObject()
+                .endObject()
+                .endObject()
+                .endObject()
+                .endObject()
+                .startObject()
+                .startObject("convert_numeric_double")
+                .field("match_mapping_type","double")
+                .field("path_match","*properties.*")
+                .startObject("mapping")
+                .field("type", "text")
+                .field("store", true)
+                .startObject("fields")
+                .startObject("keyword").field("type", "keyword").field("ignore_above", 256).endObject()
+                .startObject("number").
+                field("type", "float").
+                field("ignore_malformed", true)
+                .endObject()
+                .endObject()
+                .endObject()
+                .endObject()
+                .endObject()
+                .startObject()
+                .startObject("convert_date_aggregated")
+                .field("match_mapping_type","date")
+                .field("path_match","*properties_aggregated.*")
+                .startObject("mapping")
+                .field("type", "text")
+                .field("store", true)
+                .startObject("fields")
+                .startObject("keyword").field("type", "keyword").field("ignore_above", 256).endObject()
+                .startObject("date").
+                field("type", "date").
+                field("ignore_malformed", true)
+                .endObject()
+                .endObject()
+                .endObject()
+                .endObject()
+                .endObject()
+                .startObject()
+                .startObject("convert_numeric_long_aggregated")
+                .field("match_mapping_type","long")
+                .field("path_match","*properties_aggregated.*")
+                .startObject("mapping")
+                .field("type", "text")
+                .field("store", true)
+                .startObject("fields")
+                .startObject("keyword").field("type", "keyword").field("ignore_above", 256).endObject()
+                .startObject("number").
+                field("type", "long").
+                field("ignore_malformed", true)
+                .endObject()
+                .endObject()
+                .endObject()
+                .endObject()
+                .endObject()
+                .startObject()
+                .startObject("convert_numeric_double_aggregated")
+                .field("match_mapping_type","double")
+                .field("path_match","*properties_aggregated.*")
+                .startObject("mapping")
+                .field("type", "text")
+                .field("store", true)
+                .startObject("fields")
+                .startObject("keyword").field("type", "keyword").field("ignore_above", 256).endObject()
+                .startObject("number").
+                field("type", "float").
+                field("ignore_malformed", true)
+                .endObject()
+                .endObject()
+                .endObject()
+                .endObject()
+                .endObject()
+                .startObject()
+                .startObject("copy_facettes")
+                .field("path_match", "*properties.*")
+                .field("match_mapping_type","string")
+                .startObject("mapping")
+                .field("type", "text")
+                .field("copy_to", "properties_aggregated.{name}")
+                .startObject("fields")
+                .startObject("keyword")
+                .field("type", "keyword")
+                .field("ignore_above",  256)
+                .endObject()
+                .endObject()
+                .endObject()
+                .endObject()
+                .endObject()
+                .startObject()
+                .startObject("statistics_rating")
+                .field("path_match", "statistic_RATING_*")
+                .startObject("mapping")
+                .field("type", "float")
+                .endObject()
+                .endObject()
+                .endObject()
+                .startObject()
+                .startObject("statistics_generic")
+                .field("path_match", "statistic_*")
+                .startObject("mapping")
+                .field("type", "long")
+                .endObject()
+                .endObject()
+                .endObject()
+                .endArray();
     }
 
     private void addContentDefinition(XContentBuilder builder) throws IOException {
