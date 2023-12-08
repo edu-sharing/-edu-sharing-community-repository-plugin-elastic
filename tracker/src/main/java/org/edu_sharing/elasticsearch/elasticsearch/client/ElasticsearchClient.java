@@ -119,7 +119,7 @@ public class ElasticsearchClient {
     private AtomicLong lastNodeCount = new AtomicLong(System.currentTimeMillis());
 
     @Autowired
-    private AlfrescoWebscriptClient alfrescoClient;
+    AlfrescoWebscriptClient alfrescoClient;
 
     private final SearchHitsRunner searchHitsRunner = new SearchHitsRunner(this);
 
@@ -292,7 +292,7 @@ public class ElasticsearchClient {
         return get(nodeData, builder, null);
     }
 
-    private DataBuilder get(NodeData nodeData, DataBuilder builder, String objectName) throws IOException {
+    DataBuilder get(NodeData nodeData, DataBuilder builder, String objectName) throws IOException {
 
         NodeMetadata node = nodeData.getNodeMetadata();
         String storeRefProtocol = Tools.getProtocol(node.getNodeRef());
@@ -648,7 +648,7 @@ public class ElasticsearchClient {
         logger.debug("returning");
     }
 
-    public void indexCollections(NodeMetadata usageOrProposal) throws IOException {
+    public DataBuilder indexCollections(NodeMetadata usageOrProposal) throws IOException{
 
         String nodeIdCollection = null;
         String nodeIdIO = null;
@@ -668,7 +668,7 @@ public class ElasticsearchClient {
 
             //check if it is an collection usage
             if (!homeRepoId.equals(usageAppId)) {
-                return;
+                return null;
             }
         }
         if (usageOrProposal.getType().equals("ccm:collection_proposal")) {
@@ -677,7 +677,7 @@ public class ElasticsearchClient {
             Serializable ioNodeRef = usageOrProposal.getProperties().get("{http://www.campuscontent.de/model/1.0}collection_proposal_target");
             if (ioNodeRef == null) {
                 logger.warn("no proposal target found for: " + usageOrProposal.getNodeRef());
-                return;
+                return null;
             }
             nodeIdIO = Tools.getUUID(ioNodeRef.toString());
         }
@@ -690,14 +690,14 @@ public class ElasticsearchClient {
         HitsMetadata<Map> searchHitsCollection = this.search(INDEX_WORKSPACE, collectionQuery, 0, 1);
         if (searchHitsCollection == null || searchHitsCollection.total().value() == 0) {
             logger.warn("no collection found for: " + nodeIdCollection);
-            return;
+            return null;
         }
         Hit<Map> searchHitCollection = searchHitsCollection.hits().get(0);
 
         HitsMetadata<Map> ioSearchHits = this.search(INDEX_WORKSPACE, ioQuery, 0, 1);
         if (ioSearchHits == null || ioSearchHits.total().value() == 0) {
             logger.warn("no io found for: " + nodeIdIO);
-            return;
+            return null;
         }
 
         Hit<Map> hitIO = ioSearchHits.hits().get(0);
@@ -753,6 +753,7 @@ public class ElasticsearchClient {
         int dbid = Integer.parseInt(hitIO.id());
         this.update(dbid, builder.build());
         this.refresh(INDEX_WORKSPACE);
+        return builder;
     }
 
     /**
