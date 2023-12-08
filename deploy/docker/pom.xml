@@ -39,6 +39,10 @@
       ${docker.edu_sharing.communty.common.repository}/edu_sharing-community-common-docker-kibana:${elastic.stack.version}
     </docker.edu_sharing.community.common.kibana>
 
+    <docker.edu_sharing.community.common.kibana>
+      ${docker.edu_sharing.communty.common.repository}/edu_sharing-community-common-docker-kibana:${elastic.stack.version}
+    </docker.edu_sharing.community.common.kibana>
+
     <docker.edu_sharing.community.common.elasticsearch.exporter>
       ${docker.edu_sharing.communty.common.repository}/edu_sharing-community-common-docker-elasticsearch-exporter:1.5.0
     </docker.edu_sharing.community.common.elasticsearch.exporter>
