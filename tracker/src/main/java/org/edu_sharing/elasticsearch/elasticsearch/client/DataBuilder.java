@@ -169,7 +169,7 @@ public class DataBuilder {
 
 
     public Object build() {
-        if(stack.size() > 1) {
+        if(!stack.isEmpty()) {
             throw new IllegalStateException("Not all objects are closed");
         }
 
@@ -214,6 +214,7 @@ public class DataBuilder {
 
     public DataBuilder startArray(String name) {
         ensureNameNotNullOrEmpty(name);
+        dataWriter.writeFieldName(name);
         startArray();
         return this;
     }
@@ -329,11 +330,11 @@ public class DataBuilder {
     //////////////////////////////////
 
     public DataBuilder field(String name, byte[] value) {
-        return writeField(name, value);
+        return writeField(name, value != null ? Base64.getEncoder().encodeToString(value) : null);
     }
 
     public DataBuilder value(byte[] value) {
-        dataWriter.writeValue(value);
+        dataWriter.writeValue( value != null ? Base64.getEncoder().encodeToString(value) : null);
         return this;
     }
 

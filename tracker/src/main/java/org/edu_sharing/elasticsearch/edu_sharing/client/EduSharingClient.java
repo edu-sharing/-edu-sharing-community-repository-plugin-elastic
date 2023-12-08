@@ -3,43 +3,32 @@ package org.edu_sharing.elasticsearch.edu_sharing.client;
 import com.fasterxml.jackson.jaxrs.json.JacksonJsonProvider;
 import com.google.gson.ExclusionStrategy;
 import com.google.gson.FieldAttributes;
-import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import org.apache.cxf.feature.LoggingFeature;
-import org.apache.cxf.transport.http.asyncclient.AsyncHTTPConduitFactory;
 import org.edu_sharing.elasticsearch.alfresco.client.NodeData;
 import org.edu_sharing.elasticsearch.alfresco.client.NodePreview;
 import org.edu_sharing.elasticsearch.tools.Tools;
 import org.edu_sharing.generated.repository.backend.services.rest.client.model.Node;
+import org.edu_sharing.generated.repository.backend.services.rest.client.model.NodeEntry;
 import org.edu_sharing.repository.client.tools.CCConstants;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.AutoConfigureAfter;
-import org.springframework.context.annotation.DependsOn;
-import org.springframework.core.Ordered;
-import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
+import org.threeten.bp.OffsetDateTime;
 
 import javax.annotation.PostConstruct;
 import javax.ws.rs.ProcessingException;
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.client.Entity;
-import javax.ws.rs.core.GenericType;
-import javax.ws.rs.core.HttpHeaders;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.NewCookie;
-import javax.ws.rs.core.Response;
+import javax.ws.rs.core.*;
 import java.io.IOException;
 import java.io.Serializable;
-import java.net.ConnectException;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import org.edu_sharing.generated.repository.backend.services.rest.client.model.NodeEntry;
-import org.threeten.bp.OffsetDateTime;
 
 @Component
 public class EduSharingClient {
@@ -385,7 +374,8 @@ public class EduSharingClient {
 
                 @Override
                 public boolean shouldSkipClass(Class<?> aClass) {
-                    return aClass.equals(OffsetDateTime.class);
+                    return aClass.equals(OffsetDateTime.class)
+                            || aClass.equals(java.time.OffsetDateTime.class);
                 }
             }).create().fromJson(result, NodeEntry.class);
         }catch(Throwable e) {

@@ -10,11 +10,11 @@ import co.elastic.clients.elasticsearch._types.query_dsl.Query;
 import co.elastic.clients.elasticsearch.core.*;
 import co.elastic.clients.elasticsearch.core.bulk.BulkOperation;
 import co.elastic.clients.elasticsearch.core.bulk.BulkResponseItem;
-import co.elastic.clients.elasticsearch.core.bulk.IndexOperation;
 import co.elastic.clients.elasticsearch.core.bulk.OperationType;
 import co.elastic.clients.elasticsearch.core.search.Hit;
 import co.elastic.clients.elasticsearch.core.search.HitsMetadata;
 import co.elastic.clients.elasticsearch.indices.CreateIndexRequest;
+import co.elastic.clients.elasticsearch.indices.IndexSettings;
 import co.elastic.clients.json.JsonData;
 import co.elastic.clients.util.ObjectBuilder;
 import net.sourceforge.cardme.engine.VCardEngine;
@@ -31,7 +31,6 @@ import org.edu_sharing.elasticsearch.edu_sharing.client.NodeStatistic;
 import org.edu_sharing.elasticsearch.tools.ScriptExecutor;
 import org.edu_sharing.elasticsearch.tools.Tools;
 import org.edu_sharing.repository.client.tools.CCConstants;
-import org.elasticsearch.client.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.json.BasicJsonParser;
@@ -172,7 +171,7 @@ public class ElasticsearchClient {
                 .script(scr -> scr
                         .inline(il -> il
                                 .source("ctx._source.permissions=params")
-                                .params(permissions.entrySet().stream().collect(Collectors.toMap(Map.Entry::getKey, JsonData::of)))))
+                                .params(permissions.entrySet().stream().collect(Collectors.toMap(Map.Entry::getKey, x->JsonData.of(x.getValue()))))))
         );
         logger.debug("updated: {}", bulkByScrollResponse.updated());
         List<BulkIndexByScrollFailure> bulkFailures = bulkByScrollResponse.failures();
@@ -228,16 +227,15 @@ public class ElasticsearchClient {
     public void index(List<NodeData> nodes) throws IOException {
         logger.info("starting bulk index for {}", nodes.size());
 
-        BulkRequest bulkRequest = new BulkRequest.Builder().index(INDEX_WORKSPACE).build();
+        // TODO Missing required property 'BulkRequest.operations'
 
         boolean useBulkUpdate = true;
 
+        List<BulkOperation> operations = new ArrayList<>();
         for (NodeData nodeData : nodes) {
             NodeMetadata node = nodeData.getNodeMetadata();
             Object data = get(nodeData, null).build();
-
-            bulkRequest.operations()
-                    .add(BulkOperation.of(op -> op.index(iop -> iop
+            operations.add(BulkOperation.of(op -> op.index(iop -> iop
                             .index(INDEX_WORKSPACE)
                             .id(Long.toString(node.getId()))
                             .document(data))));
@@ -248,9 +246,9 @@ public class ElasticsearchClient {
             }
         }
 
-        if (useBulkUpdate && !bulkRequest.operations().isEmpty()) {
+        if (useBulkUpdate && !operations.isEmpty()) {
             logger.info("starting bulk update:");
-            BulkResponse bulkResponse = client.bulk(bulkRequest);
+            BulkResponse bulkResponse = client.bulk(req->req.index(INDEX_WORKSPACE).operations(operations));
             logger.info("finished bulk update:");
 
             Map<Long, NodeData> collectionNodes = new HashMap<>();
@@ -648,7 +646,7 @@ public class ElasticsearchClient {
         logger.debug("returning");
     }
 
-    public DataBuilder indexCollections(NodeMetadata usageOrProposal) throws IOException{
+    public DataBuilder indexCollections(NodeMetadata usageOrProposal) throws IOException {
 
         String nodeIdCollection = null;
         String nodeIdIO = null;
@@ -1131,153 +1129,158 @@ public class ElasticsearchClient {
                 return;
             }
 
-            @SuppressWarnings("unchecked")
             CreateIndexRequest indexRequest = CreateIndexRequest.of(req -> req
                     .index(INDEX_WORKSPACE)
-                    .settings(s -> s.index(id -> id
-                            .numberOfShards(Integer.toString(indexNumberOfShards))
-                            .numberOfReplicas(Integer.toString(indexNumberOfReplicas))
-                            .analysis(analysis -> analysis
-                                    .analyzer("trigram", a -> a
-                                            .custom(c -> c
-                                                    .tokenizer("standard")
-                                                    .filter("lowercase", "shingle")))
-                                    .analyzer("reverse", a -> a
-                                            .custom(c -> c
-                                                    .tokenizer("standard")
-                                                    .filter("lowercase", "reverse")))
-                                    .filter("shingle", f -> f
-                                            .definition(def -> def
-                                                    .shingle(shingle -> shingle
-                                                            .minShingleSize("2")
-                                                            .maxShingleSize("3")))))
-                    )).mappings(mapping -> mapping
-                            .dynamic(DynamicMapping.True)
-                            .numericDetection(true)
-                            .dynamicTemplates(Map.of("aggregated_type", DynamicTemplate.of(dt -> dt
-                                            .matchMappingType("string")
-                                            .pathMatch("properties_aggregated.*")
-                                            .mapping(mp -> mp.keyword(kw -> kw.ignoreAbove(256).store(true))))),
-
-                                    Map.of("convert_date", DynamicTemplate.of(dt -> dt
-                                            .matchMappingType("date")
-                                            .pathMatch("*properties.*")
-                                            .mapping(mp -> mp.text(t -> t.store(true)
-                                                    .fields("keyword", f -> f.keyword(kw -> kw.ignoreAbove(256)))
-                                                    .fields("date", f -> f.date(v -> v.ignoreMalformed(true))))))),
-
-                                    Map.of("convert_numeric_long", DynamicTemplate.of(dt -> dt
-                                            .matchMappingType("long")
-                                            .pathMatch("*properties.*")
-                                            .mapping(mp -> mp.text(t -> t.store(true)
-                                                    .fields("keyword", f -> f.keyword(kw -> kw.ignoreAbove(256)))
-                                                    .fields("number", f -> f.long_(v -> v.ignoreMalformed(true))))))),
-
-                                    Map.of("convert_numeric_double", DynamicTemplate.of(dt -> dt
-                                            .matchMappingType("double")
-                                            .pathMatch("*properties.*")
-                                            .mapping(mp -> mp.text(t -> t.store(true)
-                                                    .fields("keyword", f -> f.keyword(kw -> kw.ignoreAbove(256)))
-                                                    .fields("number", f -> f.float_(v -> v.ignoreMalformed(true))))))),
-
-                                    Map.of("convert_date_aggregated", DynamicTemplate.of(dt -> dt
-                                            .matchMappingType("date")
-                                            .pathMatch("*properties_aggregated.*")
-                                            .mapping(mp -> mp.text(t -> t.store(true)
-                                                    .fields("keyword", f -> f.keyword(kw -> kw.ignoreAbove(256)))
-                                                    .fields("date", f -> f.date(v -> v.ignoreMalformed(true))))))),
-
-                                    Map.of("convert_numeric_long_aggregated", DynamicTemplate.of(dt -> dt
-                                            .matchMappingType("long")
-                                            .pathMatch("*properties_aggregated.*")
-                                            .mapping(mp -> mp.text(t -> t.store(true)
-                                                    .fields("keyword", f -> f.keyword(kw -> kw.ignoreAbove(256)))
-                                                    .fields("number", f -> f.long_(v -> v.ignoreMalformed(true))))))),
-
-                                    Map.of("convert_numeric_double_aggregated", DynamicTemplate.of(dt -> dt
-                                            .matchMappingType("double")
-                                            .pathMatch("*properties_aggregated.*")
-                                            .mapping(mp -> mp.text(t -> t.store(true)
-                                                    .fields("keyword", f -> f.keyword(kw -> kw.ignoreAbove(256)))
-                                                    .fields("number", f -> f.float_(v -> v.ignoreMalformed(true))))))),
-
-                                    Map.of("copy_facettes", DynamicTemplate.of(dt -> dt
-                                            .matchMappingType("string")
-                                            .pathMatch("*properties.*")
-                                            .mapping(mp -> mp.text(t -> t.copyTo("properties_aggregated.{name}")
-                                                    .fields("keyword", f -> f.keyword(kw -> kw.ignoreAbove(256))))))),
-
-                                    Map.of("statistics_rating", DynamicTemplate.of(dt -> dt
-                                            .pathMatch("statistic_RATING_*")
-                                            .mapping(mp -> mp.float_(f -> f)))),
-
-                                    Map.of("statistics_generic", DynamicTemplate.of(dt -> dt
-                                            .pathMatch("statistic_*")
-                                            .mapping(mp -> mp.long_(l -> l))))
-                            )
-                            .properties("aclId", prop -> prop.long_(v -> v))
-                            .properties("txnId", prop -> prop.long_(v -> v))
-                            .properties("dbid", prop -> prop.long_(v -> v))
-                            .properties("parentRef", parentRefProp -> parentRefProp
-                                    .object(parentRefObj -> parentRefObj
-                                            .properties("id", storeRefProp -> storeRefProp.keyword(v -> v))
-                                            .properties("storeRef", storeRefProp -> storeRefProp
-                                                    .object(storeRefObj -> storeRefObj
-                                                            .properties("protocol", protProp -> protProp.keyword(v -> v))
-                                                            .properties("identifier", idProp -> idProp.keyword(v -> v))))))
-                            .properties("nodeRef", parentRefProp -> parentRefProp
-                                    .object(parentRefObj -> parentRefObj
-                                            .properties("id", storeRefProp -> storeRefProp.keyword(v -> v))
-                                            .properties("storeRef", storeRefProp -> storeRefProp
-                                                    .object(storeRefObj -> storeRefObj
-                                                            .properties("protocol", protProp -> protProp.keyword(v -> v))
-                                                            .properties("identifier", idProp -> idProp.keyword(v -> v))))))
-
-                            .properties("owner", prop -> prop.keyword(v -> v))
-                            .properties("owntypeer", prop -> prop.keyword(v -> v))
-                            .properties("path", prop -> prop.keyword(v -> v))
-                            .properties("fullpath", prop -> prop.keyword(v -> v))
-                            .properties("permissions", prop -> prop
-                                    .object(permObj -> permObj
-                                            .properties("read", readProp -> readProp.keyword(v -> v))))
-                            .properties(addContentDefinition())
-                            .properties("properties", propProp -> propProp
-                                    .object(propObj -> propObj
-                                            .properties("ccm:original", prop -> prop.keyword(v -> v))
-                                            .properties("cclom:location", prop -> prop.keyword(v -> v))
-                                            .properties("sys:node-uuid", prop -> prop.keyword(v -> v))
-                                            .properties("cclom:format", prop -> prop.keyword(v -> v))
-                                            .properties("cm:versionLabel", prop -> prop.keyword(v -> v))
-                                            .properties("cclom:title", titleProp -> titleProp
-                                                    .text(t -> t.copyTo("properties_aggregated.cclom:title")
-                                                            .fields("keyword", prop -> prop.keyword(v -> v.ignoreAbove(256)))
-                                                            .fields("trigram", prop -> prop.text(v -> v.analyzer("trigram")))
-                                                            .fields("reverse", prop -> prop.text(v -> v.analyzer("reverse")))))))
-                            .properties("children", childProp -> childProp
-                                    .object(childObj -> childObj
-                                            .properties("type", prop -> prop.keyword(v -> v))
-                                            .properties("aspects", prop -> prop.keyword(v -> v))
-                                            .properties(addContentDefinition())
-                                    ))
-                            .properties("aspects", prop -> prop.keyword(v -> v))
-                            .properties("collections", colProp -> colProp
-                                    .object(colObj -> colObj
-                                            .properties("dbid", prop -> prop.long_(v -> v))
-                                            .properties("aclId", prop -> prop.long_(v -> v))
-                                            .properties(addContentDefinition())
-                                    ))
-                            .properties("preview", previewProp -> previewProp
-                                    .object(previewObj -> previewObj
-                                            .properties("mimetype", prop -> prop.keyword(v -> v))
-                                            .properties("type", prop -> prop.keyword(v -> v))
-                                            .properties("icon", prop -> prop.keyword(v -> v))
-                                            .properties("small", prop -> prop.keyword(v -> v))))
-                    ));
+                    .settings(this::getIndexSettings)
+                    .mappings(this::getMappings));
             client.indices().create(indexRequest);
         } catch (Exception e) {
             logger.error(e.getMessage(), e);
             throw e;
         }
+    }
+
+    IndexSettings.Builder getIndexSettings(IndexSettings.Builder s) {
+        return s.index(id -> id
+                .numberOfShards(Integer.toString(indexNumberOfShards))
+                .numberOfReplicas(Integer.toString(indexNumberOfReplicas))
+        ).analysis(analysis -> analysis
+                .analyzer("trigram", a -> a
+                        .custom(c -> c
+                                .tokenizer("standard")
+                                .filter("lowercase", "shingle")))
+                .analyzer("reverse", a -> a
+                        .custom(c -> c
+                                .tokenizer("standard")
+                                .filter("lowercase", "reverse")))
+                .filter("shingle", f -> f
+                        .definition(def -> def
+                                .shingle(shingle -> shingle
+                                        .minShingleSize("2")
+                                        .maxShingleSize("3")))));
+    }
+
+    ObjectBuilder<TypeMapping> getMappings(TypeMapping.Builder mapping) {
+        //noinspection unchecked
+        return mapping.dynamic(DynamicMapping.True)
+                .numericDetection(true)
+                .dynamicTemplates(Map.of("aggregated_type", DynamicTemplate.of(dt -> dt
+                                .matchMappingType("string")
+                                .pathMatch("properties_aggregated.*")
+                                .mapping(mp -> mp.keyword(kw -> kw.ignoreAbove(256).store(true))))),
+
+                        Map.of("convert_date", DynamicTemplate.of(dt -> dt
+                                .matchMappingType("date")
+                                .pathMatch("*properties.*")
+                                .mapping(mp -> mp.text(t -> t.store(true)
+                                        .fields("keyword", f -> f.keyword(kw -> kw.ignoreAbove(256)))
+                                        .fields("date", f -> f.date(v -> v.ignoreMalformed(true))))))),
+
+                        Map.of("convert_numeric_long", DynamicTemplate.of(dt -> dt
+                                .matchMappingType("long")
+                                .pathMatch("*properties.*")
+                                .mapping(mp -> mp.text(t -> t.store(true)
+                                        .fields("keyword", f -> f.keyword(kw -> kw.ignoreAbove(256)))
+                                        .fields("number", f -> f.long_(v -> v.ignoreMalformed(true))))))),
+
+                        Map.of("convert_numeric_double", DynamicTemplate.of(dt -> dt
+                                .matchMappingType("double")
+                                .pathMatch("*properties.*")
+                                .mapping(mp -> mp.text(t -> t.store(true)
+                                        .fields("keyword", f -> f.keyword(kw -> kw.ignoreAbove(256)))
+                                        .fields("number", f -> f.float_(v -> v.ignoreMalformed(true))))))),
+
+                        Map.of("convert_date_aggregated", DynamicTemplate.of(dt -> dt
+                                .matchMappingType("date")
+                                .pathMatch("*properties_aggregated.*")
+                                .mapping(mp -> mp.text(t -> t.store(true)
+                                        .fields("keyword", f -> f.keyword(kw -> kw.ignoreAbove(256)))
+                                        .fields("date", f -> f.date(v -> v.ignoreMalformed(true))))))),
+
+                        Map.of("convert_numeric_long_aggregated", DynamicTemplate.of(dt -> dt
+                                .matchMappingType("long")
+                                .pathMatch("*properties_aggregated.*")
+                                .mapping(mp -> mp.text(t -> t.store(true)
+                                        .fields("keyword", f -> f.keyword(kw -> kw.ignoreAbove(256)))
+                                        .fields("number", f -> f.long_(v -> v.ignoreMalformed(true))))))),
+
+                        Map.of("convert_numeric_double_aggregated", DynamicTemplate.of(dt -> dt
+                                .matchMappingType("double")
+                                .pathMatch("*properties_aggregated.*")
+                                .mapping(mp -> mp.text(t -> t.store(true)
+                                        .fields("keyword", f -> f.keyword(kw -> kw.ignoreAbove(256)))
+                                        .fields("number", f -> f.float_(v -> v.ignoreMalformed(true))))))),
+
+                        Map.of("copy_facettes", DynamicTemplate.of(dt -> dt
+                                .matchMappingType("string")
+                                .pathMatch("*properties.*")
+                                .mapping(mp -> mp.text(t -> t.copyTo("properties_aggregated.{name}")
+                                        .fields("keyword", f -> f.keyword(kw -> kw.ignoreAbove(256))))))),
+
+                        Map.of("statistics_rating", DynamicTemplate.of(dt -> dt
+                                .pathMatch("statistic_RATING_*")
+                                .mapping(mp -> mp.float_(f -> f)))),
+
+                        Map.of("statistics_generic", DynamicTemplate.of(dt -> dt
+                                .pathMatch("statistic_*")
+                                .mapping(mp -> mp.long_(l -> l))))
+                )
+                .properties("aclId", prop -> prop.long_(v -> v))
+                .properties("txnId", prop -> prop.long_(v -> v))
+                .properties("dbid", prop -> prop.long_(v -> v))
+                .properties("parentRef", parentRefProp -> parentRefProp
+                        .object(parentRefObj -> parentRefObj
+                                .properties("id", storeRefProp -> storeRefProp.keyword(v -> v))
+                                .properties("storeRef", storeRefProp -> storeRefProp
+                                        .object(storeRefObj -> storeRefObj
+                                                .properties("protocol", protProp -> protProp.keyword(v -> v))
+                                                .properties("identifier", idProp -> idProp.keyword(v -> v))))))
+                .properties("nodeRef", parentRefProp -> parentRefProp
+                        .object(parentRefObj -> parentRefObj
+                                .properties("id", storeRefProp -> storeRefProp.keyword(v -> v))
+                                .properties("storeRef", storeRefProp -> storeRefProp
+                                        .object(storeRefObj -> storeRefObj
+                                                .properties("protocol", protProp -> protProp.keyword(v -> v))
+                                                .properties("identifier", idProp -> idProp.keyword(v -> v))))))
+
+                .properties("owner", prop -> prop.keyword(v -> v))
+                .properties("type", prop -> prop.keyword(v -> v))
+                .properties("path", prop -> prop.keyword(v -> v))
+                .properties("fullpath", prop -> prop.keyword(v -> v))
+                .properties("permissions", prop -> prop
+                        .object(permObj -> permObj
+                                .properties("read", readProp -> readProp.keyword(v -> v))))
+                .properties(addContentDefinition())
+                .properties("properties", propProp -> propProp
+                        .object(propObj -> propObj
+                                .properties("ccm:original", prop -> prop.keyword(v -> v))
+                                .properties("cclom:location", prop -> prop.keyword(v -> v))
+                                .properties("sys:node-uuid", prop -> prop.keyword(v -> v))
+                                .properties("cclom:format", prop -> prop.keyword(v -> v))
+                                .properties("cm:versionLabel", prop -> prop.keyword(v -> v))
+                                .properties("cclom:title", titleProp -> titleProp
+                                        .text(t -> t.copyTo("properties_aggregated.cclom:title")
+                                                .fields("keyword", prop -> prop.keyword(v -> v.ignoreAbove(256)))
+                                                .fields("trigram", prop -> prop.text(v -> v.analyzer("trigram")))
+                                                .fields("reverse", prop -> prop.text(v -> v.analyzer("reverse")))))))
+                .properties("children", childProp -> childProp
+                        .object(childObj -> childObj
+                                .properties("type", prop -> prop.keyword(v -> v))
+                                .properties("aspects", prop -> prop.keyword(v -> v))
+                                .properties(addContentDefinition())
+                        ))
+                .properties("aspects", prop -> prop.keyword(v -> v))
+                .properties("collections", colProp -> colProp
+                        .object(colObj -> colObj
+                                .properties("dbid", prop -> prop.long_(v -> v))
+                                .properties("aclId", prop -> prop.long_(v -> v))
+                        ))
+                .properties("preview", previewProp -> previewProp
+                        .object(previewObj -> previewObj
+                                .properties("mimetype", prop -> prop.keyword(v -> v))
+                                .properties("type", prop -> prop.keyword(v -> v))
+                                .properties("icon", prop -> prop.boolean_(v -> v))
+                                .properties("small", prop -> prop.binary(v -> v))));
     }
 
     private Map<String, Property> addContentDefinition() {
@@ -1296,13 +1299,17 @@ public class ElasticsearchClient {
     }
 
     public HitsMetadata<Map> search(String index, Query query, int from, int size, List<String> excludes) throws IOException {
-        SearchResponse<Map> searchResponse = client.search(req -> req
-                        .index(index)
-                        .query(query)
-                        .from(from)
-                        .size(size)
-                        .trackTotalHits(t -> t.enabled(true))
-                        .source(src -> src.filter(fetch -> fetch.excludes(excludes)))
+        SearchResponse<Map> searchResponse = client.search(req -> {
+                    req.index(index)
+                            .query(query)
+                            .from(from)
+                            .size(size)
+                            .trackTotalHits(t -> t.enabled(true));
+                    if (excludes != null) {
+                        req.source(src -> src.filter(fetch -> fetch.excludes(excludes)));
+                    }
+                    return req;
+                }
                 , Map.class);
         return searchResponse.hits();
     }
