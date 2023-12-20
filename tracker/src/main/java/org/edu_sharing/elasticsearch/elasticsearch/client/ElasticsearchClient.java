@@ -4,7 +4,7 @@ package org.edu_sharing.elasticsearch.elasticsearch.client;
 import co.elastic.clients.elasticsearch._types.*;
 import co.elastic.clients.elasticsearch._types.mapping.DynamicMapping;
 import co.elastic.clients.elasticsearch._types.mapping.DynamicTemplate;
-import co.elastic.clients.elasticsearch._types.mapping.Property;
+import co.elastic.clients.elasticsearch._types.mapping.MatchType;
 import co.elastic.clients.elasticsearch._types.mapping.TypeMapping;
 import co.elastic.clients.elasticsearch._types.query_dsl.Query;
 import co.elastic.clients.elasticsearch.core.*;
@@ -21,11 +21,11 @@ import net.sourceforge.cardme.engine.VCardEngine;
 import net.sourceforge.cardme.vcard.VCard;
 import net.sourceforge.cardme.vcard.exceptions.VCardParseException;
 import net.sourceforge.cardme.vcard.types.ExtendedType;
+import net.sourceforge.cardme.vcard.types.NType;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.tomcat.util.buf.StringUtils;
 import org.edu_sharing.elasticsearch.alfresco.client.*;
-import org.edu_sharing.elasticsearch.alfresco.client.Node;
 import org.edu_sharing.elasticsearch.edu_sharing.client.EduSharingClient;
 import org.edu_sharing.elasticsearch.edu_sharing.client.NodeStatistic;
 import org.edu_sharing.elasticsearch.tools.ScriptExecutor;
@@ -171,7 +171,7 @@ public class ElasticsearchClient {
                 .script(scr -> scr
                         .inline(il -> il
                                 .source("ctx._source.permissions=params")
-                                .params(permissions.entrySet().stream().collect(Collectors.toMap(Map.Entry::getKey, x->JsonData.of(x.getValue()))))))
+                                .params(permissions.entrySet().stream().collect(Collectors.toMap(Map.Entry::getKey, x -> JsonData.of(x.getValue()))))))
         );
         logger.debug("updated: {}", bulkByScrollResponse.updated());
         List<BulkIndexByScrollFailure> bulkFailures = bulkByScrollResponse.failures();
@@ -236,9 +236,9 @@ public class ElasticsearchClient {
             NodeMetadata node = nodeData.getNodeMetadata();
             Object data = get(nodeData, null).build();
             operations.add(BulkOperation.of(op -> op.index(iop -> iop
-                            .index(INDEX_WORKSPACE)
-                            .id(Long.toString(node.getId()))
-                            .document(data))));
+                    .index(INDEX_WORKSPACE)
+                    .id(Long.toString(node.getId()))
+                    .document(data))));
 
             if (nodeCounter.addAndGet(1) % 100 == 0) {
                 logger.info("Processed " + nodeCounter.get() + " nodes (" + (System.currentTimeMillis() - lastNodeCount.get()) + "ms per last 100 nodes)");
@@ -248,7 +248,7 @@ public class ElasticsearchClient {
 
         if (useBulkUpdate && !operations.isEmpty()) {
             logger.info("starting bulk update:");
-            BulkResponse bulkResponse = client.bulk(req->req.index(INDEX_WORKSPACE).operations(operations));
+            BulkResponse bulkResponse = client.bulk(req -> req.index(INDEX_WORKSPACE).operations(operations));
             logger.info("finished bulk update:");
 
             Map<Long, NodeData> collectionNodes = new HashMap<>();
@@ -522,9 +522,11 @@ public class ElasticsearchClient {
                                     builder.startObject();
                                     builder.field("property", entry.getKey());
                                     if (vcard.getN() != null) {
-                                        builder.field("firstname", vcard.getN().getGivenName());
-                                        builder.field("lastname", vcard.getN().getFamilyName());
+                                        NType n = vcard.getN();
+                                        builder.field("firstname", n.getGivenName());
+                                        builder.field("lastname", n.getFamilyName());
                                     }
+
                                     if (vcard.getEmails() != null && !vcard.getEmails().isEmpty()) {
                                         builder.field("email", vcard.getEmails().get(0).getEmail());
                                     }
@@ -536,6 +538,13 @@ public class ElasticsearchClient {
                                     }
                                     if (vcard.getOrg() != null) {
                                         builder.field("org", vcard.getOrg().getOrgName());
+                                    }
+
+                                    if (vcard.getN() != null) {
+                                        NType n = vcard.getN();
+                                        builder.field("displayname", vcard.getTitle() + " " + n.getGivenName() + " " + n.getFamilyName());
+                                    } else if (vcard.getOrg() != null) {
+                                        builder.field("displayname", vcard.getOrg().getOrgName());
                                     }
 
                                     List<ExtendedType> extendedTypes = vcard.getExtendedTypes();
@@ -1164,10 +1173,99 @@ public class ElasticsearchClient {
         //noinspection unchecked
         return mapping.dynamic(DynamicMapping.True)
                 .numericDetection(true)
-                .dynamicTemplates(Map.of("aggregated_type", DynamicTemplate.of(dt -> dt
+                .dynamicTemplates(
+                        Map.of("aggregated_type", DynamicTemplate.of(dt -> dt
                                 .matchMappingType("string")
                                 .pathMatch("properties_aggregated.*")
                                 .mapping(mp -> mp.keyword(kw -> kw.ignoreAbove(256).store(true))))),
+
+                        Map.of("nodeRef_type", DynamicTemplate.of(dt -> dt
+                                .matchMappingType("object")
+                                .matchPattern(MatchType.Regex)
+                                .pathMatch("^(?:\\w+\\.)*(nodeRef|parentRef)$")
+                                .mapping(mp -> mp
+                                        .object(nodeRefObj -> nodeRefObj
+                                                .properties("id", storeRefProp -> storeRefProp.keyword(v -> v))
+                                                .properties("storeRef", storeRefProp -> storeRefProp
+                                                        .object(storeRefObj -> storeRefObj
+                                                                .properties("protocol", protProp -> protProp.keyword(v -> v))
+                                                                .properties("identifier", idProp -> idProp.keyword(v -> v)))))))),
+
+                        Map.of("owner_type", DynamicTemplate.of(dt -> dt
+                                .matchMappingType("*")
+                                .matchPattern(MatchType.Regex)
+                                .pathMatch("^(?:\\w+\\.)*owner$")
+                                .mapping(mp -> mp.keyword(v -> v)))),
+
+                        Map.of("path_type", DynamicTemplate.of(dt -> dt
+                                .matchMappingType("*")
+                                .matchPattern(MatchType.Regex)
+                                .pathMatch("^(?:\\w+\\.)*path$")
+                                .mapping(mp -> mp.keyword(v -> v)))),
+
+                        Map.of("fullpath_type", DynamicTemplate.of(dt -> dt
+                                .matchMappingType("*")
+                                .matchPattern(MatchType.Regex)
+                                .pathMatch("^(?:\\w+\\.)*fullpath$")
+                                .mapping(mp -> mp.keyword(v -> v)))),
+
+                        Map.of("aspects_type", DynamicTemplate.of(dt -> dt
+                                .matchMappingType("*")
+                                .matchPattern(MatchType.Regex)
+                                .pathMatch("^(?:\\w+\\.)*aspects$")
+                                .mapping(mp -> mp.keyword(v -> v)))),
+
+                        Map.of("permissions_type", DynamicTemplate.of(dt -> dt
+                                .matchMappingType("*")
+                                .matchPattern(MatchType.Regex)
+                                .pathMatch("^(?:\\w+\\.)*permissions.(\\w*.)*$")
+                                .mapping(mp -> mp.keyword(v -> v)))),
+
+                        Map.of("type_type", DynamicTemplate.of(dt -> dt
+                                .matchMappingType("*")
+                                .matchPattern(MatchType.Regex)
+                                .pathMatch("^(?:\\w+\\.)*type$")
+                                .mapping(mp -> mp.keyword(v -> v)))),
+
+                        Map.of("content_type", DynamicTemplate.of(dt -> dt
+                                .matchMappingType("*")
+                                .matchPattern(MatchType.Regex)
+                                .pathMatch("^(?:\\w+\\.)*content$")
+                                .mapping(mp -> mp
+                                        .object(obj -> obj
+                                                .properties("fulltext", prop -> prop.text(v -> v))
+                                                .properties("contentId", prop -> prop.long_(v -> v))
+                                                .properties("size", prop -> prop.long_(v -> v))
+                                                .properties("encoding", prop -> prop.keyword(v -> v))
+                                                .properties("locale", prop -> prop.keyword(v -> v))
+                                                .properties("mimetype", prop -> prop.keyword(v -> v)))))),
+
+                        Map.of("properties_type", DynamicTemplate.of(dt -> dt
+                                .matchMappingType("*")
+                                .matchPattern(MatchType.Regex)
+                                .pathMatch("^(?:\\w+\\.)*properties.(ccm:original|cclom:location|sys:node-uuid|cclom:format|cm:versionLabel)$")
+                                .mapping(mp -> mp.keyword(v -> v)))),
+
+                        Map.of("title_type", DynamicTemplate.of(dt -> dt
+                                .matchMappingType("*")
+                                .matchPattern(MatchType.Regex)
+                                .pathMatch("^(?:\\w+\\.)*properties.(cclom:title)$")
+                                .mapping(mp -> mp.text(t -> t.copyTo("properties_aggregated.cclom:title")
+                                        .fields("keyword", prop -> prop.keyword(v -> v.ignoreAbove(256)))
+                                        .fields("trigram", prop -> prop.text(v -> v.analyzer("trigram")))
+                                        .fields("reverse", prop -> prop.text(v -> v.analyzer("reverse"))))))),
+
+                        Map.of("contributor_type", DynamicTemplate.of(dt -> dt
+                                .matchMappingType("*")
+                                .matchPattern(MatchType.Regex)
+                                .pathMatch("^(?:\\w+\\.)*contributor.(email|firstname|lastname|org|url|uuid|vcard)$")
+                                .mapping(mp -> mp.keyword(v -> v)))),
+
+                        Map.of("long_type", DynamicTemplate.of(dt -> dt
+                                .matchMappingType("*")
+                                .matchPattern(MatchType.Regex)
+                                .pathMatch("^(?:\\w+\\.)*(aclId|txnId|dbid)$")
+                                .mapping(mp -> mp.long_(v -> v)))),
 
                         Map.of("convert_date", DynamicTemplate.of(dt -> dt
                                 .matchMappingType("date")
@@ -1190,6 +1288,12 @@ public class ElasticsearchClient {
                                         .fields("keyword", f -> f.keyword(kw -> kw.ignoreAbove(256)))
                                         .fields("number", f -> f.float_(v -> v.ignoreMalformed(true))))))),
 
+                        Map.of("copy_facettes", DynamicTemplate.of(dt -> dt
+                                .matchMappingType("string")
+                                .pathMatch("*properties.*")
+                                .mapping(mp -> mp.text(t -> t.copyTo("properties_aggregated.{name}")
+                                        .fields("keyword", f -> f.keyword(kw -> kw.ignoreAbove(256))))))),
+
                         Map.of("convert_date_aggregated", DynamicTemplate.of(dt -> dt
                                 .matchMappingType("date")
                                 .pathMatch("*properties_aggregated.*")
@@ -1211,12 +1315,6 @@ public class ElasticsearchClient {
                                         .fields("keyword", f -> f.keyword(kw -> kw.ignoreAbove(256)))
                                         .fields("number", f -> f.float_(v -> v.ignoreMalformed(true))))))),
 
-                        Map.of("copy_facettes", DynamicTemplate.of(dt -> dt
-                                .matchMappingType("string")
-                                .pathMatch("*properties.*")
-                                .mapping(mp -> mp.text(t -> t.copyTo("properties_aggregated.{name}")
-                                        .fields("keyword", f -> f.keyword(kw -> kw.ignoreAbove(256))))))),
-
                         Map.of("statistics_rating", DynamicTemplate.of(dt -> dt
                                 .pathMatch("statistic_RATING_*")
                                 .mapping(mp -> mp.float_(f -> f)))),
@@ -1225,56 +1323,9 @@ public class ElasticsearchClient {
                                 .pathMatch("statistic_*")
                                 .mapping(mp -> mp.long_(l -> l))))
                 )
-                .properties("aclId", prop -> prop.long_(v -> v))
-                .properties("txnId", prop -> prop.long_(v -> v))
-                .properties("dbid", prop -> prop.long_(v -> v))
-                .properties("parentRef", parentRefProp -> parentRefProp
-                        .object(parentRefObj -> parentRefObj
-                                .properties("id", storeRefProp -> storeRefProp.keyword(v -> v))
-                                .properties("storeRef", storeRefProp -> storeRefProp
-                                        .object(storeRefObj -> storeRefObj
-                                                .properties("protocol", protProp -> protProp.keyword(v -> v))
-                                                .properties("identifier", idProp -> idProp.keyword(v -> v))))))
-                .properties("nodeRef", parentRefProp -> parentRefProp
-                        .object(parentRefObj -> parentRefObj
-                                .properties("id", storeRefProp -> storeRefProp.keyword(v -> v))
-                                .properties("storeRef", storeRefProp -> storeRefProp
-                                        .object(storeRefObj -> storeRefObj
-                                                .properties("protocol", protProp -> protProp.keyword(v -> v))
-                                                .properties("identifier", idProp -> idProp.keyword(v -> v))))))
-
-                .properties("owner", prop -> prop.keyword(v -> v))
-                .properties("type", prop -> prop.keyword(v -> v))
-                .properties("path", prop -> prop.keyword(v -> v))
-                .properties("fullpath", prop -> prop.keyword(v -> v))
-                .properties("permissions", prop -> prop
-                        .object(permObj -> permObj
-                                .properties("read", readProp -> readProp.keyword(v -> v))))
-                .properties(addContentDefinition())
-                .properties("properties", propProp -> propProp
-                        .object(propObj -> propObj
-                                .properties("ccm:original", prop -> prop.keyword(v -> v))
-                                .properties("cclom:location", prop -> prop.keyword(v -> v))
-                                .properties("sys:node-uuid", prop -> prop.keyword(v -> v))
-                                .properties("cclom:format", prop -> prop.keyword(v -> v))
-                                .properties("cm:versionLabel", prop -> prop.keyword(v -> v))
-                                .properties("cclom:title", titleProp -> titleProp
-                                        .text(t -> t.copyTo("properties_aggregated.cclom:title")
-                                                .fields("keyword", prop -> prop.keyword(v -> v.ignoreAbove(256)))
-                                                .fields("trigram", prop -> prop.text(v -> v.analyzer("trigram")))
-                                                .fields("reverse", prop -> prop.text(v -> v.analyzer("reverse")))))))
-                .properties("children", childProp -> childProp
-                        .object(childObj -> childObj
-                                .properties("type", prop -> prop.keyword(v -> v))
-                                .properties("aspects", prop -> prop.keyword(v -> v))
-                                .properties(addContentDefinition())
-                        ))
-                .properties("aspects", prop -> prop.keyword(v -> v))
-                .properties("collections", colProp -> colProp
-                        .object(colObj -> colObj
-                                .properties("dbid", prop -> prop.long_(v -> v))
-                                .properties("aclId", prop -> prop.long_(v -> v))
-                        ))
+                .properties("contributor", prop -> prop.nested(v -> v))
+                .properties("children", prop -> prop.nested(v -> v))
+                .properties("collections", colProp -> colProp.nested(v -> v))
                 .properties("preview", previewProp -> previewProp
                         .object(previewObj -> previewObj
                                 .properties("mimetype", prop -> prop.keyword(v -> v))
@@ -1283,16 +1334,6 @@ public class ElasticsearchClient {
                                 .properties("small", prop -> prop.binary(v -> v))));
     }
 
-    private Map<String, Property> addContentDefinition() {
-        return Map.of("content", Property.of(contentProps -> contentProps
-                .object(obj -> obj
-                        .properties("fulltext", prop -> prop.text(v -> v))
-                        .properties("contentId", prop -> prop.long_(v -> v))
-                        .properties("size", prop -> prop.long_(v -> v))
-                        .properties("encoding", prop -> prop.keyword(v -> v))
-                        .properties("locale", prop -> prop.keyword(v -> v))
-                        .properties("mimetype", prop -> prop.keyword(v -> v)))));
-    }
 
     public HitsMetadata<Map> search(String index, Query queryBuilder, int from, int size) throws IOException {
         return this.search(index, queryBuilder, from, size, null);
