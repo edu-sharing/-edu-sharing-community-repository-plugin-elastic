@@ -1,26 +1,22 @@
 package org.edu_sharing.elasticsearch.tracker;
 
+import io.micrometer.core.instrument.util.StringUtils;
 import org.edu_sharing.elasticsearch.alfresco.client.Node;
 import org.edu_sharing.elasticsearch.alfresco.client.NodeData;
 import org.edu_sharing.elasticsearch.alfresco.client.NodeMetadata;
-import org.edu_sharing.elasticsearch.edu_sharing.client.EduSharingClient;
 import org.edu_sharing.elasticsearch.edu_sharing.client.NodeStatistic;
 import org.edu_sharing.elasticsearch.elasticsearch.client.ElasticsearchClient;
 import org.edu_sharing.elasticsearch.tools.Tools;
 import org.edu_sharing.repository.client.tools.CCConstants;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.context.annotation.Conditional;
 import org.springframework.stereotype.Component;
 
-import javax.annotation.PostConstruct;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.*;
-import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
@@ -33,7 +29,7 @@ public class TransactionTracker extends TransactionTrackerBase{
     @Value("${allowed.types}")
     String allowedTypes;
 
-    List<String> subTypes = Arrays.asList(new String[]{"ccm:io","ccm:rating","ccm:comment","ccm:usage","ccm:collection_proposal"});
+    List<String> subTypes = Arrays.asList("ccm:io","ccm:rating","ccm:comment","ccm:usage","ccm:collection_proposal");
 
     @Value("${index.storerefs}")
     List<String> indexStoreRefs;
@@ -54,7 +50,7 @@ public class TransactionTracker extends TransactionTrackerBase{
                 .filter(n -> indexStoreRefs.contains(Tools.getStoreRef(n.getNodeRef())))
                 .collect(Collectors.toList());
 
-        if(nodes.size() == 0){
+        if(nodes.isEmpty()){
             return;
         }
 
@@ -122,10 +118,10 @@ public class TransactionTracker extends TransactionTrackerBase{
                 String parentId = splitted[splitted.length -1];
                 Serializable value = elasticClient.getProperty(CCConstants.STORE_WORKSPACES_SPACES+"/"+parentId,"dbid");
                 if(value != null){
-                    Long parentDbid = ((Number)value).longValue();
+                    long parentDbid = ((Number)value).longValue();
                     logger.info("FOUND PARENT IO WITH "+ parentDbid);
                     //check if exists in list
-                    if(!nodeData.stream().anyMatch(n -> n.getId() == parentDbid)){
+                    if(nodeData.stream().noneMatch(n -> n.getId() == parentDbid)){
                         Node n = new Node();
                         n.setId(parentDbid);
                         ioSubobjectChange.add(n);
@@ -133,7 +129,7 @@ public class TransactionTracker extends TransactionTrackerBase{
                 }//else io does not exist in index
             }
 
-            if(allowedTypes != null && !allowedTypes.trim().equals("")){
+            if(StringUtils.isNotBlank(allowedTypes)){
                 String[] allowedTypesArray = allowedTypes.split(",");
                 String type = data.getType();
 
@@ -145,7 +141,7 @@ public class TransactionTracker extends TransactionTrackerBase{
             toIndexMd.add(data);
         }
 
-        if(ioSubobjectChange.size() > 0){
+        if(!ioSubobjectChange.isEmpty()){
             toIndexMd.addAll(client.getNodeMetadata(ioSubobjectChange));
         }
 
@@ -199,13 +195,11 @@ public class TransactionTracker extends TransactionTrackerBase{
     }
 
     public boolean isAllowedType(NodeMetadata nodeMetadata){
-        if(allowedTypes != null && !allowedTypes.trim().equals("")){
+        if(StringUtils.isNotBlank(allowedTypes)){
             String[] allowedTypesArray = allowedTypes.split(",");
             String type = nodeMetadata.getType();
 
-            if(!Arrays.asList(allowedTypesArray).contains(type)){
-                return false;
-            }
+            return Arrays.asList(allowedTypesArray).contains(type);
         }
         return true;
     }

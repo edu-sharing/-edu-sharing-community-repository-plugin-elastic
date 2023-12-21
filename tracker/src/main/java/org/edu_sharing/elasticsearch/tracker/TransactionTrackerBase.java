@@ -78,7 +78,7 @@ public abstract class TransactionTrackerBase implements TransactionTrackerInterf
                 return false;
             }
 
-            if(transactions.getTransactions().size() == 0){
+            if(transactions.getTransactions().isEmpty()){
                 if(maxTrackerTxnId <= (lastTransactionId + transactionsMax)){
                     logger.info("index is up to date getMaxTxnId():"+ maxTrackerTxnId);
                     return false;
@@ -137,7 +137,7 @@ public abstract class TransactionTrackerBase implements TransactionTrackerInterf
 
     private Double calcProgress(Transactions transactions, List<Long> transactionIds){
         Long last = transactionIds.get(transactionIds.size() - 1);
-        return  (transactionIds != null && transactionIds.size() > 0) ? new Double(((double) last / (double)getMaxTxnId(transactions)) * 100.0)  : 0.0;
+        return (double) last / (double)getMaxTxnId(transactions) * 100.0d;
     }
 
     void commit(long txId) throws IOException{

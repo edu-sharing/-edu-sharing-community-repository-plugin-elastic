@@ -12,8 +12,7 @@ public class Tools {
         String auth = user + ":" + password;
         byte[] encodedAuth = Base64.encodeBase64(
                 auth.getBytes(StandardCharsets.ISO_8859_1));
-        String authHeader = "Basic " + new String(encodedAuth);
-        return authHeader;
+        return "Basic " + new String(encodedAuth);
     }
 
     public static String getStoreRef(String nodeRef){
@@ -29,7 +28,7 @@ public class Tools {
     }
 
     public static String getUUID(String nodeRef){
-        return nodeRef.split("://")[1].split("(/|\\|)")[1];
+        return nodeRef.split("://")[1].split("([/|])")[1];
     }
 
     public static void main(String[] args) {

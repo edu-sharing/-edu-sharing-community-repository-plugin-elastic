@@ -102,10 +102,6 @@ public class FixMissingTracker extends TransactionTracker{
 
     /**
      * returns number of nodes metadata was fetched
-     *
-     * @param nodes
-     * @return
-     * @throws IOException
      */
     private int index(List<Node> nodes) throws IOException{
         long millis = System.currentTimeMillis();
@@ -130,7 +126,7 @@ public class FixMissingTracker extends TransactionTracker{
 
         //sort to originally order
         List<NodeMetadata> nodeData = new ArrayList<>();
-        nodes.stream().forEach(n -> {
+        nodes.forEach(n -> {
             NodeMetadata nodeMetadata = tmpNodeData.stream().
                     filter(nd -> nd != null && (nd.getId() == n.getId())).
                     findFirst().
@@ -148,17 +144,17 @@ public class FixMissingTracker extends TransactionTracker{
 
         List<Node> missingMetadata = new ArrayList<>();
         for(Node node : nodes){
-            boolean isPresent = nodeData.stream().filter(n ->  n.getId() == node.getId()).findFirst().isPresent();
+            boolean isPresent = nodeData.stream().anyMatch(n ->  n.getId() == node.getId());
             if(!isPresent){
-                logNodeProblem("Problem fetching NodeMetadata for",node);
+                logNodeProblem(node);
                 logUnresolveableNode(Long.toString(node.getId()));
                 missingMetadata.add(node);
             }
         }
 
-        if(missingMetadata.size() > 0){
+        if(!missingMetadata.isEmpty()){
             List<String> errorNodes = new ArrayList<>();
-            missingMetadata.stream().forEach(n -> {
+            missingMetadata.forEach(n -> {
                 errorNodes.add( n.getNodeRef() +" id:" +n.getId());
             });
             throw new RuntimeException("fetching metadata of nodes failed:" + Arrays.toString(errorNodes.toArray()));
@@ -171,9 +167,9 @@ public class FixMissingTracker extends TransactionTracker{
                 //2-4ms
                 //GetResponse resp = elasticClient.get(ElasticsearchClient.INDEX_WORKSPACE, new Long(nodeMetadata.getId()).toString());
                 if (!elasticClient.exists(ElasticsearchClient.INDEX_WORKSPACE, Long.toString(nodeMetadata.getId()))) {
-                    logNodeProblem("node does not exist in elastic id:", nodeMetadata);
+                    logNodeProblem(nodeMetadata);
                     if(repair){
-                        indexNodesMetadata(Arrays.asList(nodeMetadata));
+                        indexNodesMetadata(List.of(nodeMetadata));
                         if("ccm:usage".equals(nodeMetadata.getType())
                                 || "ccm:collection_proposal".equals(nodeMetadata.getType())){
                             logger.info("sync collections for usage:" + nodeMetadata.getId());
@@ -187,12 +183,12 @@ public class FixMissingTracker extends TransactionTracker{
         return counter.get();
     }
 
-    private void logNodeProblem(String message, Node node){
-        logger.error(message + " " + node.getId() +" nodeRef:"+node.getNodeRef() +" s:"+node.getStatus() +" txId:"+node.getTxnId());
+    private void logNodeProblem(Node node){
+        logger.error("Problem fetching NodeMetadata for" + " " + node.getId() +" nodeRef:"+node.getNodeRef() +" s:"+node.getStatus() +" txId:"+node.getTxnId());
     }
 
-    private void logNodeProblem(String message, NodeMetadata node){
-        logger.error(message + " " + node.getId() +" nodeRef:"+node.getNodeRef() + " type:" + node.getType() +" txId:"+node.getTxnId());
+    private void logNodeProblem(NodeMetadata node){
+        logger.error("node does not exist in elastic id:" + " " + node.getId() +" nodeRef:"+node.getNodeRef() + " type:" + node.getType() +" txId:"+node.getTxnId());
     }
 
     @Override

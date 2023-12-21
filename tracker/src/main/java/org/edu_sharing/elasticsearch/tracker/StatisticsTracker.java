@@ -6,7 +6,6 @@ import org.edu_sharing.elasticsearch.elasticsearch.client.ElasticsearchClient;
 import org.edu_sharing.elasticsearch.elasticsearch.client.StatisticTimestamp;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -21,11 +20,8 @@ public class StatisticsTracker {
     @Value("${statistic.historyInDays}")
     long historyInDays;
 
-    @Autowired
-    private ElasticsearchClient elasticClient;
-
-    @Autowired
-    private EduSharingClient eduSharingClient;
+    private final ElasticsearchClient elasticClient;
+    private final EduSharingClient eduSharingClient;
 
 
 
@@ -38,10 +34,15 @@ public class StatisticsTracker {
     long trackTsTo = -1;
     boolean allNodesInIndex = true;
 
+    public StatisticsTracker(ElasticsearchClient elasticClient, EduSharingClient eduSharingClient) {
+        this.elasticClient = elasticClient;
+        this.eduSharingClient = eduSharingClient;
+    }
+
     public void track(){
         try {
 
-            if(currentChunks.size() == 0) {
+            if(currentChunks.isEmpty()) {
                 allNodesInIndex = true;
 
                 trackTs = getTodayMidnight();
@@ -85,9 +86,9 @@ public class StatisticsTracker {
                     logger.error("problems reaching elastic search server",e);
                 }
             }
-            successfullChunks.stream().forEach(c -> currentChunks.remove(c));
+            successfullChunks.forEach(c -> currentChunks.remove(c));
 
-            if(currentChunks.size() == 0) {
+            if(currentChunks.isEmpty()) {
                 logger.info("finished statistics until:" + new Date(trackTsTo));
                 elasticClient.setStatisticTimestamp(trackTsTo, allNodesInIndex);
             }

@@ -31,7 +31,6 @@ import org.edu_sharing.elasticsearch.edu_sharing.client.NodeStatistic;
 import org.edu_sharing.elasticsearch.tools.ScriptExecutor;
 import org.edu_sharing.elasticsearch.tools.Tools;
 import org.edu_sharing.repository.client.tools.CCConstants;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.json.BasicJsonParser;
 import org.springframework.boot.json.JsonParseException;
@@ -93,8 +92,6 @@ public class ElasticsearchClient {
 
     public static String INDEX_TRANSACTIONS = "transactions";
 
-    public static String TYPE = "node";
-
     final static String ID_TRANSACTION = "1";
 
     final static String ID_ACL_CHANGESET = "2";
@@ -106,21 +103,24 @@ public class ElasticsearchClient {
 
     String homeRepoId;
 
-    @Autowired
-    co.elastic.clients.elasticsearch.ElasticsearchClient client = null;
+    private final co.elastic.clients.elasticsearch.ElasticsearchClient client;
 
-    @Autowired
-    ScriptExecutor scriptExecutor;
+    private final ScriptExecutor scriptExecutor;
 
-    @Autowired
-    private EduSharingClient eduSharingClient;
-    private AtomicInteger nodeCounter = new AtomicInteger(0);
-    private AtomicLong lastNodeCount = new AtomicLong(System.currentTimeMillis());
+    private final EduSharingClient eduSharingClient;
+    private final AtomicInteger nodeCounter = new AtomicInteger(0);
+    private final AtomicLong lastNodeCount = new AtomicLong(System.currentTimeMillis());
 
-    @Autowired
-    AlfrescoWebscriptClient alfrescoClient;
+    private final AlfrescoWebscriptClient alfrescoClient;
 
     private final SearchHitsRunner searchHitsRunner = new SearchHitsRunner(this);
+
+    public ElasticsearchClient(co.elastic.clients.elasticsearch.ElasticsearchClient client, ScriptExecutor scriptExecutor, EduSharingClient eduSharingClient, AlfrescoWebscriptClient alfrescoClient) {
+        this.client = client;
+        this.scriptExecutor = scriptExecutor;
+        this.eduSharingClient = eduSharingClient;
+        this.alfrescoClient = alfrescoClient;
+    }
 
     @PostConstruct
     public void init() throws IOException {
@@ -201,9 +201,6 @@ public class ElasticsearchClient {
             > request, Class<TDocument> tDocClass) throws IOException {
 
         UpdateResponse<TDocument> updateResponse = client.update(request, tDocClass);
-//        String index = updateResponse.index();
-//        String id = updateResponse.id();
-//        long version = updateResponse.version();
 
         if (Objects.requireNonNull(updateResponse.result()) == Result.Created) {
             logger.error("object did not exist");
@@ -727,7 +724,7 @@ public class ElasticsearchClient {
                     Map<String, Object> relation = (Map<String, Object>) collection.get("relation");
                     if (relation != null) {
                         long dbidRelation = ((Number) (relation.get("dbid"))).longValue();
-                        if (!colIsTheSame || (colIsTheSame && dbidRelation != usageOrProposal.getId())) {
+                        if (!colIsTheSame || dbidRelation != usageOrProposal.getId()) {
                             builder.startObject();
                             for (Map.Entry<String, Object> entry : collection.entrySet()) {
                                 if (entry.getKey().equals("children")) continue;
@@ -766,8 +763,6 @@ public class ElasticsearchClient {
     /**
      * checks if its a collection usage by searching for collections.usagedbid, and removes replicated collection object
      *
-     * @param nodes
-     * @throws IOException
      */
     public void beforeDeleteCleanupCollectionReplicas(List<Node> nodes) throws IOException {
         logger.info("starting: " + nodes.size());
@@ -859,8 +854,6 @@ public class ElasticsearchClient {
     /**
      * update ios collection metdata, that are containted inside a collection
      *
-     * @param nodeCollection
-     * @throws IOException
      * @deprecated
      */
     private void _onUpdateRefreshCollectionReplicas(Node nodeCollection) throws IOException {
@@ -1103,7 +1096,7 @@ public class ElasticsearchClient {
             sTs = new StatisticTimestamp();
             sTs.setStatisticTimestamp(Long.parseLong(resp.source().get("statisticTimestamp").toString()));
             Boolean allInIndex = (Boolean) resp.source().get("allInIndex");
-            sTs.setAllInIndex((allInIndex == null) ? false : allInIndex);
+            sTs.setAllInIndex(allInIndex != null && allInIndex);
         }
         return sTs;
     }
@@ -1127,10 +1120,6 @@ public class ElasticsearchClient {
         logger.info("returning");
     }
 
-    /**
-     * @throws IOException
-     * @TODO
-     */
     public void createIndexWorkspace() throws IOException {
         try {
 
@@ -1388,9 +1377,7 @@ public class ElasticsearchClient {
     }
 
     /**
-     * @param nodeStatistics
      * @return true when all uuids already exist in index
-     * @throws IOException
      */
     public boolean updateNodeStatistics(Map<String, List<NodeStatistic>> nodeStatistics) throws IOException {
 
@@ -1437,7 +1424,7 @@ public class ElasticsearchClient {
                                 logger.debug("there is a null value in statistics list:" + nodeRef);
                                 continue;
                             }
-                            if (nodeStatistic.getCounts() == null || nodeStatistic.getCounts().size() == 0) continue;
+                            if (nodeStatistic.getCounts() == null || nodeStatistic.getCounts().isEmpty()) continue;
                             String DOWNLOAD = "DOWNLOAD_MATERIAL";
                             String VIEW = "VIEW_MATERIAL";
                             String fieldNameDownload = "statistic_" + DOWNLOAD + "_" + nodeStatistic.getTimestamp();

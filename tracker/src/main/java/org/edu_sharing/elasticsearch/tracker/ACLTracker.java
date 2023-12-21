@@ -17,17 +17,12 @@ import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
+
 @Component
 public class ACLTracker {
 
-    @Autowired
-    private AlfrescoWebscriptClient client;
-
-    @Autowired
-    private ElasticsearchClient elasticClient;
-
-    @Autowired
-    private EduSharingClient eduSharingClient;
+    private final AlfrescoWebscriptClient client;
+    private final ElasticsearchClient elasticClient;
 
     @Value("${allowed.types}")
     String allowedTypes;
@@ -40,13 +35,16 @@ public class ACLTracker {
     @Value("${tracker.timestep:36000000}")
     int nextTimeStep;
 
-    final static String storeWorkspace = "workspace://SpacesStore";
-
     Logger logger = LoggerFactory.getLogger(ACLTracker.class);
+
+    public ACLTracker(AlfrescoWebscriptClient client, ElasticsearchClient elasticClient) {
+        this.client = client;
+        this.elasticClient = elasticClient;
+    }
 
     @PostConstruct
     public void init() throws IOException {
-        ACLChangeSet aclChangeSet = null;
+        ACLChangeSet aclChangeSet;
         try {
             aclChangeSet = elasticClient.getACLChangeSet();
             if (aclChangeSet != null) {
@@ -80,7 +78,7 @@ public class ACLTracker {
         }
 
 
-        if (aclChangeSets.getAclChangeSets().size() == 0) {
+        if (aclChangeSets.getAclChangeSets().isEmpty()) {
 
             if (aclChangeSets.getMaxChangeSetId() <= lastACLChangeSetId) {
                 logger.info("index is up to date:" + lastACLChangeSetId + " lastFromCommitTime:" + lastFromCommitTime);
@@ -93,7 +91,6 @@ public class ACLTracker {
             return false;
         }
 
-        AclChangeSet first = aclChangeSets.getAclChangeSets().get(0);
         AclChangeSet last = aclChangeSets.getAclChangeSets().get(aclChangeSets.getAclChangeSets().size() - 1);
 
         try {
@@ -174,7 +171,7 @@ public class ACLTracker {
             logger.error("elastic search server not reachable", e);
         }
 
-        Double percentage = (aclChangeSets != null) ? new Double(((double) aclChangeSets.getAclChangeSets().get(aclChangeSets.getAclChangeSets().size() - 1).getId() - 1) / (double) aclChangeSets.getMaxChangeSetId() * 100.0)  : 0.0;
+        double percentage = ((double) aclChangeSets.getAclChangeSets().get(aclChangeSets.getAclChangeSets().size() - 1).getId() - 1) / (double) aclChangeSets.getMaxChangeSetId() * 100.0d;
         DecimalFormat df = new DecimalFormat("0.00");
         logger.info("finished "+df.format(percentage)+"% lastACLChangeSetId:" + last.getId());
         return true;

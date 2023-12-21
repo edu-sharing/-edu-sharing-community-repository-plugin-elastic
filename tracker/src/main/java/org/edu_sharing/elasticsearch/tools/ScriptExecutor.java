@@ -11,11 +11,9 @@ import org.edu_sharing.elasticsearch.edu_sharing.client.EduSharingClient;
 import org.edu_sharing.elasticsearch.elasticsearch.client.DataBuilder;
 import org.edu_sharing.elasticsearch.elasticsearch.client.ElasticsearchClient;
 import org.edu_sharing.repository.client.tools.CCConstants;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.io.File;
-import java.io.IOException;
 import java.io.Serializable;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -30,33 +28,27 @@ import java.util.stream.Collectors;
 @Service
 public class ScriptExecutor {
     static Logger logger = LogManager.getLogger(ScriptExecutor.class);
-    @Autowired
-    private EduSharingClient eduSharingClient;
-
+    private final EduSharingClient eduSharingClient;
     private final ScriptLoaderConfiguration.ScriptLoaderService scriptLoaderService;
     private File[] scripts = new File[0];
 
-    public ScriptExecutor(
-            @SuppressWarnings("SpringJavaInjectionPointsAutowiringInspection")
-            ScriptLoaderConfiguration.ScriptLoaderService scriptLoaderService
-    ) {
+    public ScriptExecutor(EduSharingClient eduSharingClient, ScriptLoaderConfiguration.ScriptLoaderService scriptLoaderService) {
+        this.eduSharingClient = eduSharingClient;
         this.scriptLoaderService = scriptLoaderService;
         init();
     }
 
-    public boolean addCustomPropertiesByScript(DataBuilder builder, NodeData nodeData) throws IOException {
-        boolean hasData = false;
+    public void addCustomPropertiesByScript(DataBuilder builder, NodeData nodeData) {
         Map<String, Serializable> metadata = nodeData.getNodeMetadata().getProperties().entrySet().stream()
-                .collect(HashMap::new, (m,v)->m.put(CCConstants.getValidLocalName(v.getKey()), v.getValue()), HashMap::putAll);
+                .collect(HashMap::new, (m, v) -> m.put(CCConstants.getValidLocalName(v.getKey()), v.getValue()), HashMap::putAll);
         builder.startObject("customProperties");
         for (File script : scripts) {
             try {
 
                 Binding sharedData = getBindings(metadata);
                 GroovyShell shell = new GroovyShell(sharedData);
-                Map<String, Serializable> result =
-                        (Map<String, Serializable>) shell.evaluate(script);
-                if(result != null) {
+                Map<String, Serializable> result = (Map<String, Serializable>) shell.evaluate(script);
+                if (result != null) {
                     String mds = eduSharingClient.getMdsId(nodeData);
                     for (Map.Entry<String, Serializable> entry : result.entrySet()) {
                         String key = entry.getKey();
@@ -68,14 +60,12 @@ public class ScriptExecutor {
                         ));
                     }
 
-                    hasData = true;
                 }
-            } catch(Throwable t) {
+            } catch (Throwable t) {
                 logger.warn("Could not execute script " + script.getName(), t);
             }
         }
         builder.endObject();
-        return hasData;
     }
 
     private Binding getBindings(Map<String, Serializable> metadata) {
@@ -88,7 +78,7 @@ public class ScriptExecutor {
     private Map<String, Set<VCard>> getContributor(Map<String, Serializable> metadata) {
         Map<String, Set<VCard>> result = new HashMap<>();
         Set<String> contributorProperties = metadata.keySet().stream().filter(key -> key != null && key.matches(ElasticsearchClient.CONTRIBUTOR_REGEX)).collect(Collectors.toSet());
-        if(contributorProperties.size() > 0){
+        if (!contributorProperties.isEmpty()) {
             VCardEngine vcardEngine = new VCardEngine();
             contributorProperties.forEach(key -> {
                 Serializable value = metadata.get(key);
@@ -107,10 +97,11 @@ public class ScriptExecutor {
         }
         return result;
     }
+
     private void init() {
         try {
             scripts = scriptLoaderService.getFiles();
-            if(scripts == null) {
+            if (scripts == null) {
                 scripts = new File[0];
             }
             Arrays.sort(scripts);

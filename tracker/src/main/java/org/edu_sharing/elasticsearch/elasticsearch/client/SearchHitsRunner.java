@@ -14,7 +14,7 @@ public final class SearchHitsRunner {
 
     private static final Logger logger = LoggerFactory.getLogger(SearchHitsRunner.class);
 
-    private ElasticsearchClient elasticClient;
+    private final ElasticsearchClient elasticClient;
     public SearchHitsRunner(ElasticsearchClient elasticClient){
         this.elasticClient = elasticClient;
     }

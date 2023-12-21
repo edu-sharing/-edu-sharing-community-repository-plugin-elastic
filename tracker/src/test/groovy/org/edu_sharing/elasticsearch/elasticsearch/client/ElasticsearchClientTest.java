@@ -16,8 +16,11 @@ import org.edu_sharing.elasticsearch.tools.ScriptExecutor;
 import org.edu_sharing.repository.client.tools.CCConstants;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentMatchers;
+import org.mockito.Mock;
 import org.mockito.Mockito;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.util.StreamUtils;
 
 import java.io.IOException;
@@ -31,7 +34,15 @@ import java.util.*;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+@ExtendWith(MockitoExtension.class)
 class ElasticsearchClientTest {
+
+    @Mock
+    private AlfrescoWebscriptClient alfrescoClient;
+    @Mock
+    private  co.elastic.clients.elasticsearch.ElasticsearchClient elasticsearchClient;
+    @Mock
+    private ScriptExecutor scriptExecutor;
 
     private ElasticsearchClient underTest;
 
@@ -44,13 +55,7 @@ class ElasticsearchClientTest {
 
     @BeforeEach
     void setUp() throws Exception {
-        ScriptExecutor scriptExecutorMock = Mockito.mock(ScriptExecutor.class);
-        AlfrescoWebscriptClient alfrescoClientMock = Mockito.mock(AlfrescoWebscriptClient.class);
-        co.elastic.clients.elasticsearch.ElasticsearchClient elasticsearchClient = Mockito.mock( co.elastic.clients.elasticsearch.ElasticsearchClient.class);
-        underTest = Mockito.spy(new ElasticsearchClient());
-        underTest.scriptExecutor = scriptExecutorMock;
-        underTest.alfrescoClient = alfrescoClientMock;
-        underTest.client = elasticsearchClient;
+        underTest = Mockito.spy(new ElasticsearchClient(elasticsearchClient, scriptExecutor, null, alfrescoClient));
         underTest.homeRepoId = "local";
     }
 
@@ -130,7 +135,7 @@ class ElasticsearchClientTest {
             );
         }}).when(hit).source();
 
-        Mockito.when(underTest.alfrescoClient.getNodeData(ArgumentMatchers.anyList())).thenReturn(Collections.singletonList(getNodeDataDummy(NodeData.class)));
+        Mockito.when(alfrescoClient.getNodeData(ArgumentMatchers.anyList())).thenReturn(Collections.singletonList(getNodeDataDummy(NodeData.class)));
         Mockito.doReturn(HitsMetadata.of((HitsMetadata.Builder<Map> b)->b.total(t->t.value(1).relation(TotalHitsRelation.Eq)).hits(hit))).when(underTest).search(ArgumentMatchers.anyString(), ArgumentMatchers.any(), ArgumentMatchers.anyInt(), ArgumentMatchers.anyInt());
 //        Mockito.doReturn(new SearchHits(new SearchHit[]{hit}, new TotalHits(1, TotalHits.Relation.EQUAL_TO), 1)).when(underTest).search(ArgumentMatchers.anyString(), ArgumentMatchers.any(), ArgumentMatchers.anyInt(), ArgumentMatchers.anyInt());
         Mockito.doNothing().when(underTest).update(ArgumentMatchers.anyLong(), ArgumentMatchers.any(Map.class));
@@ -156,11 +161,11 @@ class ElasticsearchClientTest {
         data.getNodeMetadata().setType("ccm:io");
         data.getNodeMetadata().setAclId(54321);
         data.getNodeMetadata().setId(654321);
-        data.setValueSpaces(new HashMap<String, Map<String, List<String>>>() {{
-            put("de-DE", new HashMap<String, List<String>>() {{
+        data.setValueSpaces(new HashMap<>() {{
+            put("de-DE", new HashMap<>() {{
                 put(CCConstants.LOM_PROP_EDUCATIONAL_LEARNINGRESOURCETYPE, Collections.singletonList("LRT Test Translation DE"));
             }});
-            put("en-US", new HashMap<String, List<String>>() {{
+            put("en-US", new HashMap<>() {{
                 put(CCConstants.LOM_PROP_EDUCATIONAL_LEARNINGRESOURCETYPE, Collections.singletonList("LRT Test Translation EN"));
             }});
         }});
@@ -200,7 +205,7 @@ class ElasticsearchClientTest {
     }
 
     private static Map<String, Serializable> getDummyProperties(String nodeId) {
-        return new HashMap<String, Serializable>() {{
+        return new HashMap<>() {{
             put(CCConstants.CM_NAME, "Test");
             put(CCConstants.LOM_PROP_GENERAL_KEYWORD, (Serializable) Arrays.asList(
                     Collections.singletonList(Collections.singletonMap("a", "Key a")),
