@@ -18,8 +18,8 @@ import java.util.stream.Collectors;
 @Component
 public class ACLTracker {
 
-    private final AlfrescoWebscriptClient client;
-    private final ElasticsearchService elasticClient;
+    private final AlfrescoWebscriptClient alfClient;
+    private final ElasticsearchService elasticsearchService;
 
     @Value("${allowed.types}")
     String allowedTypes;
@@ -34,16 +34,16 @@ public class ACLTracker {
 
     Logger logger = LoggerFactory.getLogger(ACLTracker.class);
 
-    public ACLTracker(AlfrescoWebscriptClient client, ElasticsearchService elasticClient) {
-        this.client = client;
-        this.elasticClient = elasticClient;
+    public ACLTracker(AlfrescoWebscriptClient alfClient, ElasticsearchService elasticsearchService) {
+        this.alfClient = alfClient;
+        this.elasticsearchService = elasticsearchService;
     }
 
     @PostConstruct
     public void init() throws IOException {
         ACLChangeSet aclChangeSet;
         try {
-            aclChangeSet = elasticClient.getACLChangeSet();
+            aclChangeSet = elasticsearchService.getACLChangeSet();
             if (aclChangeSet != null) {
                 lastFromCommitTime = aclChangeSet.getAclChangeSetCommitTime();
                 lastACLChangeSetId = aclChangeSet.getAclChangeSetId();
@@ -56,7 +56,7 @@ public class ACLTracker {
     }
 
     public boolean track() {
-        if(!elasticClient.isReady()) {
+        if(!elasticsearchService.isReady()) {
             logger.info("waiting for ElasticsearchClient...");
             return false;
         }
@@ -65,8 +65,8 @@ public class ACLTracker {
 
 
         AclChangeSets aclChangeSets = (lastACLChangeSetId < 1)
-                ? client.getAclChangeSets(0L, 500L, 1)
-                : client.getAclChangeSets(lastACLChangeSetId, lastACLChangeSetId + ACLTracker.maxResults, ACLTracker.maxResults);
+                ? alfClient.getAclChangeSets(0L, 500L, 1)
+                : alfClient.getAclChangeSets(lastACLChangeSetId, lastACLChangeSetId + ACLTracker.maxResults, ACLTracker.maxResults);
 
 
         //initialize
@@ -96,7 +96,7 @@ public class ACLTracker {
         AclChangeSet last = aclChangeSets.getAclChangeSets().get(aclChangeSets.getAclChangeSets().size() - 1);
 
         try {
-            ACLChangeSet aclChangeSet = elasticClient.getACLChangeSet();
+            ACLChangeSet aclChangeSet = elasticsearchService.getACLChangeSet();
             if(aclChangeSet != null && (aclChangeSet.getAclChangeSetId() == aclChangeSets.getMaxChangeSetId())){
                 logger.info("nothing to do.");
                 return false;
@@ -118,19 +118,19 @@ public class ACLTracker {
         }
 
 
-        Acls acls = client.getAcls(param);
+        Acls acls = alfClient.getAcls(param);
 
         GetPermissionsParam grp = new GetPermissionsParam();
         Map<Long, Acl> aclIdMap = acls.getAcls().stream()
                 .collect(Collectors.toMap(Acl::getId, accessControlList -> accessControlList));
 
         grp.setAclIds(new ArrayList<>(aclIdMap.keySet()));
-        ReadersACL readers = client.getReader(grp);
+        ReadersACL readers = alfClient.getReader(grp);
         Map<Long, Reader> readersMap = readers.getAclsReaders().stream()
                 .collect(Collectors.toMap(Reader::getAclId, readersList -> readersList));
 
         logger.debug(grp.getAclIds().toString());
-        AccessControlLists accessControlLists = client.getAccessControlLists(grp);
+        AccessControlLists accessControlLists = alfClient.getAccessControlLists(grp);
         Map<Long, AccessControlList> accessControlListMap = accessControlLists.getAccessControlLists().stream()
                 .collect(Collectors.toMap(AccessControlList::getAclId, accessControlList -> accessControlList));
 
@@ -165,10 +165,10 @@ public class ACLTracker {
                 }
                 //sort alf map keys:
                 permissionsAlf = new TreeMap<>(permissionsAlf);
-                elasticClient.updateNodesWithAcl(acl.getId(),permissionsAlf);
+                elasticsearchService.updateNodesWithAcl(acl.getId(),permissionsAlf);
             }
             long lastAclChangesetid = aclChangeSets.getAclChangeSets().get(aclChangeSets.getAclChangeSets().size() - 1).getId();
-            elasticClient.setACLChangeSet(lastFromCommitTime, lastAclChangesetid);
+            elasticsearchService.setACLChangeSet(lastFromCommitTime, lastAclChangesetid);
         }catch(IOException e){
             logger.error("elastic search server not reachable", e);
         }

@@ -50,7 +50,7 @@ public class FixMissingTracker extends TransactionTracker{
         String tmpFileName = "fixmissing_md_fetch_error.log";
         tempFile = new File(tmpdir + "/"+tmpFileName);
 
-        Tx transaction = elasticClient.getTransaction(getTransactionIndex());
+        Tx transaction = elasticService.getTransaction(getTransactionIndex());
         if(transaction == null && tempFile.exists()){
             logger.info("clearing error log");
             Files.delete(tempFile.toPath());
@@ -166,14 +166,14 @@ public class FixMissingTracker extends TransactionTracker{
             if(isAllowedType(nodeMetadata)) {
                 //2-4ms
                 //GetResponse resp = elasticClient.get(ElasticsearchClient.INDEX_WORKSPACE, new Long(nodeMetadata.getId()).toString());
-                if (!elasticClient.exists(ElasticsearchService.INDEX_WORKSPACE, Long.toString(nodeMetadata.getId()))) {
+                if (!elasticService.exists(ElasticsearchService.INDEX_WORKSPACE, Long.toString(nodeMetadata.getId()))) {
                     logNodeProblem(nodeMetadata);
                     if(repair){
                         indexNodesMetadata(List.of(nodeMetadata));
                         if("ccm:usage".equals(nodeMetadata.getType())
                                 || "ccm:collection_proposal".equals(nodeMetadata.getType())){
                             logger.info("sync collections for usage:" + nodeMetadata.getId());
-                            elasticClient.indexCollections(nodeMetadata);
+                            elasticService.indexCollections(nodeMetadata);
                         }
                     }
                 }
@@ -205,7 +205,7 @@ public class FixMissingTracker extends TransactionTracker{
     public long getMaxTxnId(Transactions transactions) {
         if(runToTx == null){
             try {
-                runToTx = elasticClient.getTransaction(ElasticsearchService.INDEX_TRANSACTIONS).getTxnId();
+                runToTx = elasticService.getTransaction(ElasticsearchService.INDEX_TRANSACTIONS).getTxnId();
                 logger.info("running not longer than current main tracker transaction:" +runToTx);
             } catch (IOException e) {
                logger.error("error reaching elasticsearch");

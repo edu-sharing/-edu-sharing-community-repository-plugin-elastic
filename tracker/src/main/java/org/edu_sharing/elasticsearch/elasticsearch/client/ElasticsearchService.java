@@ -1572,5 +1572,4 @@ public class ElasticsearchService {
                     Map.class);
         }
     }
-
 }

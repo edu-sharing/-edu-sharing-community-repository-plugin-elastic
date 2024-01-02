@@ -25,7 +25,7 @@ public abstract class TransactionTrackerBase implements TransactionTrackerInterf
     protected AlfrescoWebscriptClient client;
 
     @Autowired
-    protected ElasticsearchService elasticClient;
+    protected ElasticsearchService elasticService;
 
     @Autowired
     protected EduSharingClient eduSharingClient;
@@ -52,13 +52,13 @@ public abstract class TransactionTrackerBase implements TransactionTrackerInterf
     @Override
     public boolean track(){
         try {
-            if(!elasticClient.isReady()){
+            if(!elasticService.isReady()){
                 logger.info("waiting for ElasticsearchClient...");
                 return false;
             }
 
             eduSharingClient.refreshValuespaceCache();
-            Tx txn = elasticClient.getTransaction(getTransactionIndex());
+            Tx txn = elasticService.getTransaction(getTransactionIndex());
 
             long lastTransactionId;
             if(txn != null){
@@ -146,7 +146,7 @@ public abstract class TransactionTrackerBase implements TransactionTrackerInterf
 
     void commit(long txId) throws IOException{
         logger.info("safe transactionId " + txId);
-        elasticClient.setTransaction(getTransactionIndex(),0L,txId);
+        elasticService.setTransaction(getTransactionIndex(),0L,txId);
     }
 
     public abstract void trackNodes(List<Node> nodes) throws IOException;

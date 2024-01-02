@@ -23,7 +23,7 @@ import java.util.stream.Collectors;
 
 @Component
 @ConditionalOnProperty(prefix = "transaction", name="tracker", havingValue = "default", matchIfMissing = true)
-public class TransactionTracker extends TransactionTrackerBase{
+public class TransactionTracker extends TransactionTrackerBase {
 
 
     @Value("${allowed.types}")
@@ -54,10 +54,8 @@ public class TransactionTracker extends TransactionTrackerBase{
             return;
         }
 
-        /**
-         * collect deletes
-         */
-        List<Node> toDelete = new ArrayList<Node>();
+        // collect deletes
+        List<Node> toDelete = new ArrayList<>();
         for(Node node : nodes){
             if(node.getStatus().equals("d")) {
                 toDelete.add(node);
@@ -71,12 +69,11 @@ public class TransactionTracker extends TransactionTrackerBase{
                 .collect(Collectors.toList());
 
 
-        elasticClient.beforeDeleteCleanupCollectionReplicas(toDelete);
-        elasticClient.delete(toDelete);
+        elasticService.beforeDeleteCleanupCollectionReplicas(toDelete);
+        elasticService.delete(toDelete);
 
-        /**
-         * index nodes
-         */
+
+        // index nodes
         //some transactions can have a lot of Nodes which can cause trouble on alfresco so use partitioning
         final AtomicInteger counter = new AtomicInteger(0);
         final int size = 100;
@@ -116,7 +113,7 @@ public class TransactionTracker extends TransactionTrackerBase{
 
                 String[] splitted = data.getPaths().get(0).getApath().split("/");
                 String parentId = splitted[splitted.length -1];
-                Serializable value = elasticClient.getProperty(CCConstants.STORE_WORKSPACES_SPACES+"/"+parentId,"dbid");
+                Serializable value = elasticService.getProperty(CCConstants.STORE_WORKSPACES_SPACES+"/"+parentId,"dbid");
                 if(value != null){
                     long parentDbid = ((Number)value).longValue();
                     logger.info("FOUND PARENT IO WITH "+ parentDbid);
@@ -169,7 +166,7 @@ public class TransactionTracker extends TransactionTrackerBase{
                 .collect(Collectors.groupingBy(it -> counter.getAndIncrement() / size))
                 .values();
         for(List<NodeData> p : partitioned){
-            elasticClient.index(p);
+            elasticService.index(p);
         }
         for(NodeData nodeDataStat : toIndex){
             if(!"ccm:io".equals(nodeDataStat.getNodeMetadata().getType())
@@ -182,16 +179,15 @@ public class TransactionTracker extends TransactionTrackerBase{
             List<NodeStatistic> statisticsForNode = eduSharingClient.getStatisticsForNode(nodeId, trackFromTime);
             Map<String,List<NodeStatistic>> updateNodeStatistics = new HashMap<>();
             updateNodeStatistics.put(nodeId,statisticsForNode);
-            elasticClient.updateNodeStatistics(updateNodeStatistics);
+            elasticService.updateNodeStatistics(updateNodeStatistics);
             //we don't need cleanup cause former elasticClient.index(..) call removes all statistic data
             //elasticClient.cleanUpNodeStatistics(nodeDataStat);
         }
 
-        /**
-         * refresh index so that collections will be found by cacheCollections process
-         */
-        elasticClient.refresh(ElasticsearchClient.INDEX_WORKSPACE);
-        for(NodeMetadata usage : toIndexUsagesProposalsMd) elasticClient.indexCollections(usage);
+
+        // refresh index so that collections will be found by cacheCollections process
+        elasticService.refresh(ElasticsearchService.INDEX_WORKSPACE);
+        for(NodeMetadata usage : toIndexUsagesProposalsMd) elasticService.indexCollections(usage);
     }
 
     public boolean isAllowedType(NodeMetadata nodeMetadata){
