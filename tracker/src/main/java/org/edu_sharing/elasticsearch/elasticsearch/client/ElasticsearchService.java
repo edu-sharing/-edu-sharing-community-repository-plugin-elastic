@@ -495,6 +495,9 @@ public class ElasticsearchService {
                     }
 
                 }
+                if("ccm:wf_protocol".equals(key)) {
+                    mapWorkflowProtocol(value, builder);
+                }
 
                 if (value != null) {
 
@@ -632,7 +635,29 @@ public class ElasticsearchService {
         builder.endObject();
     }
 
-        return builder;
+    void mapWorkflowProtocol(Serializable value, @NonNull DataBuilder builder) {
+        Collection<String> protocol;
+        if(value instanceof Collection) {
+            protocol = (Collection<String>)value;
+        } else if(value instanceof String) {
+            protocol = Collections.singletonList((String)value);
+        } else {
+            logger.warn("Unable to convert worfklow protocol of type " + value.getClass().getName());
+            return;
+        }
+        builder.startArray("workflow");
+        protocol.stream().map(p -> {
+            try {
+                return new GsonBuilder().setObjectToNumberStrategy(ToNumberPolicy.LONG_OR_DOUBLE).create().fromJson(p, HashMap.class);
+            } catch(Throwable e) {
+                logger.warn("Invalid json in workflow entry: " + p, e);
+                return null;
+            }
+        })
+                .filter(Objects::nonNull)
+                .forEach(builder::value);
+        builder.endArray();
+
     }
 
     private void getProposalData(NodeDataProposal nodeData, @NonNull DataBuilder builder) throws IOException {
@@ -1259,10 +1284,15 @@ public class ElasticsearchService {
                                         .fields("trigram", prop -> prop.text(v -> v.analyzer("trigram")))
                                         .fields("reverse", prop -> prop.text(v -> v.analyzer("reverse"))))))),
 
+                        Map.of("workflow_type", DynamicTemplate.of(dt -> dt
+                                .matchMappingType("*")
+                                .pathMatch("workflow.*")
+                                .mapping(mp -> mp.keyword(v -> v)))),
+
                         Map.of("contributor_type", DynamicTemplate.of(dt -> dt
                                 .matchMappingType("*")
                                 .matchPattern(MatchType.Regex)
-                                .pathMatch("^(?:\\w+\\.)*contributor.(email|firstname|lastname|org|url|uuid|vcard)$")
+                                .pathMatch("^contributor.(email|firstname|lastname|org|url|uuid|vcard)$")
                                 .mapping(mp -> mp.keyword(v -> v)))),
 
                         Map.of("long_type", DynamicTemplate.of(dt -> dt
@@ -1327,6 +1357,9 @@ public class ElasticsearchService {
                                 .pathMatch("statistic_*")
                                 .mapping(mp -> mp.long_(l -> l))))
                 )
+                .properties("workflow", workProp -> workProp
+                        .nested(nt -> nt
+                                .properties("time", prop -> prop.date(v -> v))))
                 .properties("contributor", prop -> prop.nested(v -> v))
                 .properties("children", prop -> prop.nested(v -> v))
                 .properties("collections", colProp -> colProp.nested(v -> v))

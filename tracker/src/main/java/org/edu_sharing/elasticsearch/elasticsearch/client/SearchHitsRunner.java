@@ -14,8 +14,8 @@ public final class SearchHitsRunner {
 
     private static final Logger logger = LoggerFactory.getLogger(SearchHitsRunner.class);
 
-    private final ElasticsearchClient elasticClient;
-    public SearchHitsRunner(ElasticsearchClient elasticClient){
+    private final ElasticsearchService elasticClient;
+    public SearchHitsRunner(ElasticsearchService elasticClient){
         this.elasticClient = elasticClient;
     }
 
@@ -34,7 +34,7 @@ public final class SearchHitsRunner {
             if(searchHits != null){
                 page+=pageSize;
             }
-            searchHits = elasticClient.search(ElasticsearchClient.INDEX_WORKSPACE, query, page, pageSize);
+            searchHits = elasticClient.search(ElasticsearchService.INDEX_WORKSPACE, query, page, pageSize);
             if(maxResultsSize != null && searchHits.total().value() > maxResultsSize){
                 logger.warn("max result size has been reached: found {} of {} allowed", searchHits.total().value(), maxResultsSize);
                 return;

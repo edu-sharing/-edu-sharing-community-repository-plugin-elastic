@@ -1,0 +1,34 @@
+{
+  "workflow": [
+    {
+      "editor": "admin",
+      "receiver": [
+        "admin"
+      ],
+      "comment": "",
+      "time": 1703251657754,
+      "status": "TASK_DECLINE_ELEMENT"
+    },
+    {
+      "editor": "admin",
+      "receiver": [
+        "admin"
+      ],
+      "comment": "",
+      "time": 1703250527971,
+      "status": "TASK_DECLINE_ELEMENT"
+    },
+    {
+      "editor": "admin",
+      "receiver": [],
+      "time": 1598997699092,
+      "status": "140_ELEMENT_LEGALLY_APPROVED"
+    },
+    {
+      "editor": "admin",
+      "receiver": [],
+      "time": 1598997699092,
+      "status": "150_PUBLISH_IN_SEARCH"
+    }
+  ]
+}

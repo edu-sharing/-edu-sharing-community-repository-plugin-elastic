@@ -98,6 +98,24 @@ class ElasticsearchServiceTest {
        assertEquals(expected, actual);
    }
 
+
+    @Test
+    void mapWorkflowProtocolTest() throws Exception {
+        DataBuilder builder = new DataBuilder();
+        Serializable entry= (Serializable) Arrays.asList(
+                "{\"editor\":\"admin\",\"receiver\":[\"admin\"],\"comment\":\"\",\"time\":1703251657754,\"status\":\"TASK_DECLINE_ELEMENT\"}",
+                "{\"editor\":\"admin\",\"receiver\":[\"admin\"],\"comment\":\"\",\"time\":1703250527971,\"status\":\"TASK_DECLINE_ELEMENT\"}",
+                "{\"editor\":\"admin\",\"receiver\":[],\"time\":1598997699092,\"status\":\"140_ELEMENT_LEGALLY_APPROVED\"}",
+                "{\"editor\":\"admin\",\"receiver\":[],\"time\":1598997699092,\"status\":\"150_PUBLISH_IN_SEARCH\"}"
+        );
+        builder.startObject();
+        underTest.mapWorkflowProtocol(entry, builder);
+        builder.endObject();
+        String actual = indentJson(new Gson().toJson(builder.build()));
+        String expected = StreamUtils.copyToString(getClass().getClassLoader().getResource("mapWorkflowProtocolTest.json").openStream(), StandardCharsets.UTF_8);
+        assertEquals(expected, actual);
+    }
+
     @Test
     void indexCollectionsTest() throws Exception {
        assertThrows(IOException.class, () -> underTest.indexCollections(getNodeDataDummy(NodeData.class).getNodeMetadata()), "wrong type:ccm:io");
