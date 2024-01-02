@@ -9,7 +9,7 @@ import org.apache.logging.log4j.Logger;
 import org.edu_sharing.elasticsearch.alfresco.client.NodeData;
 import org.edu_sharing.elasticsearch.edu_sharing.client.EduSharingClient;
 import org.edu_sharing.elasticsearch.elasticsearch.client.DataBuilder;
-import org.edu_sharing.elasticsearch.elasticsearch.client.ElasticsearchClient;
+import org.edu_sharing.elasticsearch.elasticsearch.client.ElasticsearchService;
 import org.edu_sharing.repository.client.tools.CCConstants;
 import org.springframework.stereotype.Service;
 
@@ -77,7 +77,7 @@ public class ScriptExecutor {
 
     private Map<String, Set<VCard>> getContributor(Map<String, Serializable> metadata) {
         Map<String, Set<VCard>> result = new HashMap<>();
-        Set<String> contributorProperties = metadata.keySet().stream().filter(key -> key != null && key.matches(ElasticsearchClient.CONTRIBUTOR_REGEX)).collect(Collectors.toSet());
+        Set<String> contributorProperties = metadata.keySet().stream().filter(key -> key != null && key.matches(ElasticsearchService.CONTRIBUTOR_REGEX)).collect(Collectors.toSet());
         if (!contributorProperties.isEmpty()) {
             VCardEngine vcardEngine = new VCardEngine();
             contributorProperties.forEach(key -> {

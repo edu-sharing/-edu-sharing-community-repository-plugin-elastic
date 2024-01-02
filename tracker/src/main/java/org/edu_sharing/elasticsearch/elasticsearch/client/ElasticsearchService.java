@@ -17,6 +17,10 @@ import co.elastic.clients.elasticsearch.indices.CreateIndexRequest;
 import co.elastic.clients.elasticsearch.indices.IndexSettings;
 import co.elastic.clients.json.JsonData;
 import co.elastic.clients.util.ObjectBuilder;
+import com.google.gson.GsonBuilder;
+import com.google.gson.ToNumberPolicy;
+import lombok.Getter;
+import lombok.NonNull;
 import net.sourceforge.cardme.engine.VCardEngine;
 import net.sourceforge.cardme.vcard.VCard;
 import net.sourceforge.cardme.vcard.exceptions.VCardParseException;
@@ -54,7 +58,7 @@ import java.util.stream.Collectors;
 
 @SuppressWarnings("rawtypes")
 @Component
-public class ElasticsearchClient {
+public class ElasticsearchService {
 
     public static final String CONTRIBUTOR_REGEX = "ccm:[a-zA-Z]*contributer_[a-zA-Z_-]*";
     @Value("${elastic.host}")
@@ -83,22 +87,18 @@ public class ElasticsearchClient {
 
     @Value("${elastic.index.number_of_replicas}")
     int indexNumberOfReplicas;
+
     @Value("${elastic.maxCollectionChildItemsUpdateSize}")
     int maxCollectionChildItemsUpdateSize;
 
-    Logger logger = LogManager.getLogger(ElasticsearchClient.class);
+    Logger logger = LogManager.getLogger(ElasticsearchService.class);
 
-    public static String INDEX_WORKSPACE = "workspace";
-
-    public static String INDEX_TRANSACTIONS = "transactions";
-
+    public static String INDEX_WORKSPACE = "workspace.9.0";
+    public static String INDEX_TRANSACTIONS = "transactions.9.0";
     final static String ID_TRANSACTION = "1";
-
     final static String ID_ACL_CHANGESET = "2";
-
     final static String ID_STATISTICS_TIMESTAMP = "3";
-
-    SimpleDateFormat statisticDateFormatter = new SimpleDateFormat("yyyy-MM-dd");
+    private final SimpleDateFormat statisticDateFormatter = new SimpleDateFormat("yyyy-MM-dd");
 
 
     String homeRepoId;
@@ -115,7 +115,10 @@ public class ElasticsearchClient {
 
     private final SearchHitsRunner searchHitsRunner = new SearchHitsRunner(this);
 
-    public ElasticsearchClient(co.elastic.clients.elasticsearch.ElasticsearchClient client, ScriptExecutor scriptExecutor, EduSharingClient eduSharingClient, AlfrescoWebscriptClient alfrescoClient) {
+    @Getter
+    private boolean isReady;
+
+    public ElasticsearchService(co.elastic.clients.elasticsearch.ElasticsearchClient client, ScriptExecutor scriptExecutor, EduSharingClient eduSharingClient, AlfrescoWebscriptClient alfrescoClient) {
         this.client = client;
         this.scriptExecutor = scriptExecutor;
         this.eduSharingClient = eduSharingClient;
@@ -127,7 +130,10 @@ public class ElasticsearchClient {
         createIndexIfNotExists(INDEX_TRANSACTIONS);
         createIndexWorkspace();
         setupElasticConfiguration();
+        // TODO migration
+
         this.homeRepoId = eduSharingClient.getHomeRepository().getId();
+        isReady = true;
     }
 
     private void setupElasticConfiguration() throws IOException {
@@ -140,7 +146,7 @@ public class ElasticsearchClient {
         client.indices().delete(req -> req.index(index));
     }
 
-    public void createIndexIfNotExists(String index) throws IOException {
+    private void createIndexIfNotExists(String index) throws IOException {
         if (!client.indices().exists(req -> req.index(index)).value()) {
             client.indices().create(req -> req
                     .index(index)
@@ -225,13 +231,14 @@ public class ElasticsearchClient {
         logger.info("starting bulk index for {}", nodes.size());
 
         // TODO Missing required property 'BulkRequest.operations'
-
         boolean useBulkUpdate = true;
 
         List<BulkOperation> operations = new ArrayList<>();
         for (NodeData nodeData : nodes) {
             NodeMetadata node = nodeData.getNodeMetadata();
-            Object data = get(nodeData, null).build();
+            DataBuilder builder = new DataBuilder();
+            get(nodeData, builder);
+            Object data = builder.build();
             operations.add(BulkOperation.of(op -> op.index(iop -> iop
                     .index(INDEX_WORKSPACE)
                     .id(Long.toString(node.getId()))
@@ -283,19 +290,16 @@ public class ElasticsearchClient {
         logger.info("returning");
     }
 
-    private DataBuilder get(NodeData nodeData, DataBuilder builder) throws IOException {
-        return get(nodeData, builder, null);
+    private void get(NodeData nodeData, @NonNull DataBuilder builder) throws IOException {
+        get(nodeData, builder, null);
     }
 
-    DataBuilder get(NodeData nodeData, DataBuilder builder, String objectName) throws IOException {
+    void get(NodeData nodeData, @NonNull final DataBuilder builder, String objectName) throws IOException {
 
         NodeMetadata node = nodeData.getNodeMetadata();
         String storeRefProtocol = Tools.getProtocol(node.getNodeRef());
         String storeRefIdentifier = Tools.getIdentifier(node.getNodeRef());
 
-        if (builder == null) {
-            builder = new DataBuilder();
-        }
 
         if (objectName != null) {
             builder.startObject(objectName);
@@ -310,16 +314,18 @@ public class ElasticsearchClient {
             builder.field("dbid", node.getId());
 
             List<String> parentUuids = Arrays.asList(node.getPaths().get(0).getApath().split("/"));
-            String parentUuid = parentUuids.stream().skip(parentUuids.size() - 1).findFirst().get();
-            //getAncestors() is not sorted
-            String primaryParentRef = node.getAncestors().stream().filter(s -> s.contains(parentUuid)).findAny().get();
-            builder.startObject("parentRef")
-                    .startObject("storeRef")
-                    .field("protocol", Tools.getProtocol(primaryParentRef))
-                    .field("identifier", Tools.getIdentifier(primaryParentRef))
-                    .endObject()
-                    .field("id", Tools.getUUID(primaryParentRef))
-                    .endObject();
+            parentUuids.stream().skip(parentUuids.size() - 1).findFirst()
+                    .flatMap(parentUuid -> node.getAncestors().stream().filter(s -> s.contains(parentUuid)).findAny())
+                    .ifPresent(primaryParentRef -> {
+                        //getAncestors() is not sorted
+                        builder.startObject("parentRef")
+                                .startObject("storeRef")
+                                .field("protocol", Tools.getProtocol(primaryParentRef))
+                                .field("identifier", Tools.getIdentifier(primaryParentRef))
+                                .endObject()
+                                .field("id", Tools.getUUID(primaryParentRef))
+                                .endObject();
+                    });
 
             String id = node.getNodeRef().split("://")[1].split("/")[1];
             builder.startObject("nodeRef")
@@ -620,27 +626,27 @@ public class ElasticsearchClient {
         }
 
         if (nodeData instanceof NodeDataProposal) {
-            builder = getProposalData((NodeDataProposal) nodeData, builder);
+            getProposalData((NodeDataProposal) nodeData, builder);
         }
 
         builder.endObject();
+    }
 
         return builder;
     }
 
-    private DataBuilder getProposalData(NodeDataProposal nodeData, DataBuilder builder) throws IOException {
+    private void getProposalData(NodeDataProposal nodeData, @NonNull DataBuilder builder) throws IOException {
         if (nodeData.getCollection() != null) {
             builder.startArray("collections");
-            builder = get(nodeData.getCollection(), builder);
+            get(nodeData.getCollection(), builder);
             builder.endArray();
         }
         if (nodeData.getOriginal() != null) {
-            builder = get(nodeData.getOriginal(), builder, "original");
+            get(nodeData.getOriginal(), builder, "original");
         }
-        return builder;
     }
 
-    private void addNodePath(DataBuilder builder, NodeMetadata node) throws IOException {
+    private void addNodePath(DataBuilder builder, NodeMetadata node) {
         String[] pathEle = node.getPaths().get(0).getApath().split("/");
         builder.field("path", Arrays.copyOfRange(pathEle, 1, pathEle.length));
         builder.field("fullpath", StringUtils.join(Arrays.asList(Arrays.copyOfRange(pathEle, 1, pathEle.length)), '/'));
@@ -1004,9 +1010,12 @@ public class ElasticsearchClient {
         setTransaction(INDEX_TRANSACTIONS, txnCommitTime, transactionId);
     }
 
-    private void setNode(String index, String id, DataBuilder builder) throws IOException {
+    private void setNode(String index, String id, @NonNull DataBuilder builder) throws IOException {
 
-        IndexResponse indexResponse = client.index(IndexRequest.of(req -> req.index(index).id(id).document(builder.build())));
+        IndexResponse indexResponse = client.index(req -> req
+                .index(index)
+                .id(id)
+                .document(builder.build()));
 
         if (indexResponse.result() == Result.Created) {
             logger.debug("created node in elastic:" + builder);
@@ -1028,11 +1037,17 @@ public class ElasticsearchClient {
     }
 
     public GetResponse<Map> get(String index, String id) throws IOException {
-        return client.get(GetRequest.of(req -> req.index(index).id(id)), Map.class);
+        return client.get(req -> req
+                .index(index)
+                .id(id),
+                Map.class);
     }
 
     public boolean exists(String index, String id) throws IOException {
-        return client.exists(ExistsRequest.of(req -> req.index(index).id(id))).value();
+        return client.exists(req -> req
+                .index(index)
+                .id(id))
+                .value();
     }
 
     public Tx getTransaction(String index) throws IOException {
@@ -1104,12 +1119,12 @@ public class ElasticsearchClient {
     public void delete(List<Node> nodes) throws IOException {
         logger.info("starting size:" + nodes.size());
         if (!nodes.isEmpty()) {
-            BulkResponse response = client.bulk(BulkRequest.of(req -> req
+            BulkResponse response = client.bulk(req -> req
                     .index(INDEX_WORKSPACE)
                     .operations(op -> {
                         nodes.forEach(n -> op.delete(d -> d.index(INDEX_WORKSPACE).id(Long.toString(n.getId()))));
                         return op;
-                    })));
+                    }));
 
             for (BulkResponseItem item : response.items()) {
                 if (item.error() != null) {
@@ -1123,7 +1138,7 @@ public class ElasticsearchClient {
     public void createIndexWorkspace() throws IOException {
         try {
 
-            if (client.indices().exists(co.elastic.clients.elasticsearch.indices.ExistsRequest.of(req -> req.index(INDEX_WORKSPACE))).value()) {
+            if (client.indices().exists(req -> req.index(INDEX_WORKSPACE)).value()) {
                 return;
             }
 
@@ -1412,12 +1427,9 @@ public class ElasticsearchClient {
                             }
                         }
 
-                        Long dbid = ((Number) value).longValue();
+                        long dbid = ((Number) value).longValue();
 
                         DataBuilder builder = new DataBuilder();
-                        Map<String, Integer> dayCountsView = new HashMap<>();
-                        Map<String, Integer> dayCountsDownload = new HashMap<>();
-
                         builder.startObject();
                         for (NodeStatistic nodeStatistic : statistics) {
                             if (nodeStatistic == null) {

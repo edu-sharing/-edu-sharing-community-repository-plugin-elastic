@@ -2,7 +2,7 @@ package org.edu_sharing.elasticsearch.tracker;
 
 import org.edu_sharing.elasticsearch.edu_sharing.client.EduSharingClient;
 import org.edu_sharing.elasticsearch.edu_sharing.client.NodeStatistic;
-import org.edu_sharing.elasticsearch.elasticsearch.client.ElasticsearchClient;
+import org.edu_sharing.elasticsearch.elasticsearch.client.ElasticsearchService;
 import org.edu_sharing.elasticsearch.elasticsearch.client.StatisticTimestamp;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,7 +20,7 @@ public class StatisticsTracker {
     @Value("${statistic.historyInDays}")
     long historyInDays;
 
-    private final ElasticsearchClient elasticClient;
+    private final ElasticsearchService elasticClient;
     private final EduSharingClient eduSharingClient;
 
 
@@ -34,14 +34,13 @@ public class StatisticsTracker {
     long trackTsTo = -1;
     boolean allNodesInIndex = true;
 
-    public StatisticsTracker(ElasticsearchClient elasticClient, EduSharingClient eduSharingClient) {
+    public StatisticsTracker(ElasticsearchService elasticClient, EduSharingClient eduSharingClient) {
         this.elasticClient = elasticClient;
         this.eduSharingClient = eduSharingClient;
     }
 
     public void track(){
         try {
-
             if(currentChunks.isEmpty()) {
                 allNodesInIndex = true;
 
@@ -92,7 +91,7 @@ public class StatisticsTracker {
                 logger.info("finished statistics until:" + new Date(trackTsTo));
                 elasticClient.setStatisticTimestamp(trackTsTo, allNodesInIndex);
             }
-            elasticClient.refresh(ElasticsearchClient.INDEX_WORKSPACE);
+            elasticClient.refresh(ElasticsearchService.INDEX_WORKSPACE);
 
         } catch (Exception e) {
             logger.error(e.getMessage(),e);

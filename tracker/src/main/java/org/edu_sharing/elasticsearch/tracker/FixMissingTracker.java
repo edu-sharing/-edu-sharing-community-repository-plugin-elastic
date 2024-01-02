@@ -3,7 +3,7 @@ package org.edu_sharing.elasticsearch.tracker;
 import org.edu_sharing.elasticsearch.alfresco.client.Node;
 import org.edu_sharing.elasticsearch.alfresco.client.NodeMetadata;
 import org.edu_sharing.elasticsearch.alfresco.client.Transactions;
-import org.edu_sharing.elasticsearch.elasticsearch.client.ElasticsearchClient;
+import org.edu_sharing.elasticsearch.elasticsearch.client.ElasticsearchService;
 import org.edu_sharing.elasticsearch.elasticsearch.client.Tx;
 import org.edu_sharing.elasticsearch.tools.Tools;
 import org.slf4j.Logger;
@@ -166,7 +166,7 @@ public class FixMissingTracker extends TransactionTracker{
             if(isAllowedType(nodeMetadata)) {
                 //2-4ms
                 //GetResponse resp = elasticClient.get(ElasticsearchClient.INDEX_WORKSPACE, new Long(nodeMetadata.getId()).toString());
-                if (!elasticClient.exists(ElasticsearchClient.INDEX_WORKSPACE, Long.toString(nodeMetadata.getId()))) {
+                if (!elasticClient.exists(ElasticsearchService.INDEX_WORKSPACE, Long.toString(nodeMetadata.getId()))) {
                     logNodeProblem(nodeMetadata);
                     if(repair){
                         indexNodesMetadata(List.of(nodeMetadata));
@@ -205,7 +205,7 @@ public class FixMissingTracker extends TransactionTracker{
     public long getMaxTxnId(Transactions transactions) {
         if(runToTx == null){
             try {
-                runToTx = elasticClient.getTransaction(ElasticsearchClient.INDEX_TRANSACTIONS).getTxnId();
+                runToTx = elasticClient.getTransaction(ElasticsearchService.INDEX_TRANSACTIONS).getTxnId();
                 logger.info("running not longer than current main tracker transaction:" +runToTx);
             } catch (IOException e) {
                logger.error("error reaching elasticsearch");

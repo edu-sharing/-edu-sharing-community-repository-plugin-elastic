@@ -5,7 +5,7 @@ import org.edu_sharing.elasticsearch.alfresco.client.Node;
 import org.edu_sharing.elasticsearch.alfresco.client.NodeData;
 import org.edu_sharing.elasticsearch.alfresco.client.NodeMetadata;
 import org.edu_sharing.elasticsearch.edu_sharing.client.NodeStatistic;
-import org.edu_sharing.elasticsearch.elasticsearch.client.ElasticsearchClient;
+import org.edu_sharing.elasticsearch.elasticsearch.client.ElasticsearchService;
 import org.edu_sharing.elasticsearch.tools.Tools;
 import org.edu_sharing.repository.client.tools.CCConstants;
 import org.slf4j.Logger;
@@ -173,7 +173,7 @@ public class TransactionTracker extends TransactionTrackerBase{
         }
         for(NodeData nodeDataStat : toIndex){
             if(!"ccm:io".equals(nodeDataStat.getNodeMetadata().getType())
-                    || !Tools.getProtocol(nodeDataStat.getNodeMetadata().getNodeRef()).equals("workspace")){
+                    || !Tools.getProtocol(nodeDataStat.getNodeMetadata().getNodeRef()).equals(ElasticsearchService.INDEX_WORKSPACE)){
                 continue;
             }
             long trackTs = System.currentTimeMillis();

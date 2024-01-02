@@ -5,7 +5,7 @@ import org.edu_sharing.elasticsearch.alfresco.client.Node;
 import org.edu_sharing.elasticsearch.alfresco.client.Transaction;
 import org.edu_sharing.elasticsearch.alfresco.client.Transactions;
 import org.edu_sharing.elasticsearch.edu_sharing.client.EduSharingClient;
-import org.edu_sharing.elasticsearch.elasticsearch.client.ElasticsearchClient;
+import org.edu_sharing.elasticsearch.elasticsearch.client.ElasticsearchService;
 import org.edu_sharing.elasticsearch.elasticsearch.client.Tx;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,7 +25,7 @@ public abstract class TransactionTrackerBase implements TransactionTrackerInterf
     protected AlfrescoWebscriptClient client;
 
     @Autowired
-    protected ElasticsearchClient elasticClient;
+    protected ElasticsearchService elasticClient;
 
     @Autowired
     protected EduSharingClient eduSharingClient;
@@ -44,8 +44,7 @@ public abstract class TransactionTrackerBase implements TransactionTrackerInterf
     protected ForkJoinPool threadPool;
 
     @PostConstruct
-    public void initBase() throws IOException{
-        elasticClient.createIndexIfNotExists(getTransactionIndex());
+    public void initBase() {
         threadPool = new ForkJoinPool(threadCount);
     }
 
@@ -53,6 +52,11 @@ public abstract class TransactionTrackerBase implements TransactionTrackerInterf
     @Override
     public boolean track(){
         try {
+            if(!elasticClient.isReady()){
+                logger.info("waiting for ElasticsearchClient...");
+                return false;
+            }
+
             eduSharingClient.refreshValuespaceCache();
             Tx txn = elasticClient.getTransaction(getTransactionIndex());
 
@@ -148,7 +152,7 @@ public abstract class TransactionTrackerBase implements TransactionTrackerInterf
     public abstract void trackNodes(List<Node> nodes) throws IOException;
 
     public String getTransactionIndex(){
-        return ElasticsearchClient.INDEX_TRANSACTIONS;
+        return ElasticsearchService.INDEX_TRANSACTIONS;
     }
 
     public long getMaxTxnId(Transactions transactions){

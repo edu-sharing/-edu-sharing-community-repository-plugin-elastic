@@ -1,33 +1,30 @@
 package org.edu_sharing.elasticsearch;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
+import lombok.extern.slf4j.Slf4j;
 import org.edu_sharing.elasticsearch.tracker.ACLTracker;
 import org.edu_sharing.elasticsearch.tracker.StatisticsTracker;
-import org.edu_sharing.elasticsearch.tracker.TransactionTracker;
 import org.edu_sharing.elasticsearch.tracker.TransactionTrackerInterface;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+@Slf4j
 @Component
 public class TrackerJob {
 
     @Value("${statistic.enabled}")
     boolean statisticEnabled;
 
-    @Autowired
-    TransactionTrackerInterface transactionTracker;
+    private final TransactionTrackerInterface transactionTracker;
+    private final ACLTracker aclTracker;
+    private final StatisticsTracker statisticsTracker;
 
-    @Autowired
-    ACLTracker aclTracker;
 
-    @Autowired
-    StatisticsTracker statisticsTracker;
-
-    Logger logger = LogManager.getLogger(TrackerJob.class);
+    public TrackerJob(TransactionTrackerInterface transactionTracker, ACLTracker aclTracker, StatisticsTracker statisticsTracker) {
+        this.transactionTracker = transactionTracker;
+        this.aclTracker = aclTracker;
+        this.statisticsTracker = statisticsTracker;
+    }
 
     @Scheduled(fixedDelayString = "${tracker.delay}")
     public void track(){
@@ -35,14 +32,14 @@ public class TrackerJob {
         boolean transactionChanges=transactionTracker.track();
 
         if(aclChanges || transactionChanges){
-            logger.info("recursiv aclChanges:" + aclChanges +" transactionChanges:"+transactionChanges);
+            log.info("recursive aclChanges: {} -- transactionChanges: {}", aclChanges, transactionChanges);
             track();
         }
     }
 
     /**
      * no race condition possibe with track() cause all scheduled tasks are executed by single thread
-     * https://stackoverflow.com/questions/24033208/how-to-prevent-overlapping-schedules-in-spring
+     * <a href="https://stackoverflow.com/questions/24033208/how-to-prevent-overlapping-schedules-in-spring">...</a>
      */
     @Scheduled(fixedDelayString = "${statistic.delay}")
     public void trackStatistics(){

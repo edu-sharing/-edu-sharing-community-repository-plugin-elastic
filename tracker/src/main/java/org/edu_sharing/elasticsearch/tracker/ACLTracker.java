@@ -1,12 +1,10 @@
 package org.edu_sharing.elasticsearch.tracker;
 
 import org.edu_sharing.elasticsearch.alfresco.client.*;
-import org.edu_sharing.elasticsearch.edu_sharing.client.EduSharingClient;
 import org.edu_sharing.elasticsearch.elasticsearch.client.ACLChangeSet;
-import org.edu_sharing.elasticsearch.elasticsearch.client.ElasticsearchClient;
+import org.edu_sharing.elasticsearch.elasticsearch.client.ElasticsearchService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -14,7 +12,6 @@ import javax.annotation.PostConstruct;
 import java.io.IOException;
 import java.text.DecimalFormat;
 import java.util.*;
-import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 
@@ -22,7 +19,7 @@ import java.util.stream.Collectors;
 public class ACLTracker {
 
     private final AlfrescoWebscriptClient client;
-    private final ElasticsearchClient elasticClient;
+    private final ElasticsearchService elasticClient;
 
     @Value("${allowed.types}")
     String allowedTypes;
@@ -37,7 +34,7 @@ public class ACLTracker {
 
     Logger logger = LoggerFactory.getLogger(ACLTracker.class);
 
-    public ACLTracker(AlfrescoWebscriptClient client, ElasticsearchClient elasticClient) {
+    public ACLTracker(AlfrescoWebscriptClient client, ElasticsearchService elasticClient) {
         this.client = client;
         this.elasticClient = elasticClient;
     }
@@ -59,6 +56,11 @@ public class ACLTracker {
     }
 
     public boolean track() {
+        if(!elasticClient.isReady()) {
+            logger.info("waiting for ElasticsearchClient...");
+            return false;
+        }
+
         logger.info("starting lastACLChangeSetId:" + lastACLChangeSetId + " lastFromCommitTime:" + lastFromCommitTime + " " + new Date(lastFromCommitTime));
 
 
