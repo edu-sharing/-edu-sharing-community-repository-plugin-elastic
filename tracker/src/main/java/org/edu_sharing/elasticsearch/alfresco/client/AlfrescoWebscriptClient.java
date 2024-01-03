@@ -241,7 +241,11 @@ public class AlfrescoWebscriptClient {
                     if (nodeMetadata.getType().equals("ccm:collection_proposal")) {
                         NodeDataProposal nodeDataProposal = new NodeDataProposal();
                         try {
-                            String parent = nodeMetadata.getParentAssocs().get(0);
+                            GetNodeMetadataParam param = new GetNodeMetadataParam();
+                            param.setNodeIds(Collections.singletonList(nodeMetadata.getId()));
+                            param.setIncludeParentAssociations(true);
+                            NodeMetadatas fullMetadata = getNodeMetadata(param);
+                            String parent = fullMetadata.getNodes().get(0).getParentAssocs().get(0);
                             Serializable original = nodeMetadata.getProperties().
                                     get(CCConstants.getValidGlobalName(
                                                     "ccm:collection_proposal_target"
