@@ -16,7 +16,7 @@ data:
     -Dcom.sun.management.jmxremote.port=7199
     -Dcom.sun.management.jmxremote.ssl=false
     {{- if default .Values.global.debug .Values.debug }}
-    -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=5005
+    -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=0.0.0.0:5005
     {{- end }}
   http.max_content_length: "{{ .Values.config.http.maxContentLength }}"
   node.store.allow_mmap: "{{ .Values.config.store.mmap }}"
