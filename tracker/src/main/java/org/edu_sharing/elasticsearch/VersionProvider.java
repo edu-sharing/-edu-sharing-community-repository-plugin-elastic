@@ -5,7 +5,6 @@ import org.springframework.stereotype.Component;
 import picocli.CommandLine;
 
 import java.io.InputStream;
-import java.util.Map;
 import java.util.Properties;
 
 @Component

@@ -2,8 +2,9 @@ package org.edu_sharing.elasticsearch.tracker;
 
 import org.edu_sharing.elasticsearch.edu_sharing.client.EduSharingClient;
 import org.edu_sharing.elasticsearch.edu_sharing.client.NodeStatistic;
-import org.edu_sharing.elasticsearch.elasticsearch.client.ElasticsearchService;
-import org.edu_sharing.elasticsearch.elasticsearch.client.StatisticTimestamp;
+import org.edu_sharing.elasticsearch.elasticsearch.core.WorkspaceService;
+import org.edu_sharing.elasticsearch.elasticsearch.core.state.StatisticTimestamp;
+import org.edu_sharing.elasticsearch.elasticsearch.core.StatusIndexService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -20,8 +21,9 @@ public class StatisticsTracker {
     @Value("${statistic.historyInDays}")
     long historyInDays;
 
-    private final ElasticsearchService elasticClient;
+    private final WorkspaceService elasticService;
     private final EduSharingClient eduSharingClient;
+    private final StatusIndexService<StatisticTimestamp> statisticTimestampStateService;
 
 
 
@@ -34,9 +36,10 @@ public class StatisticsTracker {
     long trackTsTo = -1;
     boolean allNodesInIndex = true;
 
-    public StatisticsTracker(ElasticsearchService elasticClient, EduSharingClient eduSharingClient) {
-        this.elasticClient = elasticClient;
+    public StatisticsTracker(WorkspaceService elasticService, EduSharingClient eduSharingClient, StatusIndexService<StatisticTimestamp> statisticTimestampStateService) {
+        this.elasticService = elasticService;
         this.eduSharingClient = eduSharingClient;
+        this.statisticTimestampStateService = statisticTimestampStateService;
     }
 
     public void track(){
@@ -46,7 +49,7 @@ public class StatisticsTracker {
 
                 trackTs = getTodayMidnight();
                 long trackFromTime = trackTs - (historyInDays * 24L * 60L * 60L * 1000L);
-                StatisticTimestamp statisticTimestamp = elasticClient.getStatisticTimestamp();
+                StatisticTimestamp statisticTimestamp = statisticTimestampStateService.getState();
                 if (statisticTimestamp != null) {
                     trackFromTime = statisticTimestamp.getStatisticTimestamp();
                     logger.info("starting from last run " + new Date(trackFromTime));
@@ -78,8 +81,8 @@ public class StatisticsTracker {
                     nodeStatistics.put(e.getKey(),e.getValue());
                 }
                 try{
-                    allNodesInIndex = allNodesInIndex && elasticClient.updateNodeStatistics(nodeStatistics);
-                    elasticClient.cleanUpNodeStatistics(new ArrayList<>(nodeStatistics.keySet()));
+                    allNodesInIndex = allNodesInIndex && elasticService.updateNodeStatistics(nodeStatistics);
+                    elasticService.cleanUpNodeStatistics(new ArrayList<>(nodeStatistics.keySet()));
                     successfullChunks.add(entry.getKey());
                 }catch (IOException e){
                     logger.error("problems reaching elastic search server",e);
@@ -89,9 +92,9 @@ public class StatisticsTracker {
 
             if(currentChunks.isEmpty()) {
                 logger.info("finished statistics until:" + new Date(trackTsTo));
-                elasticClient.setStatisticTimestamp(trackTsTo, allNodesInIndex);
+                statisticTimestampStateService.setState(new StatisticTimestamp(allNodesInIndex, trackTsTo));
             }
-            elasticClient.refresh(ElasticsearchService.INDEX_WORKSPACE);
+            elasticService.refreshWorkspace();
 
         } catch (Exception e) {
             logger.error(e.getMessage(),e);

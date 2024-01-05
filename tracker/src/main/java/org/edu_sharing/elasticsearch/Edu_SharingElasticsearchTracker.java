@@ -1,33 +1,39 @@
 package org.edu_sharing.elasticsearch;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
+import lombok.Setter;
+import org.edu_sharing.elasticsearch.elasticsearch.config.AutoConfigurationTracker;
+import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.context.ConfigurableApplicationContext;
-import org.springframework.context.annotation.Bean;
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.ApplicationContextAware;
+import org.springframework.context.annotation.Import;
+import org.springframework.scheduling.annotation.EnableScheduling;
 import picocli.CommandLine;
 
-import javax.annotation.PostConstruct;
-
+@EnableScheduling
 @SpringBootApplication
-public class Edu_SharingElasticsearchTracker {
+@RequiredArgsConstructor
+@Import(AutoConfigurationTracker.class)
+public class Edu_SharingElasticsearchTracker implements CommandLineRunner, ApplicationContextAware {
 
-    @Autowired CLI cli;
-    private static String[] args;
-    private static ConfigurableApplicationContext context;
+    private final CLI cli;
+
+    @Setter
+    private ApplicationContext applicationContext;
 
     public static void main(String[] args) {
-        Edu_SharingElasticsearchTracker.args = args;
-        context = SpringApplication.run(Edu_SharingElasticsearchTracker.class, args);
-        context.getBean(Edu_SharingElasticsearchTracker.class).init();
+        SpringApplication.run(Edu_SharingElasticsearchTracker.class, args);
     }
 
-    public void init() {
+    @Override
+    public void run(String... args) {
         CommandLine cli = new CommandLine(this.cli);
         cli.setUnmatchedArgumentsAllowed(true);
         if(cli.execute(args) == 0){
-            System.out.println(context);
-            SpringApplication.exit(context);
+            System.out.println(applicationContext);
+            SpringApplication.exit(applicationContext);
             System.exit(0);
         }
     }

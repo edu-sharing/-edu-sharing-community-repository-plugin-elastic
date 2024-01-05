@@ -1,162 +1,141 @@
 package org.edu_sharing.elasticsearch.tracker;
 
+import lombok.Getter;
+import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
 import org.edu_sharing.elasticsearch.alfresco.client.AlfrescoWebscriptClient;
 import org.edu_sharing.elasticsearch.alfresco.client.Node;
 import org.edu_sharing.elasticsearch.alfresco.client.Transaction;
 import org.edu_sharing.elasticsearch.alfresco.client.Transactions;
 import org.edu_sharing.elasticsearch.edu_sharing.client.EduSharingClient;
-import org.edu_sharing.elasticsearch.elasticsearch.client.ElasticsearchService;
-import org.edu_sharing.elasticsearch.elasticsearch.client.Tx;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
+import org.edu_sharing.elasticsearch.elasticsearch.core.StatusIndexService;
+import org.edu_sharing.elasticsearch.elasticsearch.core.WorkspaceService;
+import org.edu_sharing.elasticsearch.elasticsearch.core.state.Tx;
+import org.edu_sharing.elasticsearch.tracker.strategy.TrackerStrategy;
 
-import javax.annotation.PostConstruct;
 import java.io.IOException;
 import java.text.DecimalFormat;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.ForkJoinPool;
+import java.util.stream.Collectors;
 
-public abstract class TransactionTrackerBase implements TransactionTrackerInterface{
-    @Autowired
-    protected AlfrescoWebscriptClient client;
+@Slf4j
+public abstract class TransactionTrackerBase implements TransactionTracker {
 
-    @Autowired
-    protected ElasticsearchService elasticService;
+    @Getter
+    protected final AlfrescoWebscriptClient alfClient;
 
-    @Autowired
-    protected EduSharingClient eduSharingClient;
+    @Getter
+    protected final WorkspaceService workspaceService;
 
-    @Value("${transactions.max:500}")
-    int transactionsMax;
+    @Getter
+    protected final EduSharingClient eduSharingClient;
 
-    Logger logger = LoggerFactory.getLogger(TransactionTrackerBase.class);
+    @Getter
+    protected final StatusIndexService<Tx> transactionStateService;
 
-    //max value vor recursive track() calls, prevents stackoverflow error
-    @Value("${stack.max:1000}")
-    int maxStackSize;
+    private final TrackerStrategy trackerStrategy;
 
-    @Value("${threading.threadCount}")
-    Integer threadCount;
+    @Setter
+    Integer threadCount = 4;
+
+    @Setter
+    int numberOfTransactions = 500;
+
     protected ForkJoinPool threadPool;
 
-    @PostConstruct
-    public void initBase() {
+    protected TransactionTrackerBase(AlfrescoWebscriptClient alfClient, EduSharingClient eduSharingClient, WorkspaceService workspaceService, StatusIndexService<Tx> transactionStateService, TrackerStrategy trackerStrategy) {
+        this.alfClient = alfClient;
+        this.eduSharingClient = eduSharingClient;
+        this.workspaceService = workspaceService;
+        this.transactionStateService = transactionStateService;
+        this.trackerStrategy = trackerStrategy;
+    }
+
+    public void init() {
         threadPool = new ForkJoinPool(threadCount);
     }
 
-
     @Override
-    public boolean track(){
+    public boolean track() {
         try {
-            if(!elasticService.isReady()){
-                logger.info("waiting for ElasticsearchClient...");
-                return false;
-            }
-
             eduSharingClient.refreshValuespaceCache();
-            Tx txn = elasticService.getTransaction(getTransactionIndex());
-
-            long lastTransactionId;
-            if(txn != null){
-                lastTransactionId = txn.getTxnId();
-                logger.info("got last transaction from index txnId:" +lastTransactionId);
-            }else{
-                lastTransactionId = 0;
-                logger.info("no transaction processed");
+            Tx txn = transactionStateService.getState();
+            if (txn == null) {
+                log.info("no transaction processed");
             }
 
-            logger.info("starting lastTransactionId:" + lastTransactionId);
+            long lastTransactionId = Optional.ofNullable(txn).map(Tx::getTxnId).orElse(0L);
+            log.info("starting lastTransactionId: {}", lastTransactionId);
 
-            //next tx id is last processed transactionId + 1
+
             long nextTransactionId = lastTransactionId + 1;
-            Transactions transactions = client.getTransactions(nextTransactionId, nextTransactionId + transactionsMax, null, null, transactionsMax);
 
-            long maxTrackerTxnId = getMaxTxnId(transactions);
-            Long maxTxnId = transactions.getMaxTxnId();
-            if(nextTransactionId >= maxTrackerTxnId || nextTransactionId >= maxTxnId){
-                logger.info("Tracker "+ this.getClass().getSimpleName() +" is up to date. maxTrackerTxnId:"+ maxTrackerTxnId +" maxTxnId:" + maxTxnId +" lastTransactionId:" +lastTransactionId);
+            Transactions transactions = alfClient.getTransactions(nextTransactionId, trackerStrategy.getNext(nextTransactionId, numberOfTransactions), null, null, numberOfTransactions);
+
+            long maxTrackerTxnId = transactions.getMaxTxnId();
+            if (nextTransactionId >= maxTrackerTxnId) {
+                log.info("Tracker {} is up to date. maxTrackerTxnId: {}, lastTransactionId: {}", this.getClass().getSimpleName(), maxTrackerTxnId, lastTransactionId);
                 return false;
             }
 
-            if(transactions.getTransactions().isEmpty()){
-                if(maxTrackerTxnId <= (lastTransactionId + transactionsMax)){
-                    logger.info("index is up to date getMaxTxnId():"+ maxTrackerTxnId);
+            if (transactions.getTransactions().isEmpty()) {
+                if (maxTrackerTxnId <= trackerStrategy.getNext(lastTransactionId, numberOfTransactions)) {
+                    log.info("index is up to date getMaxTxnId(): {}", maxTrackerTxnId);
                     return false;
-                }else{
-                    logger.info("did not found new transactions in last transaction block min:" + lastTransactionId +" max:"+(lastTransactionId + transactionsMax)  );
-                    commit(lastTransactionId + (long) transactionsMax);
+                } else {
+                    log.info("did not found new transactions in last transaction block min: {} max: {}", lastTransactionId, trackerStrategy.getNext(lastTransactionId, numberOfTransactions));
+                    commit(transactionStateService,trackerStrategy.getNext(lastTransactionId, numberOfTransactions));
                     return true;
                 }
             }
 
-            /**
-             * get nodes
-             */
-            List<Long> transactionIds = new ArrayList<>();
-            for(Transaction t : transactions.getTransactions()){
-                transactionIds.add(t.getId());
-            }
-            logger.info("got "+transactionIds.size() +" transactions last:"+transactionIds.get(transactionIds.size() - 1));
-            List<Node> nodes =  client.getNodes(transactionIds);
-            logger.info("got "+nodes.size() +" nodes");
+            List<Long> transactionIds = transactions.getTransactions()
+                    .stream()
+                    .map(Transaction::getId)
+                    .collect(Collectors.toList());
+            log.info("got " + transactionIds.size() + " transactions last:" + transactionIds.get(transactionIds.size() - 1));
+
+
+            List<Node> nodes = alfClient.getNodes(transactionIds);
+            log.info("got " + nodes.size() + " nodes");
 
             eduSharingClient.refreshValuespaceCache();
-            /**
-             * index nodes
-             */
+
+            // index nodes
             trackNodes(nodes);
 
-
-            /**
-             * remember prcessed transaction
-             */
+            //remember processed transaction
             Long last = transactionIds.get(transactionIds.size() - 1);
-            commit(last);
+            commit(transactionStateService, last);
 
-            /**
-             * log progress
-             */
+            // log progress
             DecimalFormat df = new DecimalFormat("0.00");
-            logger.info("finished "+df.format(calcProgress(transactions,transactionIds))+"%, lastTransactionId:" +
-                    " transactions:" + Arrays.toString(transactionIds.toArray()) +
-                    " nodes:" + nodes.size() + "Stack size:" + Thread.currentThread().getStackTrace().length);
-
-            if(Thread.currentThread().getStackTrace().length >= maxStackSize){
-                logger.info("reached max stack size of: " +maxStackSize + "<=" +Thread.currentThread().getStackTrace().length);
-                return false;
-            }
+            log.info("finished {}%, lastTransactionId: {} transactions: {} nodes: {} Stack size: {}",
+                    df.format(calcProgress(transactions, transactionIds)),
+                    last,
+                    Arrays.toString(transactionIds.toArray()),
+                    nodes.size(),
+                    Thread.currentThread().getStackTrace().length);
 
             return true;
-
         } catch (IOException e) {
-            logger.error(e.getMessage(),e);
+            log.error(e.getMessage(), e);
             return false;
         }
-
     }
 
-    private Double calcProgress(Transactions transactions, List<Long> transactionIds){
+    private void commit(StatusIndexService<Tx> transactionStateService, long txId) throws IOException {
+        log.info("safe transactionId {}", txId);
+        transactionStateService.setState(new Tx(txId, 0L));
+    }
+
+    private Double calcProgress(Transactions transactions, List<Long> transactionIds) {
         Long last = transactionIds.get(transactionIds.size() - 1);
-        return (double) last / (double)getMaxTxnId(transactions) * 100.0d;
-    }
-
-    void commit(long txId) throws IOException{
-        logger.info("safe transactionId " + txId);
-        elasticService.setTransaction(getTransactionIndex(),0L,txId);
+        return (double) last / (double) transactions.getMaxTxnId() * 100.0d;
     }
 
     public abstract void trackNodes(List<Node> nodes) throws IOException;
-
-    public String getTransactionIndex(){
-        return ElasticsearchService.INDEX_TRANSACTIONS;
-    }
-
-    public long getMaxTxnId(Transactions transactions){
-        return transactions.getMaxTxnId();
-    }
-
 }

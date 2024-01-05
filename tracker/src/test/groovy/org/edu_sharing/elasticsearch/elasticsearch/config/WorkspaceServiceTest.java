@@ -1,17 +1,18 @@
-package org.edu_sharing.elasticsearch.elasticsearch.client;
+package org.edu_sharing.elasticsearch.elasticsearch.config;
 
-import co.elastic.clients.elasticsearch._types.mapping.TypeMapping;
 import co.elastic.clients.elasticsearch.core.search.Hit;
 import co.elastic.clients.elasticsearch.core.search.HitsMetadata;
 import co.elastic.clients.elasticsearch.core.search.TotalHitsRelation;
-import co.elastic.clients.elasticsearch.indices.IndexSettings;
-import co.elastic.clients.json.JsonpUtils;
-import co.elastic.clients.json.jackson.JacksonJsonpMapper;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
 import org.edu_sharing.elasticsearch.alfresco.client.*;
+import org.edu_sharing.elasticsearch.edu_sharing.client.EduSharingClient;
+import org.edu_sharing.elasticsearch.edu_sharing.client.Repository;
+import org.edu_sharing.elasticsearch.elasticsearch.core.IndexConfiguration;
+import org.edu_sharing.elasticsearch.elasticsearch.core.WorkspaceService;
+import org.edu_sharing.elasticsearch.elasticsearch.utils.DataBuilder;
 import org.edu_sharing.elasticsearch.tools.ScriptExecutor;
 import org.edu_sharing.repository.client.tools.CCConstants;
 import org.junit.jupiter.api.BeforeEach;
@@ -32,10 +33,11 @@ import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
-class ElasticsearchServiceTest {
+class WorkspaceServiceTest {
 
     @Mock
     private AlfrescoWebscriptClient alfrescoClient;
@@ -44,7 +46,7 @@ class ElasticsearchServiceTest {
     @Mock
     private ScriptExecutor scriptExecutor;
 
-    private ElasticsearchService underTest;
+    private WorkspaceService underTest;
 
     private static String indentJson(String json) {
         JsonParser parser = new JsonParser();
@@ -54,33 +56,20 @@ class ElasticsearchServiceTest {
     }
 
     @BeforeEach
-    void setUp() throws Exception {
-        underTest = Mockito.spy(new ElasticsearchService(elasticsearchClient, scriptExecutor, null, alfrescoClient));
-        underTest.homeRepoId = "local";
-    }
+    void setUp() {
+        Repository repository = mock(Repository.class);
+        EduSharingClient eduSharingClient = mock(EduSharingClient.class);
+        when(eduSharingClient.getHomeRepository()).thenReturn(repository);
+        when(repository.getId()).thenReturn("local");
 
-    @Test
-    void getMappingsTest() throws Exception {
-        TypeMapping mappings = underTest.getMappings(new TypeMapping.Builder()).build();
-        String actual = indentJson(JsonpUtils.toJsonString(mappings, new JacksonJsonpMapper()));
-
-        String expected = StreamUtils.copyToString(getClass().getClassLoader().getResource("getMappingsTest.json").openStream(), StandardCharsets.UTF_8);
-        assertEquals(expected, actual);
+        underTest = Mockito.spy(new WorkspaceService(elasticsearchClient, scriptExecutor, eduSharingClient, alfrescoClient, new IndexConfiguration(req->req.index("workspace"))));
     }
-    @Test
-    void getIndexSettingsTest() throws Exception {
-        IndexSettings settings = underTest.getIndexSettings(new IndexSettings.Builder()).build();
-        String actual = indentJson(JsonpUtils.toJsonString(settings, new JacksonJsonpMapper()));
-        String expected = StreamUtils.copyToString(getClass().getClassLoader().getResource("getIndexSettingsTest.json").openStream(), StandardCharsets.UTF_8);
-        assertEquals(expected, actual);
-    }
-
 
     @Test
     void getTest() throws Exception {
         NodeData data = getNodeDataDummy(NodeData.class);
         DataBuilder builder =  new DataBuilder();
-        underTest.get(data,builder, null);
+        underTest.fillData(data,builder, null);
         String actual = indentJson(new Gson().toJson(builder.build()));
         String expected = StreamUtils.copyToString(getClass().getClassLoader().getResource("getTest.json").openStream(), StandardCharsets.UTF_8);
         assertEquals(expected, actual);
@@ -92,7 +81,7 @@ class ElasticsearchServiceTest {
        data.setCollection(getNodeDataDummy(NodeData.class));
        data.setOriginal(getNodeDataDummy(NodeData.class));
        DataBuilder builder = new DataBuilder();
-       underTest.get(data, builder, null);
+       underTest.fillData(data, builder, null);
        String actual = indentJson(new Gson().toJson(builder.build()));
        String expected = StreamUtils.copyToString(getClass().getClassLoader().getResource("getProposalDataTest.json").openStream(), StandardCharsets.UTF_8);
        assertEquals(expected, actual);
@@ -126,7 +115,7 @@ class ElasticsearchServiceTest {
         data.getNodeMetadata().getProperties().put("{http://www.campuscontent.de/model/1.0}usageappid", "local");
         data.getNodeMetadata().getProperties().put("{http://www.campuscontent.de/model/1.0}usagecourseid", "0192f8a9-374d-41f3-9025-83e8f75c8717");
         data.getNodeMetadata().getProperties().put("{http://www.campuscontent.de/model/1.0}usageparentnodeid", "0192f8a9-374d-41f3-9025-83e8f75c8717");
-        Mockito.doReturn(null).when(underTest).search(ArgumentMatchers.anyString(), ArgumentMatchers.any(), ArgumentMatchers.anyInt(), ArgumentMatchers.anyInt());
+        Mockito.doReturn(null).when(underTest).search(ArgumentMatchers.any(), ArgumentMatchers.anyInt(), ArgumentMatchers.anyInt());
         DataBuilder builder = underTest.indexCollections(data.getNodeMetadata());
         assertNull(builder);
 
@@ -155,10 +144,10 @@ class ElasticsearchServiceTest {
             );
         }}).when(hit).source();
 
-        Mockito.when(alfrescoClient.getNodeData(ArgumentMatchers.anyList())).thenReturn(Collections.singletonList(getNodeDataDummy(NodeData.class)));
-        Mockito.doReturn(HitsMetadata.of((HitsMetadata.Builder<Map> b)->b.total(t->t.value(1).relation(TotalHitsRelation.Eq)).hits(hit))).when(underTest).search(ArgumentMatchers.anyString(), ArgumentMatchers.any(), ArgumentMatchers.anyInt(), ArgumentMatchers.anyInt());
+        when(alfrescoClient.getNodeData(ArgumentMatchers.anyList())).thenReturn(Collections.singletonList(getNodeDataDummy(NodeData.class)));
+        Mockito.doReturn(HitsMetadata.of((HitsMetadata.Builder<Map> b)->b.total(t->t.value(1).relation(TotalHitsRelation.Eq)).hits(hit))).when(underTest).search(ArgumentMatchers.any(), ArgumentMatchers.anyInt(), ArgumentMatchers.anyInt());
         Mockito.doNothing().when(underTest).update(ArgumentMatchers.anyLong(), ArgumentMatchers.any(Map.class));
-        Mockito.doNothing().when(underTest).refresh(ArgumentMatchers.anyString());
+        Mockito.doNothing().when(underTest).refreshWorkspace();
         builder = underTest.indexCollections(data.getNodeMetadata());
 
         String actual = indentJson(new Gson().toJson(builder.build()));

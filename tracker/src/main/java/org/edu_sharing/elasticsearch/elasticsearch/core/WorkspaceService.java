@@ -1,11 +1,9 @@
-package org.edu_sharing.elasticsearch.elasticsearch.client;
+package org.edu_sharing.elasticsearch.elasticsearch.core;
 
-
-import co.elastic.clients.elasticsearch._types.*;
-import co.elastic.clients.elasticsearch._types.mapping.DynamicMapping;
-import co.elastic.clients.elasticsearch._types.mapping.DynamicTemplate;
-import co.elastic.clients.elasticsearch._types.mapping.MatchType;
-import co.elastic.clients.elasticsearch._types.mapping.TypeMapping;
+import co.elastic.clients.elasticsearch.ElasticsearchClient;
+import co.elastic.clients.elasticsearch._types.BulkIndexByScrollFailure;
+import co.elastic.clients.elasticsearch._types.Conflicts;
+import co.elastic.clients.elasticsearch._types.Result;
 import co.elastic.clients.elasticsearch._types.query_dsl.Query;
 import co.elastic.clients.elasticsearch.core.*;
 import co.elastic.clients.elasticsearch.core.bulk.BulkOperation;
@@ -13,13 +11,10 @@ import co.elastic.clients.elasticsearch.core.bulk.BulkResponseItem;
 import co.elastic.clients.elasticsearch.core.bulk.OperationType;
 import co.elastic.clients.elasticsearch.core.search.Hit;
 import co.elastic.clients.elasticsearch.core.search.HitsMetadata;
-import co.elastic.clients.elasticsearch.indices.CreateIndexRequest;
-import co.elastic.clients.elasticsearch.indices.IndexSettings;
 import co.elastic.clients.json.JsonData;
 import co.elastic.clients.util.ObjectBuilder;
 import com.google.gson.GsonBuilder;
 import com.google.gson.ToNumberPolicy;
-import lombok.Getter;
 import lombok.NonNull;
 import net.sourceforge.cardme.engine.VCardEngine;
 import net.sourceforge.cardme.vcard.VCard;
@@ -32,6 +27,7 @@ import org.apache.tomcat.util.buf.StringUtils;
 import org.edu_sharing.elasticsearch.alfresco.client.*;
 import org.edu_sharing.elasticsearch.edu_sharing.client.EduSharingClient;
 import org.edu_sharing.elasticsearch.edu_sharing.client.NodeStatistic;
+import org.edu_sharing.elasticsearch.elasticsearch.utils.DataBuilder;
 import org.edu_sharing.elasticsearch.tools.ScriptExecutor;
 import org.edu_sharing.elasticsearch.tools.Tools;
 import org.edu_sharing.repository.client.tools.CCConstants;
@@ -41,7 +37,6 @@ import org.springframework.boot.json.JsonParseException;
 import org.springframework.boot.json.JsonParser;
 import org.springframework.stereotype.Component;
 
-import javax.annotation.PostConstruct;
 import java.io.IOException;
 import java.io.Serializable;
 import java.text.ParseException;
@@ -56,121 +51,41 @@ import java.util.function.Function;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
-@SuppressWarnings("rawtypes")
 @Component
-public class ElasticsearchService {
+public class WorkspaceService {
 
     public static final String CONTRIBUTOR_REGEX = "ccm:[a-zA-Z]*contributer_[a-zA-Z_-]*";
-    @Value("${elastic.host}")
-    String elasticHost;
-
-    @Value("${elastic.port}")
-    int elasticPort;
-
-    @Value("${elastic.protocol}")
-    String elasticProtocol;
-
-    @Value("${elastic.socketTimeout}")
-    int elasticSocketTimeout;
-
-    @Value("${elastic.connectTimeout}")
-    int elasticConnectTimeout;
-
-    @Value("${elastic.connectionRequestTimeout}")
-    int elasticConnectionRequestTimeout;
 
     @Value("${statistic.historyInDays}")
     int statisticHistoryInDays;
 
-    @Value("${elastic.index.number_of_shards}")
-    int indexNumberOfShards;
-
-    @Value("${elastic.index.number_of_replicas}")
-    int indexNumberOfReplicas;
-
     @Value("${elastic.maxCollectionChildItemsUpdateSize}")
     int maxCollectionChildItemsUpdateSize;
 
-    Logger logger = LogManager.getLogger(ElasticsearchService.class);
-
-    public static String INDEX_WORKSPACE = "workspace.9.0";
-    public static String INDEX_TRANSACTIONS = "transactions.9.0";
-    final static String ID_TRANSACTION = "1";
-    final static String ID_ACL_CHANGESET = "2";
-    final static String ID_STATISTICS_TIMESTAMP = "3";
+    private final Logger logger = LogManager.getLogger(WorkspaceService.class);
     private final SimpleDateFormat statisticDateFormatter = new SimpleDateFormat("yyyy-MM-dd");
-
-
-    String homeRepoId;
-
-    private final co.elastic.clients.elasticsearch.ElasticsearchClient client;
-
+    private final String homeRepoId;
+    private final ElasticsearchClient client;
     private final ScriptExecutor scriptExecutor;
-
-    private final EduSharingClient eduSharingClient;
     private final AtomicInteger nodeCounter = new AtomicInteger(0);
     private final AtomicLong lastNodeCount = new AtomicLong(System.currentTimeMillis());
-
     private final AlfrescoWebscriptClient alfrescoClient;
-
     private final SearchHitsRunner searchHitsRunner = new SearchHitsRunner(this);
+    private final String index;
 
-    @Getter
-    private boolean isReady;
-
-    public ElasticsearchService(co.elastic.clients.elasticsearch.ElasticsearchClient client, ScriptExecutor scriptExecutor, EduSharingClient eduSharingClient, AlfrescoWebscriptClient alfrescoClient) {
+    public WorkspaceService(co.elastic.clients.elasticsearch.ElasticsearchClient client, ScriptExecutor scriptExecutor, EduSharingClient eduSharingClient, AlfrescoWebscriptClient alfrescoClient, IndexConfiguration workspace) {
         this.client = client;
         this.scriptExecutor = scriptExecutor;
-        this.eduSharingClient = eduSharingClient;
         this.alfrescoClient = alfrescoClient;
-    }
-
-    @PostConstruct
-    public void init() throws IOException {
-        createIndexIfNotExists(INDEX_TRANSACTIONS);
-        createIndexWorkspace();
-        setupElasticConfiguration();
-        // TODO migration
-
+        this.index = workspace.getIndex();
         this.homeRepoId = eduSharingClient.getHomeRepository().getId();
-        isReady = true;
-    }
-
-    private void setupElasticConfiguration() throws IOException {
-        // we need to increase this value because of the large ccm/cclom model
-        client.indices().putSettings(req -> req.settings(
-                set -> set.index(id -> id.mapping(map -> map.totalFields(tf -> tf.limit(5000))))));
-    }
-
-    public void deleteIndex(String index) throws IOException {
-        client.indices().delete(req -> req.index(index));
-    }
-
-    private void createIndexIfNotExists(String index) throws IOException {
-        if (!client.indices().exists(req -> req.index(index)).value()) {
-            client.indices().create(req -> req
-                    .index(index)
-                    .settings(set -> set
-                            .index(id -> id
-                                    .numberOfShards(Integer.toString(indexNumberOfShards))
-                                    .numberOfReplicas(Integer.toString(indexNumberOfReplicas)))));
-        }
-    }
-
-    public void updatePermissions(long dbid, Map<String, List<String>> permissions) throws IOException {
-        //remove and add permissions cause its a object that would be merged
-        //this.update(dbid,new Script("ctx._source.remove('permissions')"));
-        this.update(dbid, Script.of(scr -> scr.inline(il -> il.source("ctx._source.permissions=null"))));
-        this.update(dbid, Map.of("permissions", permissions));
     }
 
     public void updateNodesWithAcl(final long aclId, final Map<String, List<String>> permissions) throws IOException {
         logger.debug("starting: {} ", aclId);
-        // Script script = new Script("ctx._source.permissions=null");
-
 
         UpdateByQueryResponse bulkByScrollResponse = client.updateByQuery(req -> req
-                .index(INDEX_WORKSPACE)
+                .index(index)
                 .query(q -> q.term(t -> t.field("aclId").value(aclId)))
                 .conflicts(Conflicts.Proceed)
                 .refresh(true)
@@ -179,6 +94,7 @@ public class ElasticsearchService {
                                 .source("ctx._source.permissions=params")
                                 .params(permissions.entrySet().stream().collect(Collectors.toMap(Map.Entry::getKey, x -> JsonData.of(x.getValue()))))))
         );
+
         logger.debug("updated: {}", bulkByScrollResponse.updated());
         List<BulkIndexByScrollFailure> bulkFailures = bulkByScrollResponse.failures();
         for (BulkIndexByScrollFailure failure : bulkFailures) {
@@ -188,17 +104,9 @@ public class ElasticsearchService {
 
     public void update(long dbId, Object data) throws IOException {
         this.update(req -> req
-                .index(INDEX_WORKSPACE)
+                .index(index)
                 .id(Long.toString(dbId))
                 .doc(data), Void.class);
-    }
-
-    public void update(long dbId, Script script) throws IOException {
-        this.update(req -> req
-                        .index(INDEX_WORKSPACE)
-                        .id(Long.toString(dbId))
-                        .script(script),
-                Void.class);
     }
 
     private <TDocument, TPartialDocument> void update(Function<
@@ -218,7 +126,7 @@ public class ElasticsearchService {
             return;
         }
 
-        BulkResponse response = client.bulk(req -> req.index(INDEX_WORKSPACE).operations(updateRequests));
+        BulkResponse response = client.bulk(req -> req.index(index).operations(updateRequests));
         for (BulkResponseItem item : response.items()) {
             if (item.error() != null) {
                 logger.error(item.error().reason());
@@ -237,10 +145,10 @@ public class ElasticsearchService {
         for (NodeData nodeData : nodes) {
             NodeMetadata node = nodeData.getNodeMetadata();
             DataBuilder builder = new DataBuilder();
-            get(nodeData, builder);
+            fillData(nodeData, builder);
             Object data = builder.build();
             operations.add(BulkOperation.of(op -> op.index(iop -> iop
-                    .index(INDEX_WORKSPACE)
+                    .index(index)
                     .id(Long.toString(node.getId()))
                     .document(data))));
 
@@ -252,7 +160,7 @@ public class ElasticsearchService {
 
         if (useBulkUpdate && !operations.isEmpty()) {
             logger.info("starting bulk update:");
-            BulkResponse bulkResponse = client.bulk(req -> req.index(INDEX_WORKSPACE).operations(operations));
+            BulkResponse bulkResponse = client.bulk(req -> req.index(index).operations(operations));
             logger.info("finished bulk update:");
 
             Map<Long, NodeData> collectionNodes = new HashMap<>();
@@ -264,7 +172,7 @@ public class ElasticsearchService {
                 }
             }
             logger.info("start refresh index");
-            this.refresh(INDEX_WORKSPACE);
+            this.refreshWorkspace();
             try {
                 logger.info("start RefreshCollectionReplicas");
                 for (BulkResponseItem item : bulkResponse.items()) {
@@ -290,11 +198,11 @@ public class ElasticsearchService {
         logger.info("returning");
     }
 
-    private void get(NodeData nodeData, @NonNull DataBuilder builder) throws IOException {
-        get(nodeData, builder, null);
+    private void fillData(NodeData nodeData, @NonNull DataBuilder builder) throws IOException {
+        fillData(nodeData, builder, null);
     }
 
-    void get(NodeData nodeData, @NonNull final DataBuilder builder, String objectName) throws IOException {
+    void fillData(NodeData nodeData, @NonNull final DataBuilder builder, String objectName) throws IOException {
 
         NodeMetadata node = nodeData.getNodeMetadata();
         String storeRefProtocol = Tools.getProtocol(node.getNodeRef());
@@ -495,7 +403,7 @@ public class ElasticsearchService {
                     }
 
                 }
-                if("ccm:wf_protocol".equals(key)) {
+                if ("ccm:wf_protocol".equals(key)) {
                     mapWorkflowProtocol(value, builder);
                 }
 
@@ -590,13 +498,13 @@ public class ElasticsearchService {
             if (!nodeData.getChildren().isEmpty()) {
                 builder.startArray("children");
                 for (NodeData child : nodeData.getChildren()) {
-                    get(child, builder);
+                    fillData(child, builder);
                 }
                 builder.endArray();
 
                 Map<Date, List<Double>> ratingsAtDay = new HashMap<>();
                 Map<Date, Double> ratingsAtDayAverage = new HashMap<>();
-                double ratingAll = 0;
+                double ratingAll;
                 for (NodeData child : nodeData.getChildren()) {
                     if ("ccm:rating".equals(child.getNodeMetadata().getType())) {
                         Date modified = Date.from(Instant.parse((String) child.getNodeMetadata().getProperties().get(CCConstants.getValidGlobalName("cm:modified"))));
@@ -637,23 +545,23 @@ public class ElasticsearchService {
 
     void mapWorkflowProtocol(Serializable value, @NonNull DataBuilder builder) {
         Collection<String> protocol;
-        if(value instanceof Collection) {
-            protocol = (Collection<String>)value;
-        } else if(value instanceof String) {
-            protocol = Collections.singletonList((String)value);
+        if (value instanceof Collection) {
+            protocol = (Collection<String>) value;
+        } else if (value instanceof String) {
+            protocol = Collections.singletonList((String) value);
         } else {
             logger.warn("Unable to convert worfklow protocol of type " + value.getClass().getName());
             return;
         }
         builder.startArray("workflow");
         protocol.stream().map(p -> {
-            try {
-                return new GsonBuilder().setObjectToNumberStrategy(ToNumberPolicy.LONG_OR_DOUBLE).create().fromJson(p, HashMap.class);
-            } catch(Throwable e) {
-                logger.warn("Invalid json in workflow entry: " + p, e);
-                return null;
-            }
-        })
+                    try {
+                        return new GsonBuilder().setObjectToNumberStrategy(ToNumberPolicy.LONG_OR_DOUBLE).create().fromJson(p, HashMap.class);
+                    } catch (Throwable e) {
+                        logger.warn("Invalid json in workflow entry: " + p, e);
+                        return null;
+                    }
+                })
                 .filter(Objects::nonNull)
                 .forEach(builder::value);
         builder.endArray();
@@ -663,11 +571,11 @@ public class ElasticsearchService {
     private void getProposalData(NodeDataProposal nodeData, @NonNull DataBuilder builder) throws IOException {
         if (nodeData.getCollection() != null) {
             builder.startArray("collections");
-            get(nodeData.getCollection(), builder);
+            fillData(nodeData.getCollection(), builder);
             builder.endArray();
         }
         if (nodeData.getOriginal() != null) {
-            get(nodeData.getOriginal(), builder, "original");
+            fillData(nodeData.getOriginal(), builder, "original");
         }
     }
 
@@ -677,7 +585,7 @@ public class ElasticsearchService {
         builder.field("fullpath", StringUtils.join(Arrays.asList(Arrays.copyOfRange(pathEle, 1, pathEle.length)), '/'));
     }
 
-    public void refresh(String index) throws IOException {
+    public void refreshWorkspace() throws IOException {
         logger.debug("starting");
         client.indices().refresh(req -> req.index(index));
         logger.debug("returning");
@@ -722,14 +630,14 @@ public class ElasticsearchService {
         Query collectionQuery = Query.of(q -> q.term(t -> t.field("properties.sys:node-uuid").value(finalNodeIdCollection)));
         Query ioQuery = Query.of(q -> q.term(t -> t.field("properties.sys:node-uuid").value(finalnodeIdIO)));
 
-        HitsMetadata<Map> searchHitsCollection = this.search(INDEX_WORKSPACE, collectionQuery, 0, 1);
+        HitsMetadata<Map> searchHitsCollection = this.search(collectionQuery, 0, 1);
         if (searchHitsCollection == null || searchHitsCollection.total().value() == 0) {
             logger.warn("no collection found for: " + nodeIdCollection);
             return null;
         }
         Hit<Map> searchHitCollection = searchHitsCollection.hits().get(0);
 
-        HitsMetadata<Map> ioSearchHits = this.search(INDEX_WORKSPACE, ioQuery, 0, 1);
+        HitsMetadata<Map> ioSearchHits = this.search(ioQuery, 0, 1);
         if (ioSearchHits == null || ioSearchHits.total().value() == 0) {
             logger.warn("no io found for: " + nodeIdIO);
             return null;
@@ -779,7 +687,7 @@ public class ElasticsearchService {
              * but it would be another call and could make the indexing process slower.
              * for the future: maybe it's better to react on collection_ref object index actions than usage index actions
              */
-            get(alfrescoClient.getNodeData(List.of(usageOrProposal)).get(0), builder, "relation");
+            fillData(alfrescoClient.getNodeData(List.of(usageOrProposal)).get(0), builder, "relation");
 
             builder.endObject();
             builder.endArray();
@@ -787,13 +695,12 @@ public class ElasticsearchService {
         builder.endObject();
         int dbid = Integer.parseInt(hitIO.id());
         this.update(dbid, builder.build());
-        this.refresh(INDEX_WORKSPACE);
+        this.refreshWorkspace();
         return builder;
     }
 
     /**
      * checks if its a collection usage by searching for collections.usagedbid, and removes replicated collection object
-     *
      */
     public void beforeDeleteCleanupCollectionReplicas(List<Node> nodes) throws IOException {
         logger.info("starting: " + nodes.size());
@@ -811,7 +718,7 @@ public class ElasticsearchService {
              * try it is a usage or proposal
              */
             Query queryUsage = Query.of(q -> q.term(t -> t.field("collections.relation.dbid").value(node.getId())));
-            HitsMetadata<Map> searchHitsIO = this.search(INDEX_WORKSPACE, queryUsage, 0, 1);
+            HitsMetadata<Map> searchHitsIO = this.search(queryUsage, 0, 1);
             if (searchHitsIO.total().value() > 0) {
                 collectionCheckQuery = queryUsage;
             }
@@ -821,7 +728,7 @@ public class ElasticsearchService {
              */
             Query queryCollection = Query.of(q -> q.term(t -> t.field("collections.dbid").value(node.getId())));
             if (collectionCheckQuery == null) {
-                searchHitsIO = this.search(INDEX_WORKSPACE, queryCollection, 0, 1);
+                searchHitsIO = this.search(queryCollection, 0, 1);
                 if (!searchHitsIO.hits().isEmpty()) {
                     collectionCheckQuery = queryCollection;
                 }
@@ -836,8 +743,9 @@ public class ElasticsearchService {
             logger.info("cleanup collection cause " + (collectionDeleted ? "collection deleted" : "usage/proposal deleted"));
 
             searchHitsRunner.run(collectionCheckQuery, hitIO -> {
+                Map source = hitIO.source();
                 @SuppressWarnings("unchecked")
-                List<Map<String, Object>> collections = (List<Map<String, Object>>) hitIO.source().get("collections");
+                List<Map<String, Object>> collections = (List<Map<String, Object>>) source.get("collections");
                 DataBuilder builder = new DataBuilder();
                 builder.startObject();
                 {
@@ -873,70 +781,13 @@ public class ElasticsearchService {
                 int dbid = Integer.parseInt(hitIO.id());
 
                 updateRequests.add(BulkOperation.of(op -> op
-                        .update(up -> up.index(INDEX_WORKSPACE)
+                        .update(up -> up.index(index)
                                 .id(Long.toString(dbid))
                                 .action(a -> a.doc(builder.build())))));
             });
         }
         this.updateBulk(updateRequests);
         logger.info("returning");
-    }
-
-    /**
-     * update ios collection metdata, that are containted inside a collection
-     *
-     * @deprecated
-     */
-    private void _onUpdateRefreshCollectionReplicas(Node nodeCollection) throws IOException {
-        List<BulkOperation> updateRequests = new ArrayList<>();
-        Query queryCollection = Query.of(q -> q.term(t -> t.field("collections.dbid").value(nodeCollection.getId())));
-
-        searchHitsRunner.run(queryCollection, hit -> {
-            logger.info("updating collection data for:" + hit.source().get("dbid"));
-            Query collectionQuery = Query.of(q -> q.term(t -> t.field("properties.sys:node-uuid").value(Tools.getUUID(nodeCollection.getNodeRef()))));
-            HitsMetadata<Map> searchHitsCollection = null;
-            try {
-                searchHitsCollection = this.search(INDEX_WORKSPACE, collectionQuery, 0, 1);
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
-
-            if (searchHitsCollection == null || searchHitsCollection.total().value() == 0) {
-                return;
-            }
-
-            @SuppressWarnings("unchecked")
-            List<Map<String, Object>> collectionReplicas = (List<Map<String, Object>>) hit.source().get("collections");
-            DataBuilder builder = new DataBuilder();
-            builder.startObject();
-            {
-                builder.startArray("collections");
-
-                for (Map<String, Object> collectionReplica : collectionReplicas) {
-                    long collReplDbid = ((Number) collectionReplica.get("dbid")).longValue();
-                    if (collReplDbid == nodeCollection.getId()) {
-                        builder.startObject();
-                        //noinspection unchecked
-                        for (Map.Entry<String, Object> entry : ((Map<String, Object>) searchHitsCollection.hits().get(0).source()).entrySet()) {
-                            builder.field(entry.getKey(), entry.getValue());
-                        }
-                        builder.endObject();
-                    } else {
-                        builder.startObject();
-                        for (Map.Entry<String, Object> entry : collectionReplica.entrySet()) {
-                            builder.field(entry.getKey(), entry.getValue());
-                        }
-                        builder.endObject();
-                    }
-                }
-
-                builder.endArray();
-            }
-            builder.endObject();
-            int dbid = Integer.parseInt(hit.id());
-            updateRequests.add(BulkOperation.of(op -> op.update(u -> u.index(INDEX_WORKSPACE).id(Long.toString(dbid)).action(a -> a.doc(builder.build())))));
-        });
-        this.updateBulk(updateRequests);
     }
 
     private void onUpdateRefreshUsageCollectionReplicas(NodeMetadata node, boolean update) throws IOException {
@@ -991,14 +842,14 @@ public class ElasticsearchService {
         searchHitsRunner.run(queryProposals, 5, update ? maxCollectionChildItemsUpdateSize : null, action);
     }
 
-    private String getMultilangValue(List listvalue) {
-        if (listvalue.size() > 1) {
+    private String getMultilangValue(List<?> values) {
+        if (values.size() > 1) {
             // find german value i.e for Documents/Images edu folder
             String value = null;
             String defaultValue = null;
 
-            for (Object o : listvalue) {
-                Map m = (Map) o;
+            for (Object item : values) {
+                Map<?,?> m = (Map<?,?>) item;
                 //default is {key="locale",value="de"},{key="value",value="Deutsch"}
                 if (m.size() > 2) {
                     throw new RuntimeException("language map has only one value");
@@ -1010,144 +861,28 @@ public class ElasticsearchService {
             }
             if (value == null) value = defaultValue;
             return value;
-        } else if (listvalue.size() == 1) {
-            Map multilangValue = (Map) listvalue.get(0);
+        } else if (values.size() == 1) {
+            Map<?,?> multilangValue = (Map<?,?>) values.get(0);
             return (String) multilangValue.get("value");
         } else {
             return null;
         }
     }
 
-    public void setTransaction(String index, long txnCommitTime, long transactionId) throws IOException {
-
-        DataBuilder builder = new DataBuilder();
-        builder.startObject();
-        {
-            builder.field("txnId", transactionId);
-            builder.field("txnCommitTime", txnCommitTime);
-        }
-        builder.endObject();
-
-        setNode(index, ID_TRANSACTION, builder);
-    }
-
-    public void setTransaction(long txnCommitTime, long transactionId) throws IOException {
-        setTransaction(INDEX_TRANSACTIONS, txnCommitTime, transactionId);
-    }
-
-    private void setNode(String index, String id, @NonNull DataBuilder builder) throws IOException {
-
-        IndexResponse indexResponse = client.index(req -> req
-                .index(index)
-                .id(id)
-                .document(builder.build()));
-
-        if (indexResponse.result() == Result.Created) {
-            logger.debug("created node in elastic:" + builder);
-        } else if (indexResponse.result() == Result.Updated) {
-            logger.debug("updated node in elastic:" + builder);
-        }
-
-        ShardStatistics shardInfo = indexResponse.shards();
-        if (shardInfo.total().longValue() != shardInfo.successful().longValue()) {
-            logger.debug("shardInfo.total().longValue() " + shardInfo.total().longValue() + "!=" + "shardInfo.successful().longValue():" + shardInfo.successful().longValue());
-        }
-
-        if (shardInfo.failed().longValue() > 0) {
-            for (ShardFailure failure : shardInfo.failures()) {
-                String reason = failure.reason().reason();
-                logger.error(failure.node() + " reason:" + reason);
-            }
-        }
-    }
-
-    public GetResponse<Map> get(String index, String id) throws IOException {
-        return client.get(req -> req
-                .index(index)
-                .id(id),
-                Map.class);
-    }
-
-    public boolean exists(String index, String id) throws IOException {
+    public boolean exists(String id) throws IOException {
         return client.exists(req -> req
-                .index(index)
-                .id(id))
+                        .index(index)
+                        .id(id))
                 .value();
-    }
-
-    public Tx getTransaction(String index) throws IOException {
-
-        GetResponse<Map> resp = this.get(index, ID_TRANSACTION);
-        Tx transaction = null;
-        if (resp.found()) {
-            transaction = new Tx();
-            transaction.setTxnCommitTime(((Number) resp.source().get("txnCommitTime")).longValue());
-            transaction.setTxnId(((Number) resp.source().get("txnId")).longValue());
-        }
-
-        return transaction;
-    }
-
-    public Tx getTransaction() throws IOException {
-        return getTransaction(INDEX_TRANSACTIONS);
-    }
-
-
-    public void setACLChangeSet(final long aclChangeSetTime, final long aclChangeSetId) throws IOException {
-        DataBuilder builder = new DataBuilder();
-        builder.startObject();
-        {
-            builder.field("aclChangeSetId", aclChangeSetId);
-            builder.field("aclChangeSetCommitTime", aclChangeSetTime);
-        }
-        builder.endObject();
-
-        setNode(INDEX_TRANSACTIONS, ID_ACL_CHANGESET, builder);
-    }
-
-    public ACLChangeSet getACLChangeSet() throws IOException {
-        GetResponse<Map> resp = this.get(INDEX_TRANSACTIONS, ID_ACL_CHANGESET);
-
-        ACLChangeSet aclChangeSet = null;
-        if (resp.found()) {
-            aclChangeSet = new ACLChangeSet();
-            aclChangeSet.setAclChangeSetCommitTime(Long.parseLong(resp.source().get("aclChangeSetCommitTime").toString()));
-            aclChangeSet.setAclChangeSetId((int) resp.source().get("aclChangeSetId"));
-        }
-
-        return aclChangeSet;
-    }
-
-    public void setStatisticTimestamp(long statisticTimestamp, boolean allInIndex) throws IOException {
-        DataBuilder builder = new DataBuilder();
-        builder.startObject();
-        {
-            builder.field("statisticTimestamp", statisticTimestamp);
-            builder.field("allInIndex", allInIndex);
-        }
-        builder.endObject();
-        setNode(INDEX_TRANSACTIONS, ID_STATISTICS_TIMESTAMP, builder);
-    }
-
-    public StatisticTimestamp getStatisticTimestamp() throws IOException {
-        GetResponse<Map> resp = this.get(INDEX_TRANSACTIONS, ID_STATISTICS_TIMESTAMP);
-        StatisticTimestamp sTs = null;
-        if (resp.found()) {
-            sTs = new StatisticTimestamp();
-            sTs.setStatisticTimestamp(Long.parseLong(resp.source().get("statisticTimestamp").toString()));
-            Boolean allInIndex = (Boolean) resp.source().get("allInIndex");
-            sTs.setAllInIndex(allInIndex != null && allInIndex);
-        }
-        return sTs;
     }
 
     public void delete(List<Node> nodes) throws IOException {
         logger.info("starting size:" + nodes.size());
         if (!nodes.isEmpty()) {
             BulkResponse response = client.bulk(req -> req
-                    .index(INDEX_WORKSPACE)
+                    .index(index)
                     .operations(op -> {
-                        nodes.forEach(n -> op.delete(d -> d.index(INDEX_WORKSPACE).id(Long.toString(n.getId()))));
+                        nodes.forEach(n -> op.delete(d -> d.index(index).id(Long.toString(n.getId()))));
                         return op;
                     }));
 
@@ -1160,223 +895,11 @@ public class ElasticsearchService {
         logger.info("returning");
     }
 
-    public void createIndexWorkspace() throws IOException {
-        try {
-
-            if (client.indices().exists(req -> req.index(INDEX_WORKSPACE)).value()) {
-                return;
-            }
-
-            CreateIndexRequest indexRequest = CreateIndexRequest.of(req -> req
-                    .index(INDEX_WORKSPACE)
-                    .settings(this::getIndexSettings)
-                    .mappings(this::getMappings));
-            client.indices().create(indexRequest);
-        } catch (Exception e) {
-            logger.error(e.getMessage(), e);
-            throw e;
-        }
+    public HitsMetadata<Map> search(Query queryBuilder, int from, int size) throws IOException {
+        return this.search(queryBuilder, from, size, null);
     }
 
-    IndexSettings.Builder getIndexSettings(IndexSettings.Builder s) {
-        return s.index(id -> id
-                .numberOfShards(Integer.toString(indexNumberOfShards))
-                .numberOfReplicas(Integer.toString(indexNumberOfReplicas))
-        ).analysis(analysis -> analysis
-                .analyzer("trigram", a -> a
-                        .custom(c -> c
-                                .tokenizer("standard")
-                                .filter("lowercase", "shingle")))
-                .analyzer("reverse", a -> a
-                        .custom(c -> c
-                                .tokenizer("standard")
-                                .filter("lowercase", "reverse")))
-                .filter("shingle", f -> f
-                        .definition(def -> def
-                                .shingle(shingle -> shingle
-                                        .minShingleSize("2")
-                                        .maxShingleSize("3")))));
-    }
-
-    ObjectBuilder<TypeMapping> getMappings(TypeMapping.Builder mapping) {
-        //noinspection unchecked
-        return mapping.dynamic(DynamicMapping.True)
-                .numericDetection(true)
-                .dynamicTemplates(
-                        Map.of("aggregated_type", DynamicTemplate.of(dt -> dt
-                                .matchMappingType("string")
-                                .pathMatch("properties_aggregated.*")
-                                .mapping(mp -> mp.keyword(kw -> kw.ignoreAbove(256).store(true))))),
-
-                        Map.of("nodeRef_type", DynamicTemplate.of(dt -> dt
-                                .matchMappingType("object")
-                                .matchPattern(MatchType.Regex)
-                                .pathMatch("^(?:\\w+\\.)*(nodeRef|parentRef)$")
-                                .mapping(mp -> mp
-                                        .object(nodeRefObj -> nodeRefObj
-                                                .properties("id", storeRefProp -> storeRefProp.keyword(v -> v))
-                                                .properties("storeRef", storeRefProp -> storeRefProp
-                                                        .object(storeRefObj -> storeRefObj
-                                                                .properties("protocol", protProp -> protProp.keyword(v -> v))
-                                                                .properties("identifier", idProp -> idProp.keyword(v -> v)))))))),
-
-                        Map.of("owner_type", DynamicTemplate.of(dt -> dt
-                                .matchMappingType("*")
-                                .matchPattern(MatchType.Regex)
-                                .pathMatch("^(?:\\w+\\.)*owner$")
-                                .mapping(mp -> mp.keyword(v -> v)))),
-
-                        Map.of("path_type", DynamicTemplate.of(dt -> dt
-                                .matchMappingType("*")
-                                .matchPattern(MatchType.Regex)
-                                .pathMatch("^(?:\\w+\\.)*path$")
-                                .mapping(mp -> mp.keyword(v -> v)))),
-
-                        Map.of("fullpath_type", DynamicTemplate.of(dt -> dt
-                                .matchMappingType("*")
-                                .matchPattern(MatchType.Regex)
-                                .pathMatch("^(?:\\w+\\.)*fullpath$")
-                                .mapping(mp -> mp.keyword(v -> v)))),
-
-                        Map.of("aspects_type", DynamicTemplate.of(dt -> dt
-                                .matchMappingType("*")
-                                .matchPattern(MatchType.Regex)
-                                .pathMatch("^(?:\\w+\\.)*aspects$")
-                                .mapping(mp -> mp.keyword(v -> v)))),
-
-                        Map.of("permissions_type", DynamicTemplate.of(dt -> dt
-                                .matchMappingType("*")
-                                .matchPattern(MatchType.Regex)
-                                .pathMatch("^(?:\\w+\\.)*permissions.(\\w*.)*$")
-                                .mapping(mp -> mp.keyword(v -> v)))),
-
-                        Map.of("type_type", DynamicTemplate.of(dt -> dt
-                                .matchMappingType("*")
-                                .matchPattern(MatchType.Regex)
-                                .pathMatch("^(?:\\w+\\.)*type$")
-                                .mapping(mp -> mp.keyword(v -> v)))),
-
-                        Map.of("content_type", DynamicTemplate.of(dt -> dt
-                                .matchMappingType("*")
-                                .matchPattern(MatchType.Regex)
-                                .pathMatch("^(?:\\w+\\.)*content$")
-                                .mapping(mp -> mp
-                                        .object(obj -> obj
-                                                .properties("fulltext", prop -> prop.text(v -> v))
-                                                .properties("contentId", prop -> prop.long_(v -> v))
-                                                .properties("size", prop -> prop.long_(v -> v))
-                                                .properties("encoding", prop -> prop.keyword(v -> v))
-                                                .properties("locale", prop -> prop.keyword(v -> v))
-                                                .properties("mimetype", prop -> prop.keyword(v -> v)))))),
-
-                        Map.of("properties_type", DynamicTemplate.of(dt -> dt
-                                .matchMappingType("*")
-                                .matchPattern(MatchType.Regex)
-                                .pathMatch("^(?:\\w+\\.)*properties.(ccm:original|cclom:location|sys:node-uuid|cclom:format|cm:versionLabel)$")
-                                .mapping(mp -> mp.keyword(v -> v)))),
-
-                        Map.of("title_type", DynamicTemplate.of(dt -> dt
-                                .matchMappingType("*")
-                                .matchPattern(MatchType.Regex)
-                                .pathMatch("^(?:\\w+\\.)*properties.(cclom:title)$")
-                                .mapping(mp -> mp.text(t -> t.copyTo("properties_aggregated.cclom:title")
-                                        .fields("keyword", prop -> prop.keyword(v -> v.ignoreAbove(256)))
-                                        .fields("trigram", prop -> prop.text(v -> v.analyzer("trigram")))
-                                        .fields("reverse", prop -> prop.text(v -> v.analyzer("reverse"))))))),
-
-                        Map.of("workflow_type", DynamicTemplate.of(dt -> dt
-                                .matchMappingType("*")
-                                .pathMatch("workflow.*")
-                                .mapping(mp -> mp.keyword(v -> v)))),
-
-                        Map.of("contributor_type", DynamicTemplate.of(dt -> dt
-                                .matchMappingType("*")
-                                .matchPattern(MatchType.Regex)
-                                .pathMatch("^contributor.(email|firstname|lastname|org|url|uuid|vcard)$")
-                                .mapping(mp -> mp.keyword(v -> v)))),
-
-                        Map.of("long_type", DynamicTemplate.of(dt -> dt
-                                .matchMappingType("*")
-                                .matchPattern(MatchType.Regex)
-                                .pathMatch("^(?:\\w+\\.)*(aclId|txnId|dbid)$")
-                                .mapping(mp -> mp.long_(v -> v)))),
-
-                        Map.of("convert_date", DynamicTemplate.of(dt -> dt
-                                .matchMappingType("date")
-                                .pathMatch("*properties.*")
-                                .mapping(mp -> mp.text(t -> t.store(true)
-                                        .fields("keyword", f -> f.keyword(kw -> kw.ignoreAbove(256)))
-                                        .fields("date", f -> f.date(v -> v.ignoreMalformed(true))))))),
-
-                        Map.of("convert_numeric_long", DynamicTemplate.of(dt -> dt
-                                .matchMappingType("long")
-                                .pathMatch("*properties.*")
-                                .mapping(mp -> mp.text(t -> t.store(true)
-                                        .fields("keyword", f -> f.keyword(kw -> kw.ignoreAbove(256)))
-                                        .fields("number", f -> f.long_(v -> v.ignoreMalformed(true))))))),
-
-                        Map.of("convert_numeric_double", DynamicTemplate.of(dt -> dt
-                                .matchMappingType("double")
-                                .pathMatch("*properties.*")
-                                .mapping(mp -> mp.text(t -> t.store(true)
-                                        .fields("keyword", f -> f.keyword(kw -> kw.ignoreAbove(256)))
-                                        .fields("number", f -> f.float_(v -> v.ignoreMalformed(true))))))),
-
-                        Map.of("copy_facettes", DynamicTemplate.of(dt -> dt
-                                .matchMappingType("string")
-                                .pathMatch("*properties.*")
-                                .mapping(mp -> mp.text(t -> t.copyTo("properties_aggregated.{name}")
-                                        .fields("keyword", f -> f.keyword(kw -> kw.ignoreAbove(256))))))),
-
-                        Map.of("convert_date_aggregated", DynamicTemplate.of(dt -> dt
-                                .matchMappingType("date")
-                                .pathMatch("*properties_aggregated.*")
-                                .mapping(mp -> mp.text(t -> t.store(true)
-                                        .fields("keyword", f -> f.keyword(kw -> kw.ignoreAbove(256)))
-                                        .fields("date", f -> f.date(v -> v.ignoreMalformed(true))))))),
-
-                        Map.of("convert_numeric_long_aggregated", DynamicTemplate.of(dt -> dt
-                                .matchMappingType("long")
-                                .pathMatch("*properties_aggregated.*")
-                                .mapping(mp -> mp.text(t -> t.store(true)
-                                        .fields("keyword", f -> f.keyword(kw -> kw.ignoreAbove(256)))
-                                        .fields("number", f -> f.long_(v -> v.ignoreMalformed(true))))))),
-
-                        Map.of("convert_numeric_double_aggregated", DynamicTemplate.of(dt -> dt
-                                .matchMappingType("double")
-                                .pathMatch("*properties_aggregated.*")
-                                .mapping(mp -> mp.text(t -> t.store(true)
-                                        .fields("keyword", f -> f.keyword(kw -> kw.ignoreAbove(256)))
-                                        .fields("number", f -> f.float_(v -> v.ignoreMalformed(true))))))),
-
-                        Map.of("statistics_rating", DynamicTemplate.of(dt -> dt
-                                .pathMatch("statistic_RATING_*")
-                                .mapping(mp -> mp.float_(f -> f)))),
-
-                        Map.of("statistics_generic", DynamicTemplate.of(dt -> dt
-                                .pathMatch("statistic_*")
-                                .mapping(mp -> mp.long_(l -> l))))
-                )
-                .properties("workflow", workProp -> workProp
-                        .nested(nt -> nt
-                                .properties("time", prop -> prop.date(v -> v))))
-                .properties("contributor", prop -> prop.nested(v -> v))
-                .properties("children", prop -> prop.nested(v -> v))
-                .properties("collections", colProp -> colProp.nested(v -> v))
-                .properties("preview", previewProp -> previewProp
-                        .object(previewObj -> previewObj
-                                .properties("mimetype", prop -> prop.keyword(v -> v))
-                                .properties("type", prop -> prop.keyword(v -> v))
-                                .properties("icon", prop -> prop.boolean_(v -> v))
-                                .properties("small", prop -> prop.binary(v -> v))));
-    }
-
-
-    public HitsMetadata<Map> search(String index, Query queryBuilder, int from, int size) throws IOException {
-        return this.search(index, queryBuilder, from, size, null);
-    }
-
-    public HitsMetadata<Map> search(String index, Query query, int from, int size, List<String> excludes) throws IOException {
+    public HitsMetadata<Map> search(Query query, int from, int size, List<String> excludes) throws IOException {
         SearchResponse<Map> searchResponse = client.search(req -> {
                     req.index(index)
                             .query(query)
@@ -1414,7 +937,7 @@ public class ElasticsearchService {
                 .must(must -> must.term(t -> t.field("nodeRef.storeRef.protocol").value(protocol)))
                 .must(must -> must.term(t -> t.field("nodeRef.storeRef.identifier").value(identifier)))));
 
-        HitsMetadata<Map> sh = this.search(INDEX_WORKSPACE, query, 0, 1, excludes);
+        HitsMetadata<Map> sh = this.search(query, 0, 1, excludes);
         if (sh == null || sh.total().value() == 0) {
             return null;
         }
@@ -1488,7 +1011,7 @@ public class ElasticsearchService {
                         builder.endObject();
                         bulk.add(BulkOperation.of(req -> req
                                 .update(i -> i
-                                        .index(INDEX_WORKSPACE)
+                                        .index(index)
                                         .id(Long.toString(dbid))
                                         .action(a -> a.doc(builder.build())))));
                     }
@@ -1562,7 +1085,7 @@ public class ElasticsearchService {
             logger.info("remove for " + id + ": " + String.join(",", propsToRemove));
 
             this.update(req -> req
-                            .index(INDEX_WORKSPACE)
+                            .index(index)
                             .id(id)
                             .script(scr -> scr
                                     .inline(il -> il

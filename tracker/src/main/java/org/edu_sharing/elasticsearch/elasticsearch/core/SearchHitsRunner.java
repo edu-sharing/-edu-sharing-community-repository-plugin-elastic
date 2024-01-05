@@ -1,4 +1,4 @@
-package org.edu_sharing.elasticsearch.elasticsearch.client;
+package org.edu_sharing.elasticsearch.elasticsearch.core;
 
 import co.elastic.clients.elasticsearch._types.query_dsl.Query;
 import co.elastic.clients.elasticsearch.core.search.Hit;
@@ -14,9 +14,9 @@ public final class SearchHitsRunner {
 
     private static final Logger logger = LoggerFactory.getLogger(SearchHitsRunner.class);
 
-    private final ElasticsearchService elasticClient;
-    public SearchHitsRunner(ElasticsearchService elasticClient){
-        this.elasticClient = elasticClient;
+    private final WorkspaceService workspaceService;
+    public SearchHitsRunner(WorkspaceService workspaceService){
+        this.workspaceService = workspaceService;
     }
 
     public void run(Query query, Consumer<Hit<Map>> hitConsumer)throws IOException {
@@ -34,7 +34,7 @@ public final class SearchHitsRunner {
             if(searchHits != null){
                 page+=pageSize;
             }
-            searchHits = elasticClient.search(ElasticsearchService.INDEX_WORKSPACE, query, page, pageSize);
+            searchHits = workspaceService.search(query, page, pageSize);
             if(maxResultsSize != null && searchHits.total().value() > maxResultsSize){
                 logger.warn("max result size has been reached: found {} of {} allowed", searchHits.total().value(), maxResultsSize);
                 return;

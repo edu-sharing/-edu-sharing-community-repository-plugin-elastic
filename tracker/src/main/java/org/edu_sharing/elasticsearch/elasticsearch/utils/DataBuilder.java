@@ -1,4 +1,4 @@
-package org.edu_sharing.elasticsearch.elasticsearch.client;
+package org.edu_sharing.elasticsearch.elasticsearch.utils;
 
 import io.micrometer.core.instrument.util.StringUtils;
 

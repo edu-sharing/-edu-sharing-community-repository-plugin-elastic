@@ -1,16 +1,17 @@
 package org.edu_sharing.elasticsearch.tracker;
 
+import org.edu_sharing.elasticsearch.alfresco.client.AlfrescoWebscriptClient;
 import org.edu_sharing.elasticsearch.alfresco.client.Node;
 import org.edu_sharing.elasticsearch.alfresco.client.NodeMetadata;
-import org.edu_sharing.elasticsearch.alfresco.client.Transactions;
-import org.edu_sharing.elasticsearch.elasticsearch.client.ElasticsearchService;
-import org.edu_sharing.elasticsearch.elasticsearch.client.Tx;
+import org.edu_sharing.elasticsearch.edu_sharing.client.EduSharingClient;
+import org.edu_sharing.elasticsearch.elasticsearch.core.StatusIndexService;
+import org.edu_sharing.elasticsearch.elasticsearch.core.state.Tx;
+import org.edu_sharing.elasticsearch.elasticsearch.core.WorkspaceService;
 import org.edu_sharing.elasticsearch.tools.Tools;
+import org.edu_sharing.elasticsearch.tracker.strategy.TrackerStrategy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.stereotype.Component;
 
 import javax.annotation.PostConstruct;
 import java.io.File;
@@ -24,13 +25,14 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 
-@Component
-@ConditionalOnProperty(prefix = "transaction", name="tracker", havingValue = "fix-missing")
-public class FixMissingTracker extends TransactionTracker{
+//@Component
+//@ConditionalOnProperty(prefix = "transaction", name="tracker", havingValue = "fix-missing")
+public class FixMissingTrackerDefault extends DefaultTransactionTracker {
 
+    // TODO
     public static String INDEX_TRANSACTIONS = "transactions_missing";
 
-    Logger logger =  LoggerFactory.getLogger(FixMissingTracker.class);
+    Logger logger =  LoggerFactory.getLogger(FixMissingTrackerDefault.class);
 
 
     /**
@@ -43,6 +45,10 @@ public class FixMissingTracker extends TransactionTracker{
 
     Long runToTx = null;
 
+    public FixMissingTrackerDefault(AlfrescoWebscriptClient alfClient, WorkspaceService workspaceService, EduSharingClient eduSharingClient, StatusIndexService<Tx> transactionStateService, TrackerStrategy strategy) {
+        super(alfClient, workspaceService, eduSharingClient, transactionStateService, strategy);
+    }
+
 
     @PostConstruct
     void createTempFile() throws IOException {
@@ -50,7 +56,7 @@ public class FixMissingTracker extends TransactionTracker{
         String tmpFileName = "fixmissing_md_fetch_error.log";
         tempFile = new File(tmpdir + "/"+tmpFileName);
 
-        Tx transaction = elasticService.getTransaction(getTransactionIndex());
+        Tx transaction = transactionStateService.getState();
         if(transaction == null && tempFile.exists()){
             logger.info("clearing error log");
             Files.delete(tempFile.toPath());
@@ -67,29 +73,26 @@ public class FixMissingTracker extends TransactionTracker{
         logger.info("tracking the following number of nodes:" + nodes.size());
 
         //filter stores
-        nodes = nodes
-                .stream()
+        nodes = nodes.stream()
                 .filter(n -> "workspace://SpacesStore".contains(Tools.getStoreRef(n.getNodeRef())))
                 .collect(Collectors.toList());
 
         //filter deletes
-        nodes = nodes
-                .stream()
+        nodes = nodes.stream()
                 .filter(n -> !n.getStatus().equals("d"))
                 .collect(Collectors.toList());
 
         logger.info("nodes cleaned up:" + nodes.size());
 
         //remove duplicates
-        nodes = nodes
-                .stream()
+        nodes = nodes.stream()
                 .distinct()
-                .collect( Collectors.toList() );
+                .collect(Collectors.toList());
         logger.info("nodes removed duplicates:" + nodes.size());
 
 
         //split to partion for high number of nodes (i.e 80.000)
-        Collection<List<Node>> partitions = new Partition<Node>().getPartitions(nodes,500);
+        Collection<List<Node>> partitions = Partition.getPartitions(nodes, 500);
         int c = 0;
         int p = 0;
         for(List<Node> partition : partitions){
@@ -106,13 +109,13 @@ public class FixMissingTracker extends TransactionTracker{
     private int index(List<Node> nodes) throws IOException{
         long millis = System.currentTimeMillis();
         //partion for parallel processsing
-        Collection<List<Node>> partitions = new Partition<Node>().getPartitions(nodes, 50);
+        Collection<List<Node>> partitions = Partition.getPartitions(nodes, 50);
         List<NodeMetadata> tmpNodeData = Collections.synchronizedList(new ArrayList<>());
         AtomicInteger counter = new AtomicInteger(0);
 
         for(List<Node> partition :  partitions) {
             threadPool.execute(() -> {
-                List<NodeMetadata> tmp = client.getNodeMetadata(partition);
+                List<NodeMetadata> tmp = alfClient.getNodeMetadata(partition);
                 tmpNodeData.addAll(tmp);
                 counter.addAndGet(partition.size());
             });
@@ -166,14 +169,14 @@ public class FixMissingTracker extends TransactionTracker{
             if(isAllowedType(nodeMetadata)) {
                 //2-4ms
                 //GetResponse resp = elasticClient.get(ElasticsearchClient.INDEX_WORKSPACE, new Long(nodeMetadata.getId()).toString());
-                if (!elasticService.exists(ElasticsearchService.INDEX_WORKSPACE, Long.toString(nodeMetadata.getId()))) {
+                if (!workspaceService.exists(Long.toString(nodeMetadata.getId()))) {
                     logNodeProblem(nodeMetadata);
                     if(repair){
                         indexNodesMetadata(List.of(nodeMetadata));
                         if("ccm:usage".equals(nodeMetadata.getType())
                                 || "ccm:collection_proposal".equals(nodeMetadata.getType())){
                             logger.info("sync collections for usage:" + nodeMetadata.getId());
-                            elasticService.indexCollections(nodeMetadata);
+                            workspaceService.indexCollections(nodeMetadata);
                         }
                     }
                 }
@@ -191,28 +194,23 @@ public class FixMissingTracker extends TransactionTracker{
         logger.error("node does not exist in elastic id:" + " " + node.getId() +" nodeRef:"+node.getNodeRef() + " type:" + node.getType() +" txId:"+node.getTxnId());
     }
 
-    @Override
-    public String getTransactionIndex() {
-        return INDEX_TRANSACTIONS;
-    }
-
     private void logUnresolveableNode(String dbid) throws IOException{
         dbid = dbid + System.lineSeparator();
         Files.write(tempFile.toPath(),dbid.getBytes(StandardCharsets.UTF_8), StandardOpenOption.APPEND);
     }
 
-    @Override
-    public long getMaxTxnId(Transactions transactions) {
-        if(runToTx == null){
-            try {
-                runToTx = elasticService.getTransaction(ElasticsearchService.INDEX_TRANSACTIONS).getTxnId();
-                logger.info("running not longer than current main tracker transaction:" +runToTx);
-            } catch (IOException e) {
-               logger.error("error reaching elasticsearch");
-               return 0;
-            }
-        }
-        return runToTx;
-
-    }
+    // TODO
+//    @Override
+//    public long getMaxTxnId(Transactions transactions) {
+//        if(runToTx == null){
+//            try {
+//                runToTx = transactionStateService.getState().getTxnId();
+//                logger.info("running not longer than current main tracker transaction:" +runToTx);
+//            } catch (IOException e) {
+//               logger.error("error reaching elasticsearch");
+//               return 0;
+//            }
+//        }
+//        return runToTx;
+//    }
 }

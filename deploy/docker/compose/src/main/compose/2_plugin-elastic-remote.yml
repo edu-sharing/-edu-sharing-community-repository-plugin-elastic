@@ -4,3 +4,6 @@ services:
 
   repository-search-elastic-tracker:
     image: "${docker.registry}/${docker.repository}/${docker.prefix}-deploy-docker-build-tracker:${docker.tag}"
+
+  repository-search-elastic-migration:
+    image: "${docker.registry}/${docker.repository}/${docker.prefix}-deploy-docker-build-tracker:${docker.tag}"

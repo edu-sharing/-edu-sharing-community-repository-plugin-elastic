@@ -1,30 +1,38 @@
 package org.edu_sharing.elasticsearch;
 
-import org.edu_sharing.elasticsearch.elasticsearch.client.ElasticsearchService;
-import org.springframework.beans.factory.annotation.Autowired;
+import co.elastic.clients.elasticsearch.ElasticsearchClient;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.edu_sharing.elasticsearch.elasticsearch.core.IndexConfiguration;
 import org.springframework.stereotype.Component;
-import picocli.CommandLine;
+import picocli.CommandLine.Command;
+import picocli.CommandLine.Option;
 
+import java.util.List;
 import java.util.concurrent.Callable;
+import java.util.stream.Collectors;
 
+@Slf4j
 @Component
-@CommandLine.Command(helpCommand = false, mixinStandardHelpOptions = true, versionProvider = VersionProvider.class)
+@RequiredArgsConstructor
+@Command(mixinStandardHelpOptions = true, versionProvider = VersionProvider.class)
 public class CLI implements Callable<Integer>
 {
-    @Autowired
-    ElasticsearchService elasticsearchClient;
-    @CommandLine.Option(names = "--drop-index", description = "CAREFUL! Drops the whole current index and forces a full re-index (this can take several hours)")
-    Boolean clearIndex;
+    private final ElasticsearchClient elasticsearchClient;
+    private final List<IndexConfiguration> indexConfigurationList;
+
+    @Option(names = "--drop-index", description = "CAREFUL! Drops the whole current index and forces a full re-index (this can take several hours)")
+    public Boolean clearIndex;
+
     @Override
     public Integer call() throws Exception {
         if(Boolean.TRUE.equals(clearIndex)) {
-            elasticsearchClient.deleteIndex(ElasticsearchService.INDEX_TRANSACTIONS);
-            System.out.println("Droped index " + ElasticsearchService.INDEX_TRANSACTIONS);
-            elasticsearchClient.deleteIndex(ElasticsearchService.INDEX_WORKSPACE);
-            System.out.println("Droped index " + ElasticsearchService.INDEX_WORKSPACE);
+            List<String> indices = indexConfigurationList.stream().map(IndexConfiguration::getIndex).collect(Collectors.toList());
+            elasticsearchClient.indices().delete(req -> req.index(indices));
+            log.info("Dropped index {}", String.join(", ", indices));
             return 0;
         }
-        // nothing to do, we use the mixinStandardHelpOptions
+
         return -1;
     }
 

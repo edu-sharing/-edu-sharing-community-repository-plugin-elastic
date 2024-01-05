@@ -1,4 +1,4 @@
-package org.edu_sharing.elasticsearch.elasticsearch.client;
+package org.edu_sharing.elasticsearch.elasticsearch.config;
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
 import co.elastic.clients.json.jackson.JacksonJsonpMapper;
@@ -31,6 +31,7 @@ public class ElasticsearchConfig {
     @Value("${elastic.connectionRequestTimeout}")
     int elasticConnectionRequestTimeout;
 
+
     @Bean
     public RestClient restClient(){
         return  RestClient.builder(new HttpHost(elasticHost, elasticPort, elasticProtocol))
@@ -41,14 +42,16 @@ public class ElasticsearchConfig {
                 .build();
     }
 
+
+
     @Bean
     public ElasticsearchTransport transport(RestClient restClient){
         return new RestClientTransport(restClient, new JacksonJsonpMapper());
     }
-
+    
     @Bean
     public ElasticsearchClient client(ElasticsearchTransport transport) {
         return new ElasticsearchClient(transport);
-
     }
+
 }
