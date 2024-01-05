@@ -61,7 +61,7 @@ public class AlfrescoWebscriptClient {
 
     private static final Logger logger = LoggerFactory.getLogger(AlfrescoWebscriptClient.class);
 
-    private Client client;
+    private final Client client;
 
 
     public AlfrescoWebscriptClient() {
@@ -113,8 +113,7 @@ public class AlfrescoWebscriptClient {
             return null;
         } else {
             //throws ResponseProcessingException when jaxrs data mapping fails
-            NodeMetadatas nmds = resp.readEntity(NodeMetadatas.class);
-            return nmds;
+            return resp.readEntity(NodeMetadatas.class);
         }
     }
 
@@ -146,7 +145,7 @@ public class AlfrescoWebscriptClient {
         getNodeMetadataParam.setIncludeChildAssociations(false);
         getNodeMetadataParam.setIncludeParentAssociations(false);
 
-        NodeMetadatas nmds = null;
+        NodeMetadatas nmds;
         try {
             nmds = getNodeMetadata(getNodeMetadataParam);
             return (nmds == null) ?  new ArrayList<>() : nmds.getNodes();
@@ -154,7 +153,7 @@ public class AlfrescoWebscriptClient {
             List<NodeMetadata> fallbackResult = new ArrayList<>();
             for(Long dbid : dbNodeIds){
                 GetNodeMetadataParam getNodeMetadataParamSingle = new GetNodeMetadataParam();
-                getNodeMetadataParamSingle.setNodeIds(Arrays.asList(dbid));
+                getNodeMetadataParamSingle.setNodeIds(Collections.singletonList(dbid));
                 getNodeMetadataParamSingle.setIncludeChildAssociations(false);
                 getNodeMetadataParamSingle.setIncludeParentAssociations(false);
                 try {
@@ -211,7 +210,7 @@ public class AlfrescoWebscriptClient {
 
 
     public List<NodeData> getNodeData(List<NodeMetadata> nodes) {
-        if (nodes == null || nodes.size() == 0) {
+        if (nodes == null || nodes.isEmpty()) {
             return new ArrayList<>();
         }
 
@@ -221,7 +220,7 @@ public class AlfrescoWebscriptClient {
             acls.add(aclId);
         }
         GetPermissionsParam getPermissionsParam = new GetPermissionsParam();
-        getPermissionsParam.setAclIds(new ArrayList<Long>(acls));
+        getPermissionsParam.setAclIds(new ArrayList<>(acls));
         ReadersACL readersACL = this.getReader(getPermissionsParam);
         AccessControlLists permissions = this.getAccessControlLists(getPermissionsParam);
 
@@ -302,7 +301,7 @@ public class AlfrescoWebscriptClient {
                     children.add(childNode);
                 }
 
-                if (children.size() > 0 && allowedChildTypes.size() > 0) {
+                if (!children.isEmpty() && !allowedChildTypes.isEmpty()) {
                     List<NodeMetadata> nodeMetadata;
                     if (allowedChildTypes.contains("ALL")) {
                         nodeMetadata = this.getNodeMetadata(children);
@@ -311,7 +310,7 @@ public class AlfrescoWebscriptClient {
                     }
 
                     List<NodeData> childrenFiltered = getNodeData(nodeMetadata);
-                    if (childrenFiltered.size() > 0) {
+                    if (!childrenFiltered.isEmpty()) {
                         nodeData.getChildren().addAll(childrenFiltered);
                     }
                 }
@@ -354,10 +353,9 @@ public class AlfrescoWebscriptClient {
 
     public ReadersACL getReader(GetPermissionsParam param) {
         String url = getUrl(URL_ACL_READERS);
-        ReadersACL readers = client.target(url)
+        return client.target(url)
                 .request(MediaType.APPLICATION_JSON)
                 .post(Entity.json(param)).readEntity(ReadersACL.class);
-        return readers;
     }
 
 
@@ -377,44 +375,39 @@ public class AlfrescoWebscriptClient {
             toValue = toCommitTime;
         }
 
-        Transactions transactions = client
+        return client
                 .target(url)
                 .queryParam(fromParam, fromValue)
                 .queryParam(toParam, toValue)
                 .queryParam("maxResults", maxResults)
                 .request(MediaType.APPLICATION_JSON)
                 .get(Transactions.class);
-
-        return transactions;
     }
 
     public AclChangeSets getAclChangeSets(Long fromId, Long toId, int maxResults) {
         String url = getUrl(URL_ACL_CHANGESETS);
-        AclChangeSets result = client.target(url)
+        return client.target(url)
                 .queryParam("fromId", fromId)
                 .queryParam("toId", toId)
                 .queryParam("maxResults", maxResults)
                 .request(MediaType.APPLICATION_JSON)
                 .get(AclChangeSets.class);
-        return result;
     }
 
     public Acls getAcls(GetAclsParam param) {
         String url = getUrl(URL_ACLS);
-        Acls readers = client.target(url)
+
+        return client.target(url)
                 .request(MediaType.APPLICATION_JSON)
                 .post(Entity.json(param)).readEntity(Acls.class);
-
-        return readers;
     }
 
 
     public AccessControlLists getAccessControlLists(GetPermissionsParam param) {
         String url = getUrl(URL_PERMISSIONS);
-        AccessControlLists accessControlLists = client.target(url)
+        return client.target(url)
                 .request(MediaType.APPLICATION_JSON)
                 .post(Entity.json(param)).readEntity(AccessControlLists.class);
-        return accessControlLists;
     }
 
 

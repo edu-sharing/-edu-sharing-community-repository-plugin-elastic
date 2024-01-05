@@ -1,30 +1,18 @@
 package org.edu_sharing.elasticsearch.edu_sharing.client;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import lombok.Data;
+import lombok.Setter;
 
-import java.util.ArrayList;
 import java.util.List;
 
+@Setter
 public class SortV2 {
-	public class SortV2Default{
+	@Data
+	public static class SortV2Default{
 		private String sortBy;
 		private boolean sortAscending;
 
-		public String getSortBy() {
-			return sortBy;
-		}
-
-		public void setSortBy(String sortBy) {
-			this.sortBy = sortBy;
-		}
-
-		public boolean isSortAscending() {
-			return sortAscending;
-		}
-
-		public void setSortAscending(boolean sortAscending) {
-			this.sortAscending = sortAscending;
-		}
 	}
 	private String id;
 	private SortV2Default defaultValue;
@@ -38,15 +26,9 @@ public class SortV2 {
 		return id;
 	}
 
-	public void setId(String id) {
-		this.id = id;
-	}
 	@JsonProperty
 	public List<SortColumnV2> getColumns() {
 		return columns;
-	}
-	public void setColumns(List<SortColumnV2> columns) {
-		this.columns = columns;
 	}
 
 	@JsonProperty("default")
@@ -54,8 +36,5 @@ public class SortV2 {
 		return defaultValue;
 	}
 
-	public void setDefaultValue(SortV2Default defaultValue) {
-		this.defaultValue = defaultValue;
-	}
 }
 

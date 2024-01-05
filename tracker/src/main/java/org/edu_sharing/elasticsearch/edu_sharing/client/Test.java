@@ -5,14 +5,10 @@ import org.edu_sharing.elasticsearch.tools.Tools;
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.client.Entity;
-import javax.ws.rs.core.Feature;
 import javax.ws.rs.core.HttpHeaders;
 import javax.ws.rs.core.MediaType;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 public class Test {
 
@@ -47,7 +43,7 @@ public class Test {
         GetValuesParameters params = new GetValuesParameters();
         GetValuesParameters.ValueParameters vp = new GetValuesParameters.ValueParameters();
 
-        String url = new String(URL_MDS_VALUES);
+        String url = URL_MDS_VALUES;
         url = url.replace("${mds}",mds);
 
 
@@ -70,7 +66,7 @@ public class Test {
     }
 
     public void getValuespaceProperties(){
-        String url = new String(URL_MDS);
+        String url = URL_MDS;
         url = url.replace("${mds}","-default-");
 
         MdsV2 mdsV2 = client
