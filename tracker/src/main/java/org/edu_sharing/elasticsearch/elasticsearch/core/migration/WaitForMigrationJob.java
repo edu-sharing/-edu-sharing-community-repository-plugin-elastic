@@ -26,7 +26,7 @@ public class WaitForMigrationJob implements ApplicationContextAware {
     @PostConstruct
     public void checkMigrationStatus() throws IOException {
         if(!migrationService.requiresMigration()) {
-            invokeMogratopmCompleted();
+            invokeMigrationCompleted();
             return;
         }
 
@@ -38,14 +38,14 @@ public class WaitForMigrationJob implements ApplicationContextAware {
                 }
 
                 scheduledFuture.cancel(false);
-                invokeMogratopmCompleted();
+                invokeMigrationCompleted();
             } catch (Exception ex){
                 log.error(ex.getMessage(), ex);
             }
         }, 5, 5, TimeUnit.SECONDS);
     }
 
-    private void invokeMogratopmCompleted() {
+    private void invokeMigrationCompleted() {
         Map<String, MigrationCompletedAware> results = applicationContext.getBeansOfType(MigrationCompletedAware.class);
         for (MigrationCompletedAware invoker : results.values()) {
             invoker.MigrationCompleted();

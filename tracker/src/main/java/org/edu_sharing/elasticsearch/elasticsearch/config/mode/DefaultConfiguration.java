@@ -1,7 +1,6 @@
 package org.edu_sharing.elasticsearch.elasticsearch.config.mode;
 
 import lombok.RequiredArgsConstructor;
-import org.edu_sharing.elasticsearch.elasticsearch.core.AdminService;
 import org.edu_sharing.elasticsearch.elasticsearch.core.migration.MigrationService;
 import org.edu_sharing.elasticsearch.elasticsearch.core.migration.WaitForMigrationJob;
 import org.edu_sharing.elasticsearch.jobs.AclTrackerJob;
@@ -18,8 +17,6 @@ import org.springframework.context.annotation.Configuration;
 @RequiredArgsConstructor
 @ConditionalOnProperty(name = "mode", havingValue = "default", matchIfMissing = true)
 public class DefaultConfiguration {
-
-    private final AdminService adminService;
 
     @Bean
     public WaitForMigrationJob waitForMigrationJob(MigrationService migrationService){

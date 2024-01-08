@@ -7,10 +7,10 @@ import co.elastic.clients.elasticsearch._types.mapping.MatchType;
 import co.elastic.clients.elasticsearch._types.mapping.TypeMapping;
 import co.elastic.clients.elasticsearch.indices.IndexSettings;
 import co.elastic.clients.util.ObjectBuilder;
-import lombok.RequiredArgsConstructor;
 import org.edu_sharing.elasticsearch.elasticsearch.core.IndexConfiguration;
 import org.edu_sharing.elasticsearch.elasticsearch.core.StatusIndexService;
 import org.edu_sharing.elasticsearch.elasticsearch.core.StatusIndexServiceFactory;
+import org.edu_sharing.elasticsearch.elasticsearch.core.migration.MigrationInfo;
 import org.edu_sharing.elasticsearch.elasticsearch.core.state.ACLChangeSet;
 import org.edu_sharing.elasticsearch.elasticsearch.core.state.AppInfo;
 import org.edu_sharing.elasticsearch.elasticsearch.core.state.StatisticTimestamp;
@@ -22,18 +22,26 @@ import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
 
+import java.util.List;
 import java.util.Map;
 
 @AutoConfiguration
-@RequiredArgsConstructor
 public class AutoConfigurationTracker {
 
-    private static final String VERSION = "9.0";
+
     @Value("${elastic.index.number_of_shards}")
     private int indexNumberOfShards;
 
     @Value("${elastic.index.number_of_replicas}")
     private int indexNumberOfReplicas;
+
+    private final String version;
+
+    public AutoConfigurationTracker(List<MigrationInfo> migrationInfos) {
+        // Migration information is sorted, with the latest version being the last item in the list
+        version = migrationInfos.get(migrationInfos.size()-1).getVersion();
+    }
+
 
     @Bean
     public IndexConfiguration appInfo() {
@@ -57,7 +65,7 @@ public class AutoConfigurationTracker {
     @ConditionalOnMissingBean(name = "workspace")
     public IndexConfiguration workspace() {
         return new IndexConfiguration(req -> req
-                .index("workspace_" + VERSION)
+                .index("workspace_" + version)
                 .settings(this::getWorkspaceIndexSettings)
                 .mappings(this::getWorkspaceMappings));
     }
@@ -66,7 +74,7 @@ public class AutoConfigurationTracker {
     @ConditionalOnMissingBean(name = "transactions")
     public IndexConfiguration transactions() {
         return new IndexConfiguration(req -> req
-                .index("transactions_" + VERSION)
+                .index("transactions_" + version)
                 .settings(s -> s.index(id -> id
                         .numberOfShards(Integer.toString(indexNumberOfShards))
                         .numberOfReplicas(Integer.toString(indexNumberOfReplicas)))));

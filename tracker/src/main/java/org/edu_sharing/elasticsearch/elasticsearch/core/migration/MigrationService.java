@@ -147,24 +147,6 @@ public class MigrationService {
                 .orElse(new MigrationState());
     }
 
-
-    @RequiredArgsConstructor
-    class WaitForMigrationJob {
-        private final String version;
-        public void run() throws IOException, InterruptedException {
-            while(true){
-                MigrationState migrationState = getMigrationState(version);
-                switch (MigrationStep.valueOf(migrationState.getProgressStep())){
-                    case MIGRATE_DOCUMENTS_PROGRESS_STEP:
-                    case COMPLETED_PROGRESS_STEP:
-                        return;
-                }
-                log.info("Wait for migration: {}", version);
-                Thread.sleep(10000);
-            }
-        }
-    }
-
     class MigrationJob {
 
         private final String sourceWorkspaceIndex;
