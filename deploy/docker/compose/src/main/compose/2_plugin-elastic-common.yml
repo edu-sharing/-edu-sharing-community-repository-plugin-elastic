@@ -48,7 +48,7 @@ services:
 
   repository-search-elastic-migration:
     image: "${docker.repository}/${docker.prefix}-deploy-docker-build-tracker:${docker.tag}"
-    container_name: "repository-search-elastic-tracker_${COMPOSE_PROJECT_NAME}"
+    container_name: "repository-search-elastic-migration_${COMPOSE_PROJECT_NAME}"
     command:
       - -Xms${REPOSITORY_SEARCH_ELASTIC_TRACKER_JAVA_XMS:-512m}
       - -Xmx${REPOSITORY_SEARCH_ELASTIC_TRACKER_JAVA_XMX:-512m}
