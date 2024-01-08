@@ -1,0 +1,80 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "edusharing_repository_search_elastic_tracker.name" . }}-migration
+  annotations:
+    "helm.sh/hook": "post-install,post-upgrade"
+    "helm.sh/hook-weight": "1"
+    "helm.sh/hook-delete-policy": before-hook-creation
+  labels: {{ include "edusharing_repository_search_elastic_tracker.labels.app" . | nindent 4 }}
+    app.kubernetes.io/component: migration
+spec:
+  completions: 1
+  parallelism: 1
+  template:
+    metadata:
+      annotations:
+        sidecar.istio.io/inject: "false"
+        {{- with merge .Values.job.init.podAnnotations .Values.global.annotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      restartPolicy: OnFailure
+      containers:
+      - name: {{ include "edusharing_repository_search_elastic_tracker.name" $ }}
+        image: {{ include "edusharing_repository_search_elastic_tracker.image" $ }}{{ $.Values.image.prefix }}-deploy-docker-build-tracker: {{ $.Values.image.tag }}
+        imagePullPolicy: {{ $.Values.global.image.pullPolicy }}
+        env:
+          - name: REPOSITORY_SEARCH_ELASTIC_INDEX_HOST
+            value: {{ printf "%s-%s" $.Values.config.search.elastic.host .name | quote }}
+          - name: SPRING_APPLICATION_JSON
+            value: {{ .spec.config.override | quote }}
+          - name: MODE
+            value: --mode=migration-only
+        envFrom:
+          - configMapRef:
+              name: {{ include "edusharing_repository_search_elastic_tracker.name" $ }}-env
+          - secretRef:
+              name: {{ include "edusharing_repository_search_elastic_tracker.name" $ }}-env
+        {{- if .spec.config.tracker.customScript }}
+        volumeMounts:
+          - name: script
+            mountPath: /opt/alfresco/scripts/script.groovy
+            subPath: script.groovy
+            readOnly: true
+        {{- end }}
+        ports:
+        - name: management
+          containerPort: 8081
+        {{- if default $.Values.global.debug $.Values.debug }}
+        - name: jpda
+          containerPort: 5005
+        {{- end }}
+        {{- with $.Values.resources }}
+        resources: {{ toYaml . | nindent 10 }}
+        {{- end }}
+        {{- with $.Values.securityContext }}
+        securityContext: {{ toYaml . | nindent 10 }}
+        {{- end }}
+      {{- if .spec.config.tracker.customScript }}
+      volumes:
+        - configMap:
+            name: {{ include "edusharing_repository_search_elastic_tracker.name" $ }}-script-{{ .name }}
+          name: script
+      {{- end }}
+      {{- with $.Values.global.image.pullSecrets }}
+      imagePullSecrets: {{ toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with merge $.Values.podSecurityContext $.Values.global.security }}
+      securityContext: {{ toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $.Values.tolerations }}
+      tolerations: {{ toYaml . | nindent 8 }}
+      {{- end }}
+      {{ with $.Values.terminationGracePeriod }}
+      terminationGracePeriodSeconds: {{ . }}
+      {{- end }}
+      {{- with $.Values.nodeAffinity }}
+      affinity:
+        nodeAffinity: {{ toYaml . | nindent 10 }}
+      {{- end }}
