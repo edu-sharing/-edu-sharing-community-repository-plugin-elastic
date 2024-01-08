@@ -30,6 +30,7 @@ import org.edu_sharing.elasticsearch.edu_sharing.client.NodeStatistic;
 import org.edu_sharing.elasticsearch.elasticsearch.utils.DataBuilder;
 import org.edu_sharing.elasticsearch.tools.ScriptExecutor;
 import org.edu_sharing.elasticsearch.tools.Tools;
+import org.edu_sharing.elasticsearch.tracker.Partition;
 import org.edu_sharing.repository.client.tools.CCConstants;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.json.BasicJsonParser;
@@ -61,6 +62,9 @@ public class WorkspaceService {
 
     @Value("${elastic.maxCollectionChildItemsUpdateSize}")
     int maxCollectionChildItemsUpdateSize;
+
+    @Value("${tracker.bulk.size.elastic}")
+    int bulkSizeElastic;
 
     private final Logger logger = LogManager.getLogger(WorkspaceService.class);
     private final SimpleDateFormat statisticDateFormatter = new SimpleDateFormat("yyyy-MM-dd");
@@ -117,7 +121,7 @@ public class WorkspaceService {
         UpdateResponse<TDocument> updateResponse = client.update(request, tDocClass);
 
         if (Objects.requireNonNull(updateResponse.result()) == Result.Created) {
-            logger.error("object did not exist");
+            logger.info("object did not exist");
         }
     }
 
@@ -314,7 +318,7 @@ public class WorkspaceService {
 
                 String key = CCConstants.getValidLocalName(prop.getKey());
                 if (key == null) {
-                    logger.error("unknown namespace: " + prop.getKey());
+                    logger.warn("unknown namespace: " + prop.getKey());
                     continue;
                 }
 
@@ -383,7 +387,7 @@ public class WorkspaceService {
                             try {
                                 result.add(jp.parseMap(mzStatus));
                             } catch (JsonParseException e) {
-                                logger.error(e.getMessage());
+                                logger.warn(e.getMessage());
                             }
                         }
                         if (!result.isEmpty()) {
@@ -412,7 +416,7 @@ public class WorkspaceService {
                     try {
                         builder.field(key, value);
                     } catch (Exception e) {
-                        logger.error("error parsing value field:" + key + "v" + value, e);
+                        logger.warn("error parsing value field:" + key + "v" + value, e);
                     }
                 }
             }
@@ -475,9 +479,9 @@ public class WorkspaceService {
                                     builder.endObject();
                                 }
                             } catch (VCardParseException e) {
-                                logger.error(e.getMessage(), e);
+                                logger.warn(e.getMessage(), e);
                             } catch (NullPointerException e) {
-                                logger.error("node: " + id + " " + e.getMessage(), e);
+                                logger.warn("node: " + id + " " + e.getMessage(), e);
                             }
                         }
 
@@ -762,7 +766,7 @@ public class WorkspaceService {
                             }
 
                             if (collCeckAttValue == null) {
-                                logger.error("replicated collection " + collection.get("dbid") + " does not have a property to check will leave it out");
+                                logger.info("replicated collection " + collection.get("dbid") + " does not have a property to check will leave it out");
                                 continue;
                             }
                             long collectionAttValue = Long.parseLong(collCeckAttValue.toString());
@@ -786,7 +790,11 @@ public class WorkspaceService {
                                 .action(a -> a.doc(builder.build())))));
             });
         }
-        this.updateBulk(updateRequests);
+
+        Collection<List<BulkOperation>> partitions = Partition.getPartitions(updateRequests, bulkSizeElastic);
+        for(List<BulkOperation> p : partitions){
+            this.updateBulk(p);
+        }
         logger.info("returning");
     }
 
@@ -824,7 +832,7 @@ public class WorkspaceService {
             param.setNodeIds(Arrays.asList(new Long[]{dbId}));
             List<NodeMetadata> nodeMetadataByIds = alfrescoClient.getNodeMetadataByIds(List.of(dbId));
             if (nodeMetadataByIds == null || nodeMetadataByIds.isEmpty()) {
-                logger.error("could not find usage/proposal object in alfresco with dbid:" + dbId);
+                logger.warn("could not find usage/proposal object in alfresco with dbid:" + dbId);
                 return;
             }
 
@@ -849,7 +857,7 @@ public class WorkspaceService {
             String defaultValue = null;
 
             for (Object item : values) {
-                Map<?,?> m = (Map<?,?>) item;
+                Map<?, ?> m = (Map<?, ?>) item;
                 //default is {key="locale",value="de"},{key="value",value="Deutsch"}
                 if (m.size() > 2) {
                     throw new RuntimeException("language map has only one value");
@@ -862,7 +870,7 @@ public class WorkspaceService {
             if (value == null) value = defaultValue;
             return value;
         } else if (values.size() == 1) {
-            Map<?,?> multilangValue = (Map<?,?>) values.get(0);
+            Map<?, ?> multilangValue = (Map<?, ?>) values.get(0);
             return (String) multilangValue.get("value");
         } else {
             return null;
@@ -954,18 +962,15 @@ public class WorkspaceService {
 
         AtomicBoolean allInIndex = new AtomicBoolean();
         allInIndex.set(true);
-        //boolean allInIndex = true;
-
-        AtomicInteger counter = new AtomicInteger();
-        int chunkSize = 100;
 
         try {
-            nodeStatistics.entrySet().stream().collect(Collectors.groupingBy(e -> counter.getAndIncrement() / chunkSize)).forEach((groupKey, group) -> {
-
-                logger.info("starting with page:" + groupKey + " collection size:" + group.size());
+            Collection<List<Map.Entry<String, List<NodeStatistic>>>> partitions = Partition.getPartitions(nodeStatistics.entrySet(), bulkSizeElastic);
+            int page = 0;
+            for (List<Map.Entry<String, List<NodeStatistic>>> entries : partitions) {
+                logger.info("starting with page:" + page + " collection size:" + entries.size());
                 try {
                     List<BulkOperation> bulk = new ArrayList<>();
-                    for (Map.Entry<String, List<NodeStatistic>> entry : group) {
+                    for (Map.Entry<String, List<NodeStatistic>> entry : entries) {
                         String uuid = entry.getKey();
                         List<NodeStatistic> statistics = entry.getValue();
                         if (statistics == null || statistics.isEmpty()) continue;
@@ -1019,7 +1024,8 @@ public class WorkspaceService {
                 } catch (IOException e) {
                     throw new RuntimeException(e);
                 }
-            });
+                page++;
+            }
         } catch (RuntimeException e) {
             throw (IOException) e.getCause();
         }
@@ -1074,7 +1080,7 @@ public class WorkspaceService {
                         propsToRemove.add(entry.getKey());
                     }
                 } catch (ParseException e) {
-                    logger.error("can not get date in: " + entry.getKey());
+                    logger.warn("can not get date in: " + entry.getKey());
                 }
             }
 

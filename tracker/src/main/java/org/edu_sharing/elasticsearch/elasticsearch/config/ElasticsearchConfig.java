@@ -51,6 +51,7 @@ public class ElasticsearchConfig {
     
     @Bean
     public ElasticsearchClient client(ElasticsearchTransport transport) {
+
         return new ElasticsearchClient(transport);
     }
 

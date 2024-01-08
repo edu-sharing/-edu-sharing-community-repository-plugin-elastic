@@ -16,12 +16,12 @@ import org.edu_sharing.elasticsearch.tracker.strategy.TrackerStrategy;
 import org.edu_sharing.repository.client.tools.CCConstants;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 //@Primary
@@ -41,6 +41,14 @@ public class DefaultTransactionTracker extends TransactionTrackerBase {
 
     @Setter
     private long historyInDays;
+
+    @Setter
+    @Value("${tracker.fetch.size.alfresco}")
+    int fetchSizeAlfresco;
+
+    @Setter
+    @Value("${tracker.bulk.size.elastic}")
+    int bulkSizeElastic;
 
     public DefaultTransactionTracker(AlfrescoWebscriptClient alfClient, WorkspaceService workspaceService, EduSharingClient eduSharingClient, StatusIndexService<Tx> transactionStateService, TrackerStrategy strategy) {
         super(alfClient, eduSharingClient, workspaceService, transactionStateService, strategy);
@@ -75,7 +83,7 @@ public class DefaultTransactionTracker extends TransactionTrackerBase {
 
         // index nodes
         //some transactions can have a lot of Nodes which can cause trouble on alfresco so use partitioning
-        Collection<List<Node>> partitions = Partition.getPartitions(nodes, 100);
+        Collection<List<Node>> partitions = Partition.getPartitions(nodes, fetchSizeAlfresco);
 
         int pIdx = 0;
         for (List<Node> partition : partitions) {
@@ -160,12 +168,7 @@ public class DefaultTransactionTracker extends TransactionTrackerBase {
 
         logger.info("final usable: " + toIndexUsagesProposalsMd.size() + " " + toIndex.size());
 
-        final AtomicInteger counter = new AtomicInteger(0);
-        final int size = 50;
-        final Collection<List<NodeData>> partitioned = toIndex.stream()
-                .collect(Collectors.groupingBy(it -> counter.getAndIncrement() / size))
-                .values();
-
+        Collection<List<NodeData>> partitioned = Partition.getPartitions(toIndex, bulkSizeElastic);
         for (List<NodeData> p : partitioned) {
             workspaceService.index(p);
         }

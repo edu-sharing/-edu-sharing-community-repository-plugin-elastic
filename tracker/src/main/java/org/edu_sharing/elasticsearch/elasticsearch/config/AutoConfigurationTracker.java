@@ -94,7 +94,7 @@ public class AutoConfigurationTracker {
         return s.index(id -> id
                         .numberOfShards(Integer.toString(indexNumberOfShards))
                         .numberOfReplicas(Integer.toString(indexNumberOfReplicas)))
-                .mapping(mapping -> mapping.totalFields(tf -> tf.limit(5000)))
+                .mapping(mapping -> mapping.totalFields(tf -> tf.limit(10000)))
                 .analysis(analysis -> analysis
                         .analyzer("trigram", a -> a
                                 .custom(c -> c

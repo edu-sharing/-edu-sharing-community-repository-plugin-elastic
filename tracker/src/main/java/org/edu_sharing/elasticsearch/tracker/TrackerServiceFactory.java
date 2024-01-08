@@ -36,6 +36,12 @@ public class TrackerServiceFactory {
     @Value("${allowed.types}")
     private String allowedTypes;
 
+    @Value("${tracker.fetch.size.alfresco}")
+    private  int fetchSizeAlfresco;
+
+    @Value("${tracker.bulk.size.elastic}")
+    private  int bulkSizeElastic;
+
     public DefaultTransactionTracker createDefaultTrackerService(StatusIndexService<Tx> transactionStateService) {
         return createDefaultTrackerService(transactionStateService, new FixNumberOfTransactionStrategy());
     }
@@ -46,6 +52,8 @@ public class TrackerServiceFactory {
         defaultTransactionTracker.setIndexStoreRefs(indexStoreRefs);
         defaultTransactionTracker.setAllowedTypes(allowedTypes);
         defaultTransactionTracker.setHistoryInDays(historyInDays);
+        defaultTransactionTracker.setFetchSizeAlfresco(fetchSizeAlfresco);
+        defaultTransactionTracker.setBulkSizeElastic(bulkSizeElastic);
         defaultTransactionTracker.init();
 
 
