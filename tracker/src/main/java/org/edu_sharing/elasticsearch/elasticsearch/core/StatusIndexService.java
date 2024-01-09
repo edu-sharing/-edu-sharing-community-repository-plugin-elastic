@@ -10,6 +10,10 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
 
+/**
+ * Repository class to store and retrieve tracking status stored in a specific Document
+ * @param <TDATA> Document datatype
+ */
 @Slf4j
 @RequiredArgsConstructor
 public class StatusIndexService<TDATA> {
@@ -17,14 +21,14 @@ public class StatusIndexService<TDATA> {
     private final String index;
     private final ElasticsearchClient client;
 
-    private final String id;
-    private final Class<TDATA>  statusType;
+    private final String documentId;
+    private final Class<TDATA> statusType;
 
 
     public TDATA getState() throws IOException {
         return client.get(req -> req
                                 .index(index)
-                                .id(id),
+                                .id(documentId),
                         statusType)
                 .source();
     }
@@ -32,7 +36,7 @@ public class StatusIndexService<TDATA> {
     public void setState(TDATA state) throws IOException {
         IndexResponse indexResponse = client.index(req -> req
                 .index(index)
-                .id(id)
+                .id(documentId)
                 .document(state));
 
 
