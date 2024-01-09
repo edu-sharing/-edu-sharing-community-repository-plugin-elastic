@@ -16,7 +16,7 @@ data:
     -Dcom.sun.management.jmxremote.port=7199
     -Dcom.sun.management.jmxremote.ssl=false
     {{- if default .Values.global.debug .Values.debug }}
-    -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=5005
+    -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=0.0.0.0:5005
     {{- end }}
   REPOSITORY_SEARCH_ELASTIC_INDEX_HOST: {{ .Values.config.search.elastic.host | quote }}
   REPOSITORY_SEARCH_ELASTIC_INDEX_PORT: {{ .Values.config.search.elastic.port | quote }}
