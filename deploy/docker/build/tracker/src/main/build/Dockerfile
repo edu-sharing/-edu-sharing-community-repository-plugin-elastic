@@ -16,7 +16,8 @@ RUN set -eux \
 
 ########################################################################################################################
 
-ENV ALF_HOME=/opt/alfresco PATH=$ALF_HOME/bin:$PATH
+ENV ALF_HOME /opt/alfresco
+ENV PATH $ALF_HOME/bin:$PATH
 
 WORKDIR $ALF_HOME
 
