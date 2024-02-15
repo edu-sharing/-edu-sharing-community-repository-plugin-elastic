@@ -292,8 +292,8 @@ public class AutoConfigurationTracker {
 
     @Bean
     @ConditionalOnMissingBean(name = "transactionStateService")
-    public StatusIndexService<Tx> transactionStateService(StatusIndexServiceFactory trackerStateServiceFactory, IndexConfiguration workspace) {
-        return trackerStateServiceFactory.createTransactionStateService(workspace.getIndex());
+    public StatusIndexService<Tx> transactionStateService(StatusIndexServiceFactory trackerStateServiceFactory, IndexConfiguration transactions) {
+        return trackerStateServiceFactory.createTransactionStateService(transactions.getIndex());
     }
 
     @Bean
