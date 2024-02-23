@@ -287,7 +287,7 @@ public class AutoConfigurationTracker {
 
     @Bean
     public StatusIndexService<AppInfo> appInfoStatusService(ElasticsearchClient client, IndexConfiguration appInfo) {
-        return new StatusIndexService<>(appInfo.getIndex(), client, "0", AppInfo.class);
+        return new StatusIndexService<>(appInfo.getIndex(), client, AppInfo::new,"0", AppInfo.class);
     }
 
     @Bean

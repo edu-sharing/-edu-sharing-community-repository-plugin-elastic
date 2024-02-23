@@ -9,4 +9,9 @@ public class FixNumberOfTransactionStrategy implements TrackerStrategy {
     public long getNext(long nextTransactionId, long maxTransactions) {
         return nextTransactionId + maxTransactions;
     }
+
+    @Override
+    public Long getLimit() {
+        return null;
+    }
 }

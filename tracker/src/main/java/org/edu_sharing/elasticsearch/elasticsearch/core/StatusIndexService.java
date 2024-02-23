@@ -6,9 +6,12 @@ import co.elastic.clients.elasticsearch._types.ShardFailure;
 import co.elastic.clients.elasticsearch._types.ShardStatistics;
 import co.elastic.clients.elasticsearch.core.IndexResponse;
 import lombok.RequiredArgsConstructor;
+import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
+import java.util.concurrent.Callable;
+import java.util.function.Function;
 
 /**
  * Repository class to store and retrieve tracking status stored in a specific Document
@@ -20,17 +23,23 @@ public class StatusIndexService<TDATA> {
 
     private final String index;
     private final ElasticsearchClient client;
+    private final Callable<TDATA> createNewDelegate;
 
     private final String documentId;
     private final Class<TDATA> statusType;
 
 
+    @SneakyThrows
     public TDATA getState() throws IOException {
-        return client.get(req -> req
+        TDATA state = client.get(req -> req
                                 .index(index)
                                 .id(documentId),
                         statusType)
                 .source();
+        if(state == null) {
+            return createNewDelegate.call();
+        }
+        return state;
     }
 
     public void setState(TDATA state) throws IOException {

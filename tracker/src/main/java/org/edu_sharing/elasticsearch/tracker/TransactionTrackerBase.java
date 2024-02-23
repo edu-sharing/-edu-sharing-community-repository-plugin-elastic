@@ -82,7 +82,13 @@ public abstract class TransactionTrackerBase implements TransactionTracker {
             }
 
             if (transactions.getTransactions().isEmpty()) {
-                if (maxTrackerTxnId <= trackerStrategy.getNext(lastTransactionId, numberOfTransactions)) {
+                if (
+                        trackerStrategy.getLimit() != null &&
+                        trackerStrategy.getNext(nextTransactionId, numberOfTransactions) >= trackerStrategy.getLimit()
+                ) {
+                    log.info("max transaction limit by strategy reached: {} / {}", maxTrackerTxnId, trackerStrategy.getLimit());
+                    return false;
+                } else if (maxTrackerTxnId <= trackerStrategy.getNext(lastTransactionId, numberOfTransactions)) {
                     log.info("index is up to date getMaxTxnId(): {}", maxTrackerTxnId);
                     return false;
                 } else {

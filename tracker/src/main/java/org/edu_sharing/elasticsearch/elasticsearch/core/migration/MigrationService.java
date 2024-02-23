@@ -45,6 +45,7 @@ public class MigrationService {
         String currentVersion = appInfo.getTrackerVersion();
 
         if (Objects.equals(latestVersion, currentVersion)) {
+            log.info("Current version {} is latest version, doing no migration.", currentVersion);
             return;
         }
 

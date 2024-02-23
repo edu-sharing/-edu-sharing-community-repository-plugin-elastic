@@ -13,4 +13,8 @@ public class MaxTransactionIdStrategy implements TrackerStrategy {
     public long getNext(long currentTransactionId, long maxTransactions) {
         return Math.min(maxTransactionId, currentTransactionId + maxTransactions);
     }
+    @Override
+    public Long getLimit() {
+        return maxTransactionId;
+    }
 }

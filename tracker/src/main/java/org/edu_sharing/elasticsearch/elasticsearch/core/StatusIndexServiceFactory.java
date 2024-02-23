@@ -14,14 +14,14 @@ public class StatusIndexServiceFactory {
     private final ElasticsearchClient client;
 
     public StatusIndexService<Tx> createTransactionStateService(String index){
-        return new StatusIndexService<>(index, client, "1", Tx.class);
+        return new StatusIndexService<>(index, client, Tx::new, "1", Tx.class);
     }
 
     public StatusIndexService<ACLChangeSet> createAclStateService(String index){
-        return new StatusIndexService<>(index, client, "2", ACLChangeSet.class);
+        return new StatusIndexService<>(index, client, ACLChangeSet::new, "2", ACLChangeSet.class);
     }
 
     public StatusIndexService<StatisticTimestamp> createStatisticTimestampStateService(String index){
-        return new StatusIndexService<>(index, client, "3", StatisticTimestamp.class);
+        return new StatusIndexService<>(index, client, StatisticTimestamp::new, "3", StatisticTimestamp.class);
     }
 }
