@@ -48,7 +48,8 @@ public class StatisticsTracker {
                 allNodesInIndex = true;
 
                 trackTs = getTodayMidnight();
-                long trackFromTime = trackTs - (historyInDays * 24L * 60L * 60L * 1000L);
+                long trackFromTimeFull = trackTs - (historyInDays * 24L * 60L * 60L * 1000L);
+                long trackFromTime = trackFromTimeFull;
                 StatisticTimestamp statisticTimestamp = statisticTimestampStateService.getState();
                 if (statisticTimestamp != null) {
                     trackFromTime = statisticTimestamp.getStatisticTimestamp();
@@ -63,7 +64,7 @@ public class StatisticsTracker {
                 logger.info("found " + statistics.size() + " statistic changes");
 
                 for(String nodeId : statistics){
-                    List<NodeStatistic> statisticsForNode = eduSharingClient.getStatisticsForNode(nodeId, trackFromTime);
+                    List<NodeStatistic> statisticsForNode = eduSharingClient.getStatisticsForNode(nodeId, trackFromTimeFull);
                     nodeStatistics.put(nodeId,statisticsForNode);
                 }
                 
