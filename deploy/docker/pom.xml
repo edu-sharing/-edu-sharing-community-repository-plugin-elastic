@@ -20,37 +20,45 @@
 
   <properties>
 
-    <docker.from.openjdk>
-      dockerio.mirror.docker.edu-sharing.com/openjdk:11-jdk
-    </docker.from.openjdk>
-
     <elastic.stack.version>
       8.12.2
     </elastic.stack.version>
 
-    <docker.edu_sharing.communty.common.repository>
-      ${docker.registry}/community/common
-    </docker.edu_sharing.communty.common.repository>
+    <docker.edu_sharing.community.common.elasticsearch.name>
+      edu_sharing-community-common-docker-elasticsearch
+    </docker.edu_sharing.community.common.elasticsearch.name>
 
-    <docker.edu_sharing.community.common.elasticsearch>
-      ${docker.edu_sharing.communty.common.repository}/edu_sharing-community-common-docker-elasticsearch:${elastic.stack.version}
-    </docker.edu_sharing.community.common.elasticsearch>
-    <docker.edu_sharing.community.common.kibana>
-      ${docker.edu_sharing.communty.common.repository}/edu_sharing-community-common-docker-kibana:${elastic.stack.version}
-    </docker.edu_sharing.community.common.kibana>
+    <docker.edu_sharing.community.common.elasticsearch.tag>
+      ${elastic.stack.version}
+    </docker.edu_sharing.community.common.elasticsearch.tag>
 
-    <docker.edu_sharing.community.common.kibana>
-      ${docker.edu_sharing.communty.common.repository}/edu_sharing-community-common-docker-kibana:${elastic.stack.version}
-    </docker.edu_sharing.community.common.kibana>
+    <docker.edu_sharing.community.common.kibana.name>
+      edu_sharing-community-common-docker-kibana
+    </docker.edu_sharing.community.common.kibana.name>
 
-    <docker.edu_sharing.community.common.elasticsearch.exporter>
-      ${docker.edu_sharing.communty.common.repository}/edu_sharing-community-common-docker-elasticsearch-exporter:1.5.0
-    </docker.edu_sharing.community.common.elasticsearch.exporter>
+    <docker.edu_sharing.community.common.kibana.tag>
+      ${elastic.stack.version}
+    </docker.edu_sharing.community.common.kibana.tag>
 
+    <docker.edu_sharing.community.common.elasticsearch.exporter.name>
+      edu_sharing-community-common-docker-elasticsearch-exporter
+    </docker.edu_sharing.community.common.elasticsearch.exporter.name>
 
-    <docker.edu_sharing.community.common.minideb>
-      ${docker.edu_sharing.communty.common.repository}/edu_sharing-community-common-docker-minideb:11
-    </docker.edu_sharing.community.common.minideb>
+    <docker.edu_sharing.community.common.elasticsearch.exporter.tag>
+      1.5.0
+    </docker.edu_sharing.community.common.elasticsearch.exporter.tag>
+
+    <docker.edu_sharing.community.common.minideb.name>
+      edu_sharing-community-common-docker-minideb
+    </docker.edu_sharing.community.common.minideb.name>
+
+    <docker.edu_sharing.community.common.minideb.tag>
+      11
+    </docker.edu_sharing.community.common.minideb.tag>
+
+    <docker.from.openjdk>
+      dockerio.mirror.docker.edu-sharing.com/openjdk:11-jdk
+    </docker.from.openjdk>
 
     <helm.kube.version>&gt;= 1.20.0</helm.kube.version>
     <helm.version>3.10.0</helm.version>

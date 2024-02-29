@@ -3,20 +3,20 @@
 apiVersion: networking.istio.io/v1beta1
 kind: VirtualService
 metadata:
-  name: {{ include "edusharing_repository_search_elastic_index.name" . }}
-  labels: {{ include "edusharing_repository_search_elastic_index.labels.app" . | nindent 4 }}
+  name: {{ include "edusharing_common_lib.names.name" . }}
+  labels: {{ include "edusharing_common_lib.labels.app" . | nindent 4 }}
 spec:
   hosts:
-  - {{ include "edusharing_repository_search_elastic_index.name" . }}
+  - {{ include "edusharing_common_lib.names.name" . }}
   http:
   - route:
     - destination:
-        host: {{ include "edusharing_repository_search_elastic_index.name" . }}
+        host: {{ include "edusharing_common_lib.names.name" . }}
       weight: 100
   tcp:
   - route:
     - destination:
-        host: {{ include "edusharing_repository_search_elastic_index.name" . }}
+        host: {{ include "edusharing_common_lib.names.name" . }}
       weight: 100
 {{- end }}
 {{- end }}

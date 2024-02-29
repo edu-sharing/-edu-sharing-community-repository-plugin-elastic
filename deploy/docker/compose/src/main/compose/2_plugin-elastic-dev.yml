@@ -3,7 +3,7 @@ version: '3.7'
 services:
 
   repository-search-elastic-kibana:
-    image: "${docker.edu_sharing.community.common.kibana}"
+    image: "${docker.registry}/${docker.common}/${docker.edu_sharing.community.common.kibana.name}:${docker.edu_sharing.community.common.kibana.tag}"
     container_name: "repository-search-elastic-kibana_${COMPOSE_PROJECT_NAME}"
     environment:
       ELASTICSEARCH_HOSTS: "http://repository-search-elastic-index:9200"

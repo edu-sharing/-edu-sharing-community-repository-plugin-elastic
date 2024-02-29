@@ -2,8 +2,8 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ include "edusharing_repository_search_elastic_tracker.name" . }}-script
-  labels: {{ include "edusharing_repository_search_elastic_tracker.labels.app" . | nindent 4 }}
+  name: {{ include "edusharing_common_lib.names.name" . }}-script
+  labels: {{ include "edusharing_common_lib.labels.app" . | nindent 4 }}
     {{- if .Values.multistage.enabled }}
     app.kubernetes.io/stage: ""
     {{- end }}
@@ -18,8 +18,8 @@ data:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ include "edusharing_repository_search_elastic_tracker.name" $ }}-script-{{ .name }}
-  labels: {{ include "edusharing_repository_search_elastic_tracker.labels.app" $ | nindent 4 }}
+  name: {{ include "edusharing_common_lib.names.name" $ }}-script-{{ .name }}
+  labels: {{ include "edusharing_common_lib.labels.app" $ | nindent 4 }}
     app.kubernetes.io/stage: {{ .name }}
 data:
   script.groovy: |

@@ -4,8 +4,8 @@
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
-  name: {{ include "edusharing_repository_search_elastic_index.name" . }}
-  labels: {{ include "edusharing_repository_search_elastic_index.labels.app" . | nindent 4 }}
+  name: {{ include "edusharing_common_lib.names.name" . }}
+  labels: {{ include "edusharing_common_lib.labels.app" . | nindent 4 }}
     app.kubernetes.io/component: "metrics"
     {{- if .Values.multistage.enabled }}
     app.kubernetes.io/stage: ""
@@ -20,7 +20,7 @@ spec:
     metricRelabelings: {{ toYaml . | nindent 6 }}
     {{- end }}
   selector:
-    matchLabels: {{ include "edusharing_repository_search_elastic_index.labels.app" . | nindent 6 }}
+    matchLabels: {{ include "edusharing_common_lib.labels.app" . | nindent 6 }}
       app.kubernetes.io/component: "metrics"
       {{- if .Values.multistage.enabled }}
       app.kubernetes.io/stage: ""
@@ -34,8 +34,8 @@ spec:
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
-  name: {{ include "edusharing_repository_search_elastic_index.name" $ }}-{{ .name }}
-  labels: {{ include "edusharing_repository_search_elastic_index.labels.app" $ | nindent 4 }}
+  name: {{ include "edusharing_common_lib.names.name" $ }}-{{ .name }}
+  labels: {{ include "edusharing_common_lib.labels.app" $ | nindent 4 }}
     app.kubernetes.io/component: "metrics"
     app.kubernetes.io/stage: {{ .name }}
 spec:
@@ -48,7 +48,7 @@ spec:
     metricRelabelings: {{ toYaml . | nindent 6 }}
     {{- end }}
   selector:
-    matchLabels: {{ include "edusharing_repository_search_elastic_index.labels.app" $ | nindent 6 }}
+    matchLabels: {{ include "edusharing_common_lib.labels.app" $ | nindent 6 }}
       app.kubernetes.io/component: "metrics"
       app.kubernetes.io/stage: {{ .name }}
   targetLabels:

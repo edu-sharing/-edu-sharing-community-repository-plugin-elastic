@@ -3,9 +3,9 @@
 apiVersion: networking.istio.io/v1beta1
 kind: DestinationRule
 metadata:
-  name: {{ include "edusharing_repository_search_elastic_index.name" . }}
-  labels: {{ include "edusharing_repository_search_elastic_index.labels.app" . | nindent 4 }}
+  name: {{ include "edusharing_common_lib.names.name" . }}
+  labels: {{ include "edusharing_common_lib.labels.app" . | nindent 4 }}
 spec:
-  host: {{ include "edusharing_repository_search_elastic_index.name" . }}
+  host: {{ include "edusharing_common_lib.names.name" . }}
 {{- end }}
 {{- end }}

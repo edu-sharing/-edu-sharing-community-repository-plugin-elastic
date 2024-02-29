@@ -21,11 +21,12 @@ global:
     pullSecrets: []
     registry: ${docker.registry}
     repository: ${docker.repository}
+    common: ${docker.common}
 
   metrics:
     scrape:
-      interval: 10s
-      timeout: 10s
+      interval: 60s
+      timeout: 60s
     servicemonitor:
       enabled: false
 
@@ -40,7 +41,7 @@ global:
 nameOverride: edusharing-repository-search-elastic-tracker
 
 image:
-  prefix: ${docker.prefix}
+  name: ${docker.prefix}-deploy-docker-build-tracker
   tag: ${docker.tag}
 
 ########################################################################################################################
@@ -167,3 +168,26 @@ resources:
     memory: 2Gi
 
 ########################################################################################################################
+
+job:
+
+  migration:
+
+    enabled: false
+
+    image:
+      name: ${docker.prefix}-deploy-docker-build-tracker
+      tag: ${docker.tag}
+
+    resources:
+
+      limits:
+        cpu: 500m
+        memory: 2Gi
+      requests:
+        cpu: 500m
+        memory: 2Gi
+
+    securityContext:
+
+      runAsUser: 1000

@@ -1,22 +1,22 @@
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: {{ include "edusharing_repository_search_elastic_tracker.name" . }}
-  labels: {{ include "edusharing_repository_search_elastic_tracker.labels.app" . | nindent 4 }}
+  name: {{ include "edusharing_common_lib.names.name" . }}
+  labels: {{ include "edusharing_common_lib.labels.app" . | nindent 4 }}
     {{- if .Values.multistage.enabled }}
     app.kubernetes.io/stage: ""
     {{- end }}
 spec:
   replicas: 1
   selector:
-    matchLabels: {{ include "edusharing_repository_search_elastic_tracker.labels.app" . | nindent 6 }}
+    matchLabels: {{ include "edusharing_common_lib.labels.app" . | nindent 6 }}
       {{- if .Values.multistage.enabled }}
       app.kubernetes.io/stage: ""
       {{- end }}
-  serviceName: {{ include "edusharing_repository_search_elastic_tracker.name" . }}-headless
+  serviceName: {{ include "edusharing_common_lib.names.name" . }}-headless
   template:
     metadata:
-      labels: {{ include "edusharing_repository_search_elastic_tracker.labels.app" . | nindent 8 }}
+      labels: {{ include "edusharing_common_lib.labels.app" . | nindent 8 }}
         {{- if .Values.multistage.enabled }}
         app.kubernetes.io/stage: ""
         {{- end }}
@@ -37,14 +37,14 @@ spec:
         {{- end }}
     spec:
       containers:
-      - name: {{ include "edusharing_repository_search_elastic_tracker.name" . }}
-        image: {{ include "edusharing_repository_search_elastic_tracker.image" . }}{{ .Values.image.prefix }}-deploy-docker-build-tracker:{{ .Values.image.tag }}
+      - name: {{ include "edusharing_common_lib.names.name" . }}
+        image: {{ include "edusharing_common_lib.images.image" . }}{{ .Values.image.name }}:{{ .Values.image.tag }}
         imagePullPolicy: {{ .Values.global.image.pullPolicy }}
         envFrom:
         - configMapRef:
-            name: {{ include "edusharing_repository_search_elastic_tracker.name" . }}-env
+            name: {{ include "edusharing_common_lib.names.name" . }}-env
         - secretRef:
-            name: {{ include "edusharing_repository_search_elastic_tracker.name" . }}-env
+            name: {{ include "edusharing_common_lib.names.name" . }}-env
         {{- if .Values.config.tracker.customScript }}
         volumeMounts:
           - name: script
@@ -99,7 +99,7 @@ spec:
       {{- if .Values.config.tracker.customScript }}
       volumes:
         - configMap:
-            name: {{ include "edusharing_repository_search_elastic_tracker.name" . }}-script
+            name: {{ include "edusharing_common_lib.names.name" . }}-script
           name: script
       {{- end }}
       {{- with .Values.global.image.pullSecrets }}
@@ -124,18 +124,18 @@ spec:
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: {{ include "edusharing_repository_search_elastic_tracker.name" $ }}-{{ .name }}
-  labels: {{ include "edusharing_repository_search_elastic_tracker.labels.app" $ | nindent 4 }}
+  name: {{ include "edusharing_common_lib.names.name" $ }}-{{ .name }}
+  labels: {{ include "edusharing_common_lib.labels.app" $ | nindent 4 }}
     app.kubernetes.io/stage: {{ .name }}
 spec:
   replicas: 1
   selector:
-    matchLabels: {{ include "edusharing_repository_search_elastic_tracker.labels.app" $ | nindent 6 }}
+    matchLabels: {{ include "edusharing_common_lib.labels.app" $ | nindent 6 }}
       app.kubernetes.io/stage: {{ .name }}
-  serviceName: {{ include "edusharing_repository_search_elastic_tracker.name" $ }}-headless-{{ .name }}
+  serviceName: {{ include "edusharing_common_lib.names.name" $ }}-headless-{{ .name }}
   template:
     metadata:
-      labels: {{ include "edusharing_repository_search_elastic_tracker.labels.app" $ | nindent 8 }}
+      labels: {{ include "edusharing_common_lib.labels.app" $ | nindent 8 }}
         app.kubernetes.io/stage: {{ .name }}
       annotations:
         checksum/configmap-env: {{ include (print $.Template.BasePath "/configmap-env.yaml") $ | sha256sum | trunc 63 }}
@@ -151,8 +151,8 @@ spec:
         {{- end }}
     spec:
       containers:
-      - name: {{ include "edusharing_repository_search_elastic_tracker.name" $ }}
-        image: {{ include "edusharing_repository_search_elastic_tracker.image" $ }}{{ $.Values.image.prefix }}-deploy-docker-build-tracker:{{ $.Values.image.tag }}
+      - name: {{ include "edusharing_common_lib.names.name" $ }}
+        image: {{ include "edusharing_common_lib.images.image" . }}{{ $.Values.image.name }}:{{ $.Values.image.tag }}
         imagePullPolicy: {{ $.Values.global.image.pullPolicy }}
         env:
         - name: REPOSITORY_SEARCH_ELASTIC_INDEX_HOST
@@ -161,9 +161,9 @@ spec:
           value: {{ .spec.config.override | quote }}
         envFrom:
         - configMapRef:
-            name: {{ include "edusharing_repository_search_elastic_tracker.name" $ }}-env
+            name: {{ include "edusharing_common_lib.names.name" $ }}-env
         - secretRef:
-            name: {{ include "edusharing_repository_search_elastic_tracker.name" $ }}-env
+            name: {{ include "edusharing_common_lib.names.name" $ }}-env
         {{- if .spec.config.tracker.customScript }}
         volumeMounts:
           - name: script
@@ -218,7 +218,7 @@ spec:
       {{- if .spec.config.tracker.customScript }}
       volumes:
       - configMap:
-          name: {{ include "edusharing_repository_search_elastic_tracker.name" $ }}-script-{{ .name }}
+          name: {{ include "edusharing_common_lib.names.name" $ }}-script-{{ .name }}
         name: script
       {{- end }}
       {{- with $.Values.global.image.pullSecrets }}

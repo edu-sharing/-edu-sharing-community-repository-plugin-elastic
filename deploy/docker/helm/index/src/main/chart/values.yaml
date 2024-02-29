@@ -32,11 +32,12 @@ global:
     pullSecrets: []
     registry: ${docker.registry}
     repository: ${docker.repository}
+    common: ${docker.common}
 
   metrics:
     scrape:
-      interval: 10s
-      timeout: 10s
+      interval: 60s
+      timeout: 60s
     servicemonitor:
       enabled: false
 
@@ -48,12 +49,9 @@ global:
 
 nameOverride: edusharing-repository-search-elastic-index
 
-images:
-  elasticsearch:
-    index: ${docker.edu_sharing.community.common.elasticsearch}
-    exporter: ${docker.edu_sharing.community.common.elasticsearch.exporter}
-  minideb: ${docker.edu_sharing.community.common.minideb}
-
+image:
+  name: ${docker.edu_sharing.community.common.elasticsearch.name}
+  tag: "${docker.edu_sharing.community.common.elasticsearch.tag}"
 
 ########################################################################################################################
 
@@ -186,6 +184,10 @@ init:
 
   permission:
 
+    image:
+      name: ${docker.edu_sharing.community.common.minideb.name}
+      tag: "${docker.edu_sharing.community.common.minideb.tag}"
+
     resources:
 
       limits:
@@ -200,6 +202,10 @@ init:
       runAsUser: 0
 
   sysctl:
+
+    image:
+      name: ${docker.edu_sharing.community.common.minideb.name}
+      tag: "${docker.edu_sharing.community.common.minideb.tag}"
 
     resources:
 
@@ -222,6 +228,10 @@ sidecar:
   metrics:
 
     enabled: true
+
+    image:
+      name: ${docker.edu_sharing.community.common.elasticsearch.exporter.name}
+      tag: "${docker.edu_sharing.community.common.elasticsearch.exporter.tag}"
 
     relabelings: []
 

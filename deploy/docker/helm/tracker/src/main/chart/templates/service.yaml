@@ -1,8 +1,8 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "edusharing_repository_search_elastic_tracker.name" . }}-headless
-  labels: {{ include "edusharing_repository_search_elastic_tracker.labels.app" . | nindent 4 }}
+  name: {{ include "edusharing_common_lib.names.name" . }}-headless
+  labels: {{ include "edusharing_common_lib.labels.app" . | nindent 4 }}
     {{- if .Values.multistage.enabled }}
     app.kubernetes.io/stage: ""
     {{- end }}
@@ -10,7 +10,7 @@ spec:
   type: ClusterIP
   clusterIP: None
   publishNotReadyAddresses: true
-  selector: {{ include "edusharing_repository_search_elastic_tracker.labels.app" . | nindent 4 }}
+  selector: {{ include "edusharing_common_lib.labels.app" . | nindent 4 }}
     {{- if .Values.multistage.enabled }}
     app.kubernetes.io/stage: ""
     {{- end }}
@@ -23,15 +23,15 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "edusharing_repository_search_elastic_tracker.name" . }}-metrics
-  labels: {{ include "edusharing_repository_search_elastic_tracker.labels.app" . | nindent 4 }}
+  name: {{ include "edusharing_common_lib.names.name" . }}-metrics
+  labels: {{ include "edusharing_common_lib.labels.app" . | nindent 4 }}
     app.kubernetes.io/component: "metrics"
     {{- if .Values.multistage.enabled }}
     app.kubernetes.io/stage: ""
     {{- end }}
 spec:
   type: ClusterIP
-  selector: {{ include "edusharing_repository_search_elastic_tracker.labels.app" . | nindent 4 }}
+  selector: {{ include "edusharing_common_lib.labels.app" . | nindent 4 }}
     {{- if .Values.multistage.enabled }}
     app.kubernetes.io/stage: ""
     {{- end }}
@@ -47,14 +47,14 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "edusharing_repository_search_elastic_tracker.name" $ }}-headless-{{ .name }}
-  labels: {{ include "edusharing_repository_search_elastic_tracker.labels.app" $ | nindent 4 }}
+  name: {{ include "edusharing_common_lib.names.name" $ }}-headless-{{ .name }}
+  labels: {{ include "edusharing_common_lib.labels.app" $ | nindent 4 }}
     app.kubernetes.io/stage: {{ .name }}
 spec:
   type: ClusterIP
   clusterIP: None
   publishNotReadyAddresses: true
-  selector: {{ include "edusharing_repository_search_elastic_tracker.labels.app" $ | nindent 4 }}
+  selector: {{ include "edusharing_common_lib.labels.app" $ | nindent 4 }}
     app.kubernetes.io/stage: {{ .name }}
   ports:
   - name: http-management
@@ -65,13 +65,13 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "edusharing_repository_search_elastic_tracker.name" $ }}-metrics-{{ .name }}
-  labels: {{ include "edusharing_repository_search_elastic_tracker.labels.app" $ | nindent 4 }}
+  name: {{ include "edusharing_common_lib.names.name" $ }}-metrics-{{ .name }}
+  labels: {{ include "edusharing_common_lib.labels.app" $ | nindent 4 }}
     app.kubernetes.io/component: "metrics"
     app.kubernetes.io/stage: {{ .name }}
 spec:
   type: ClusterIP
-  selector: {{ include "edusharing_repository_search_elastic_tracker.labels.app" $ | nindent 4 }}
+  selector: {{ include "edusharing_common_lib.labels.app" $ | nindent 4 }}
     app.kubernetes.io/stage: {{ .name }}
   ports:
   - name: http-management

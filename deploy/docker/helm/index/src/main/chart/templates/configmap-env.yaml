@@ -1,8 +1,8 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ include "edusharing_repository_search_elastic_index.name" . }}-env
-  labels: {{ include "edusharing_repository_search_elastic_index.labels.app" . | nindent 4 }}
+  name: {{ include "edusharing_common_lib.names.name" . }}-env
+  labels: {{ include "edusharing_common_lib.labels.app" . | nindent 4 }}
 data:
   ES_JAVA_OPTS: >-
     {{- with .Values.config.jvm.ram.minPercentage }}
