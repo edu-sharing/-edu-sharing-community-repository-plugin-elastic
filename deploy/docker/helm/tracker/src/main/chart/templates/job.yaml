@@ -24,20 +24,16 @@ spec:
       containers:
       - name: {{ include "edusharing_common_lib.names.name" . }}
         image: {{ include "edusharing_common_lib.images.image" . }}{{ .Values.job.migration.image.name }}:{{ .Values.job.migration.image.tag }}
-        imagePullPolicy: {{ $.Values.global.image.pullPolicy }}
+        imagePullPolicy: {{ .Values.global.image.pullPolicy }}
         env:
-          - name: REPOSITORY_SEARCH_ELASTIC_INDEX_HOST
-            value: {{ printf "%s-%s" $.Values.config.search.elastic.host .name | quote }}
-          - name: SPRING_APPLICATION_JSON
-            value: {{ .spec.config.override | quote }}
           - name: MODE
             value: --mode=migration-only
         envFrom:
-          - configMapRef:
-              name: {{ include "edusharing_common_lib.names.name" . }}-env
-          - secretRef:
-              name: {{ include "edusharing_common_lib.names.name" . }}-env
-        {{- if .spec.config.tracker.customScript }}
+        - configMapRef:
+            name: {{ include "edusharing_common_lib.names.name" . }}-env
+        - secretRef:
+            name: {{ include "edusharing_common_lib.names.name" . }}-env
+        {{- if .Values.config.tracker.customScript }}
         volumeMounts:
           - name: script
             mountPath: /opt/alfresco/scripts/script.groovy
@@ -57,10 +53,10 @@ spec:
         {{- with .Values.securityContext }}
         securityContext: {{ toYaml . | nindent 10 }}
         {{- end }}
-      {{- if .spec.config.tracker.customScript }}
+      {{- if .Values.config.tracker.customScript }}
       volumes:
         - configMap:
-            name: {{ include "edusharing_common_lib.names.name" . }}-script-{{ .name }}
+            name: {{ include "edusharing_common_lib.names.name" . }}-script
           name: script
       {{- end }}
       {{- with .Values.global.image.pullSecrets }}
