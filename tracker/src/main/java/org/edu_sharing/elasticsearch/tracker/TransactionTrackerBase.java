@@ -73,8 +73,13 @@ public abstract class TransactionTrackerBase implements TransactionTrackerInterf
 
             long maxTrackerTxnId = getMaxTxnId(transactions);
             Long maxTxnId = transactions.getMaxTxnId();
-            if(nextTransactionId >= maxTrackerTxnId || nextTransactionId >= maxTxnId){
-                logger.info("Tracker "+ this.getClass().getSimpleName() +" is up to date. maxTrackerTxnId:"+ maxTrackerTxnId +" maxTxnId:" + maxTxnId +" lastTransactionId:" +lastTransactionId);
+            if(nextTransactionId > maxTxnId){
+                logger.info("Tracker "+ this.getClass().getSimpleName() +" is up to date. last alfresco transaction was processed. maxTrackerTxnId:"+ maxTrackerTxnId +" maxTxnId:" + maxTxnId +" lastTransactionId:" +lastTransactionId);
+                return false;
+            }
+
+            if(nextTransactionId > maxTrackerTxnId ){
+                logger.info("Tracker "+ this.getClass().getSimpleName() +" is up to date. transaction border of this tracker reached. maxTrackerTxnId:"+ maxTrackerTxnId +" maxTxnId:" + maxTxnId +" lastTransactionId:" +lastTransactionId);
                 return false;
             }
 
