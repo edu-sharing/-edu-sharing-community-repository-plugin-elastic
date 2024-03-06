@@ -76,7 +76,7 @@ public abstract class TransactionTrackerBase implements TransactionTracker {
             Transactions transactions = alfClient.getTransactions(nextTransactionId, trackerStrategy.getNext(nextTransactionId, numberOfTransactions), null, null, numberOfTransactions);
 
             long maxTrackerTxnId = transactions.getMaxTxnId();
-            if (nextTransactionId >= maxTrackerTxnId) {
+            if (nextTransactionId > maxTrackerTxnId) {
                 log.info("Tracker {} is up to date. maxTrackerTxnId: {}, lastTransactionId: {}", this.getClass().getSimpleName(), maxTrackerTxnId, lastTransactionId);
                 return false;
             }
