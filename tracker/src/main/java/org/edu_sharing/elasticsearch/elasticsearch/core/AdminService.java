@@ -31,16 +31,27 @@ public class AdminService implements ApplicationContextAware {  //, SmartInitial
     public boolean createIndex(Collection<IndexConfiguration> indexConfigurations) throws IOException {
         boolean createdAnyIndex = false;
         for (IndexConfiguration indexConfiguration : indexConfigurations) {
-            try {
-                if (!client.indices().exists(req -> req.index(indexConfiguration.getIndex())).value()) {
-                    client.indices().create(indexConfiguration.getCreateIndexRequest());
-                    createdAnyIndex = true;
+            IOException exception = null;
+            // on fresh install migration-tracker and normal tracker will try to create indices at the same time
+            // so it can be that index doesn't exists and both will create them simultaneously
+            for (int i = 0; i<2; i++) {
+                try {
+                    if (!client.indices().exists(req -> req.index(indexConfiguration.getIndex())).value()) {
+                        client.indices().create(indexConfiguration.getCreateIndexRequest());
+                        createdAnyIndex = true;
+                        exception = null;
+                        break;
+                    }
+                } catch (IOException ex) {
+                    exception = ex;
                 }
-            } catch (IOException ex) {
-                log.error("create index {} failed with {}", indexConfiguration.getIndex(), ex.getMessage(), ex);
-                throw ex;
+            }
+            if(exception != null){
+                log.error("create index {} failed with {}", indexConfiguration.getIndex(), exception.getMessage(), exception);
+                throw exception;
             }
         }
+
         return createdAnyIndex;
     }
 
