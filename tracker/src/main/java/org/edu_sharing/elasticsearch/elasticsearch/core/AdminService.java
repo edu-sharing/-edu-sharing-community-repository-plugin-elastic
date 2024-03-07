@@ -4,9 +4,6 @@ import co.elastic.clients.elasticsearch.ElasticsearchClient;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.ApplicationContext;
-import org.springframework.context.ApplicationContextAware;
-import org.springframework.stereotype.Component;
 
 import javax.annotation.PostConstruct;
 import java.io.IOException;
@@ -17,41 +14,28 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 @Slf4j
-@Component
 @RequiredArgsConstructor
-public class AdminService implements ApplicationContextAware {  //, SmartInitializingSingleton {
-    private final ElasticsearchClient client;
+public class AdminService {  //, SmartInitializingSingleton {
 
+    private final ElasticsearchClient client;
     private final Collection<IndexConfiguration> indexConfigurations;
 
     @Setter
-    private ApplicationContext applicationContext;
-
+    private boolean autocreateIndex = true;
 
     public boolean createIndex(Collection<IndexConfiguration> indexConfigurations) throws IOException {
         boolean createdAnyIndex = false;
         for (IndexConfiguration indexConfiguration : indexConfigurations) {
-            IOException exception = null;
-            // on fresh install migration-tracker and normal tracker will try to create indices at the same time
-            // so it can be that index doesn't exists and both will create them simultaneously
-            for (int i = 0; i<2; i++) {
-                try {
-                    if (!client.indices().exists(req -> req.index(indexConfiguration.getIndex())).value()) {
-                        client.indices().create(indexConfiguration.getCreateIndexRequest());
-                        createdAnyIndex = true;
-                        exception = null;
-                        break;
-                    }
-                } catch (IOException ex) {
-                    exception = ex;
+            try {
+                if (!client.indices().exists(req -> req.index(indexConfiguration.getIndex())).value()) {
+                    client.indices().create(indexConfiguration.getCreateIndexRequest());
                 }
-            }
-            if(exception != null){
-                log.error("create index {} failed with {}", indexConfiguration.getIndex(), exception.getMessage(), exception);
-                throw exception;
+            } catch (IOException ex) {
+                log.error("create index {} failed with {}", indexConfiguration.getIndex(), ex.getMessage(), ex);
+
+                throw ex;
             }
         }
-
         return createdAnyIndex;
     }
 
@@ -61,7 +45,6 @@ public class AdminService implements ApplicationContextAware {  //, SmartInitial
         list.addAll(List.of(indexConfigurations));
         return createIndex(list);
     }
-
 
     public void deleteIndex(IndexConfiguration indexConfiguration, IndexConfiguration... indexConfigurations) throws IOException {
         List<String> indices = new ArrayList<>();
@@ -78,20 +61,14 @@ public class AdminService implements ApplicationContextAware {  //, SmartInitial
 
     @PostConstruct
     public void init() {
+        if (!autocreateIndex) {
+            return;
+        }
+
         try {
             createIndex(indexConfigurations);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
     }
-//    @SneakyThrows
-//    @Override
-//    public void afterSingletonsInstantiated() {
-//        Collection<IndexConfiguration> indexConfigurations = applicationContext.getBeansOfType(IndexConfiguration.class).values();
-//        try {
-//            createIndex(indexConfigurations);
-//        } catch (IOException e) {
-//            throw new RuntimeException(e);
-//        }
-//    }
 }
