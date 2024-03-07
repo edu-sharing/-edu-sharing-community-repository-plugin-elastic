@@ -179,6 +179,8 @@ job:
       name: ${docker.prefix}-deploy-docker-build-tracker
       tag: ${docker.tag}
 
+    podAnnotations: {}
+
     resources:
 
       limits:
