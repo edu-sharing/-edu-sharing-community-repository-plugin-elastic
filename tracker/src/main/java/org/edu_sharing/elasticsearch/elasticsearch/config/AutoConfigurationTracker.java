@@ -7,6 +7,7 @@ import co.elastic.clients.elasticsearch._types.mapping.MatchType;
 import co.elastic.clients.elasticsearch._types.mapping.TypeMapping;
 import co.elastic.clients.elasticsearch.indices.IndexSettings;
 import co.elastic.clients.util.ObjectBuilder;
+import org.edu_sharing.elasticsearch.elasticsearch.core.AdminService;
 import org.edu_sharing.elasticsearch.elasticsearch.core.IndexConfiguration;
 import org.edu_sharing.elasticsearch.elasticsearch.core.StatusIndexService;
 import org.edu_sharing.elasticsearch.elasticsearch.core.StatusIndexServiceFactory;
@@ -22,6 +23,7 @@ import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
@@ -42,6 +44,12 @@ public class AutoConfigurationTracker {
         version = migrationInfos.get(migrationInfos.size()-1).getVersion();
     }
 
+
+    @Bean
+    @ConditionalOnMissingBean(AdminService.class)
+    public AdminService adminService(ElasticsearchClient client, Collection<IndexConfiguration> indexConfigurations){
+        return new AdminService(client, indexConfigurations);
+    }
 
     @Bean
     public IndexConfiguration appInfo() {
