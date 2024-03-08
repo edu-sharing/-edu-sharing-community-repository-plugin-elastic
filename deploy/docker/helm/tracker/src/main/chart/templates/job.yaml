@@ -25,9 +25,8 @@ spec:
       - name: {{ include "edusharing_common_lib.names.name" . }}
         image: {{ include "edusharing_common_lib.images.image" . }}{{ .Values.job.migration.image.name }}:{{ .Values.job.migration.image.tag }}
         imagePullPolicy: {{ .Values.global.image.pullPolicy }}
-        env:
-          - name: MODE
-            value: --mode=migration-only
+        args:
+          - --mode=migration-only
         envFrom:
         - configMapRef:
             name: {{ include "edusharing_common_lib.names.name" . }}-env
