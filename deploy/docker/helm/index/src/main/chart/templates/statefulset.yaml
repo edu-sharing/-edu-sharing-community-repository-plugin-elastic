@@ -269,7 +269,7 @@ spec:
       initContainers:
       {{- if (default $.Values.global.cluster.storage.data.permission $.Values.persistence.data.permission) }}
       - name: {{ include "edusharing_common_lib.names.name" $ }}-init-permission
-        image: {{ include "edusharing_common_lib.images.common" . }}{{ $.Values.init.permission.image.name }}:{{ $.Values.init.permission.image.tag }}
+        image: {{ include "edusharing_common_lib.images.common" $ }}{{ $.Values.init.permission.image.name }}:{{ $.Values.init.permission.image.tag }}
         imagePullPolicy: {{ $.Values.global.image.pullPolicy }}
         command:
         - "/bin/bash"
@@ -293,7 +293,7 @@ spec:
       {{- end }}
       {{- if $.Values.global.cluster.sysctl.enabled }}
       - name: {{ include "edusharing_common_lib.names.name" $ }}-init-sysctl
-        image: {{ include "edusharing_common_lib.images.common" . }}{{ $.Values.init.sysctl.image.name }}:{{ $.Values.init.sysctl.image.tag }}
+        image: {{ include "edusharing_common_lib.images.common" $ }}{{ $.Values.init.sysctl.image.name }}:{{ $.Values.init.sysctl.image.tag }}
         imagePullPolicy: {{ $.Values.global.image.pullPolicy }}
         command:
         - "/bin/bash"
@@ -310,7 +310,7 @@ spec:
       {{- end }}
       containers:
       - name: {{ include "edusharing_common_lib.names.name" $ }}
-        image: {{ include "edusharing_common_lib.images.common" . }}{{ $.Values.image.name }}:{{ $.Values.image.tag }}
+        image: {{ include "edusharing_common_lib.images.common" $ }}{{ $.Values.image.name }}:{{ $.Values.image.tag }}
         imagePullPolicy: {{ $.Values.global.image.pullPolicy }}
         env:
         - name: cluster.initial_master_nodes
@@ -392,7 +392,7 @@ spec:
         {{- end }}
       {{- if $.Values.sidecar.metrics.enabled }}
       - name: {{ include "edusharing_common_lib.names.name" $ }}-metrics
-        image: {{ include "edusharing_common_lib.images.common" . }}{{ $.Values.sidecar.metrics.image.name }}:{{ $.Values.sidecar.metrics.image.tag }}
+        image: {{ include "edusharing_common_lib.images.common" $ }}{{ $.Values.sidecar.metrics.image.name }}:{{ $.Values.sidecar.metrics.image.tag }}
         imagePullPolicy: {{ $.Values.global.image.pullPolicy }}
         args:
         - --es.uri=http://127.0.0.1:9200

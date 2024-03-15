@@ -128,7 +128,7 @@ metadata:
   labels: {{ include "edusharing_common_lib.labels.app" $ | nindent 4 }}
     app.kubernetes.io/stage: {{ .name }}
 spec:
-  replicas: {{ .Values.replicaCount }}
+  replicas: {{ $.Values.replicaCount }}
   selector:
     matchLabels: {{ include "edusharing_common_lib.labels.app" $ | nindent 6 }}
       app.kubernetes.io/stage: {{ .name }}
@@ -152,7 +152,7 @@ spec:
     spec:
       containers:
       - name: {{ include "edusharing_common_lib.names.name" $ }}
-        image: {{ include "edusharing_common_lib.images.image" . }}{{ $.Values.image.name }}:{{ $.Values.image.tag }}
+        image: {{ include "edusharing_common_lib.images.image" $ }}{{ $.Values.image.name }}:{{ $.Values.image.tag }}
         imagePullPolicy: {{ $.Values.global.image.pullPolicy }}
         env:
         - name: REPOSITORY_SEARCH_ELASTIC_INDEX_HOST
