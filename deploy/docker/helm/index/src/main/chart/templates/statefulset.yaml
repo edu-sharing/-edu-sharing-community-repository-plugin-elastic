@@ -327,12 +327,6 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: status.podIP
-        - name: node.data
-          value: "true"
-        - name: node.ingest
-          value: "true"
-        - name: node.master
-          value: "true"
         - name: path.repo
           value: "/usr/share/elasticsearch/share"
         envFrom:
