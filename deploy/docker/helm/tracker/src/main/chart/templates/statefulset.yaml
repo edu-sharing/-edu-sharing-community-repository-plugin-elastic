@@ -40,6 +40,11 @@ spec:
       - name: {{ include "edusharing_common_lib.names.name" . }}
         image: {{ include "edusharing_common_lib.images.image" . }}{{ .Values.image.name }}:{{ .Values.image.tag }}
         imagePullPolicy: {{ .Values.global.image.pullPolicy }}
+        {{- if .Values.multistage.enabled }}
+        env:
+          - name: REPOSITORY_SEARCH_ELASTIC_INDEX_HOST
+            value: {{ printf "%s-stage" $.Values.config.search.elastic.host | quote }}
+        {{- end }}
         envFrom:
         - configMapRef:
             name: {{ include "edusharing_common_lib.names.name" . }}-env
@@ -120,11 +125,12 @@ spec:
       {{- end }}
 {{- if .Values.multistage.enabled }}
 {{- range .Values.multistage.stages }}
+{{ $stage := printf "%s-stage-%s" (include "edusharing_common_lib.names.name" $) .name }}
 ---
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: {{ include "edusharing_common_lib.names.name" $ }}-{{ .name }}
+  name: {{ $stage }}
   labels: {{ include "edusharing_common_lib.labels.app" $ | nindent 4 }}
     app.kubernetes.io/stage: {{ .name }}
 spec:
@@ -132,7 +138,7 @@ spec:
   selector:
     matchLabels: {{ include "edusharing_common_lib.labels.app" $ | nindent 6 }}
       app.kubernetes.io/stage: {{ .name }}
-  serviceName: {{ include "edusharing_common_lib.names.name" $ }}-headless-{{ .name }}
+  serviceName: {{ $stage }}-headless
   template:
     metadata:
       labels: {{ include "edusharing_common_lib.labels.app" $ | nindent 8 }}
@@ -156,7 +162,7 @@ spec:
         imagePullPolicy: {{ $.Values.global.image.pullPolicy }}
         env:
         - name: REPOSITORY_SEARCH_ELASTIC_INDEX_HOST
-          value: {{ printf "%s-%s" $.Values.config.search.elastic.host .name | quote }}
+          value: {{ printf "%s-stage-%s" $.Values.config.search.elastic.host .name | quote }}
         - name: SPRING_APPLICATION_JSON
           value: {{ .spec.config.override | quote }}
         envFrom:

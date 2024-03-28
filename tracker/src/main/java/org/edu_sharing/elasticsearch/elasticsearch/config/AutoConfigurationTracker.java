@@ -243,12 +243,29 @@ public class AutoConfigurationTracker {
                                         .fields("keyword", f -> f.keyword(kw -> kw.ignoreAbove(256)))
                                         .fields("number", f -> f.float_(v -> v.ignoreMalformed(true))))))),
 
+                        Map.of("generate_sort_lowercase", DynamicTemplate.of(dt -> dt
+                                .matchMappingType("string")
+                                .pathMatch("properties.*")
+                                .mapping(mp -> mp.text(t -> t
+                                                .fields("keyword", f -> f.keyword(kw -> kw.ignoreAbove(256)
+                                                .fields("sort", f2 -> f2.keyword(kw2 -> kw2.ignoreAbove(256).normalizer("lowercase")))
+                                                ))
+                                        )
+                                ))),
+                        Map.of("i18n_fields", DynamicTemplate.of(dt -> dt
+                                .matchMappingType("string")
+                                .pathMatch("i18n.*")
+                                .mapping(mp -> mp.keyword(t -> t
+                                                .fields("sort", f -> f.keyword(t2 -> t2.normalizer("lowercase")))
+                                        )
+                                ))),
                         Map.of("copy_facettes", DynamicTemplate.of(dt -> dt
                                 .matchMappingType("string")
                                 .pathMatch("*properties.*")
                                 .mapping(mp -> mp.text(t -> t.copyTo("properties_aggregated.{name}")
-                                        .fields("keyword", f -> f.keyword(kw -> kw.ignoreAbove(256))))))),
-
+                                        .fields("keyword", f -> f.keyword(kw -> kw.ignoreAbove(256)))
+                                        )
+                                ))),
                         Map.of("convert_date_aggregated", DynamicTemplate.of(dt -> dt
                                 .matchMappingType("date")
                                 .pathMatch("*properties_aggregated.*")
