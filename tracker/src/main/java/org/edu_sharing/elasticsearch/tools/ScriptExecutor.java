@@ -45,7 +45,7 @@ public class ScriptExecutor {
         for (File script : scripts) {
             try {
 
-                Binding sharedData = getBindings(metadata);
+                Binding sharedData = getBindings(metadata, nodeData.getNodeMetadata().getAspects());
                 GroovyShell shell = new GroovyShell(sharedData);
                 Map<String, Serializable> result = (Map<String, Serializable>) shell.evaluate(script);
                 if (result != null) {
@@ -68,9 +68,10 @@ public class ScriptExecutor {
         builder.endObject();
     }
 
-    private Binding getBindings(Map<String, Serializable> metadata) {
+    private Binding getBindings(Map<String, Serializable> metadata, Collection<String> aspects) {
         Binding sharedData = new Binding();
         sharedData.setProperty("metadata", metadata);
+        sharedData.setProperty("aspects", aspects);
         sharedData.setProperty("contributor", getContributor(metadata));
         return sharedData;
     }
