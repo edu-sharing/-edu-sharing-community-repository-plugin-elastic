@@ -247,9 +247,8 @@ public class AutoConfigurationTracker {
                                 .matchMappingType("string")
                                 .pathMatch("properties.*")
                                 .mapping(mp -> mp.text(t -> t
-                                                .fields("keyword", f -> f.keyword(kw -> kw.ignoreAbove(256)
+                                                .fields("keyword", f -> f.keyword(kw -> kw.ignoreAbove(256)))
                                                 .fields("sort", f2 -> f2.keyword(kw2 -> kw2.ignoreAbove(256).normalizer("lowercase")))
-                                                ))
                                         )
                                 ))),
                         Map.of("i18n_fields", DynamicTemplate.of(dt -> dt
