@@ -41,11 +41,6 @@ until [[ $(curl -sSf -w "%{http_code}\n" -o /dev/null -H 'Accept: application/js
 	sleep 3
 done
 
-until [[ $(curl -sSf -w "%{http_code}\n" -o /dev/null -H 'Accept: application/json' "${repository_service_base}/rest/_about/status/SEARCH?timeoutSeconds=3") -eq 200 ]]; do
-	echo >&2 "Waiting for ${repository_service_host} ..."
-	sleep 3
-done
-
 ########################################################################################################################
 
 touch application.properties

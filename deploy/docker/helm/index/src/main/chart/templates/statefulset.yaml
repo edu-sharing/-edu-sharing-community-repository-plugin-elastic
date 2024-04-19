@@ -229,12 +229,12 @@ spec:
     spec: {{ merge .Values.persistence.data.spec .Values.global.cluster.storage.data.spec | toYaml | nindent 6 }}
 {{- if .Values.multistage.enabled }}
 {{- range .Values.multistage.stages }}
-{{ $name := printf "%s-%s" (include "edusharing_common_lib.names.name" $) .name }}
+{{ $stage := printf "%s-stage-%s" (include "edusharing_common_lib.names.name" $) .name }}
 ---
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: {{ include "edusharing_common_lib.names.name" $ }}-{{ .name }}
+  name: {{ $stage }}
   labels: {{ include "edusharing_common_lib.labels.app" $ | nindent 4 }}
     app.kubernetes.io/stage: {{ .name }}
 spec:
@@ -243,7 +243,7 @@ spec:
   selector:
     matchLabels: {{ include "edusharing_common_lib.labels.app" $ | nindent 6 }}
       app.kubernetes.io/stage: {{ .name }}
-  serviceName: {{ include "edusharing_common_lib.names.name" $ }}-headless-{{ .name }}
+  serviceName: {{ $stage }}-headless
   template:
     metadata:
       name: {{ include "edusharing_common_lib.names.name" $ }}
@@ -269,7 +269,7 @@ spec:
       initContainers:
       {{- if (default $.Values.global.cluster.storage.data.permission $.Values.persistence.data.permission) }}
       - name: {{ include "edusharing_common_lib.names.name" $ }}-init-permission
-        image: {{ include "edusharing_common_lib.images.common" . }}{{ $.Values.init.permission.image.name }}:{{ $.Values.init.permission.image.tag }}
+        image: {{ include "edusharing_common_lib.images.common" $ }}{{ $.Values.init.permission.image.name }}:{{ $.Values.init.permission.image.tag }}
         imagePullPolicy: {{ $.Values.global.image.pullPolicy }}
         command:
         - "/bin/bash"
@@ -293,7 +293,7 @@ spec:
       {{- end }}
       {{- if $.Values.global.cluster.sysctl.enabled }}
       - name: {{ include "edusharing_common_lib.names.name" $ }}-init-sysctl
-        image: {{ include "edusharing_common_lib.images.common" . }}{{ $.Values.init.sysctl.image.name }}:{{ $.Values.init.sysctl.image.tag }}
+        image: {{ include "edusharing_common_lib.images.common" $ }}{{ $.Values.init.sysctl.image.name }}:{{ $.Values.init.sysctl.image.tag }}
         imagePullPolicy: {{ $.Values.global.image.pullPolicy }}
         command:
         - "/bin/bash"
@@ -310,15 +310,15 @@ spec:
       {{- end }}
       containers:
       - name: {{ include "edusharing_common_lib.names.name" $ }}
-        image: {{ include "edusharing_common_lib.images.common" . }}{{ $.Values.image.name }}:{{ $.Values.image.tag }}
+        image: {{ include "edusharing_common_lib.images.common" $ }}{{ $.Values.image.name }}:{{ $.Values.image.tag }}
         imagePullPolicy: {{ $.Values.global.image.pullPolicy }}
         env:
         - name: cluster.initial_master_nodes
-          value: "{{ range $i := until ($.Values.replicaCount | int) }}{{ $name }}-{{ $i }},{{ end }}"
+          value: "{{ range $i := until ($.Values.replicaCount | int) }}{{ $stage }}-{{ $i }},{{ end }}"
         - name: cluster.name
-          value: "{{ include "edusharing_common_lib.names.name" $ }}-{{ .name }}"
+          value: "{{ $stage }}"
         - name: discovery.seed_hosts
-          value: "{{ include "edusharing_common_lib.names.name" $ }}-headless-{{ .name }}"
+          value: "{{ $stage }}-headless"
         - name: node.name
           valueFrom:
             fieldRef:
@@ -327,12 +327,6 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: status.podIP
-        - name: node.data
-          value: "true"
-        - name: node.ingest
-          value: "true"
-        - name: node.master
-          value: "true"
         - name: path.repo
           value: "/usr/share/elasticsearch/share"
         envFrom:
@@ -392,7 +386,7 @@ spec:
         {{- end }}
       {{- if $.Values.sidecar.metrics.enabled }}
       - name: {{ include "edusharing_common_lib.names.name" $ }}-metrics
-        image: {{ include "edusharing_common_lib.images.common" . }}{{ $.Values.sidecar.metrics.image.name }}:{{ $.Values.sidecar.metrics.image.tag }}
+        image: {{ include "edusharing_common_lib.images.common" $ }}{{ $.Values.sidecar.metrics.image.name }}:{{ $.Values.sidecar.metrics.image.tag }}
         imagePullPolicy: {{ $.Values.global.image.pullPolicy }}
         args:
         - --es.uri=http://127.0.0.1:9200

@@ -52,4 +52,8 @@ The configuration strongly uses the spring qualifier concept. Beans of the same 
 If no bean name is be defined by the `@Bean` attribute, the method name of the Bean factory/configuration class will be used.
 On injection time the bean name will be resolved by the member or attribute name if no `@Qualifier` attribute is attached to it.  
 
-So change names of beans can result in mismatching bean configurations and should be carefully handled.    
+So change names of beans can result in mismatching bean configurations and should be carefully handled.
+
+# Restarting the migration (for 9.0)
+If for some reason the migration failed, you can force a restart and re-create of the new index structure by shutting down the tracker and deleting the indexes `app_info`, `migrations`, `workspace_9.0` and `transactions_9.0`.
+Note: If you already deleted the old `workspace` and `transactions` index, a full re-indexing is required and will take longer.
