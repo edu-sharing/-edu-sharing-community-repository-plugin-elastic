@@ -296,7 +296,7 @@ public class WorkspaceService {
              * },
              */
             @SuppressWarnings("unchecked")
-            LinkedHashMap<String, Object> content = (LinkedHashMap<String, Object>) node.getProperties().get("{http://www.alfresco.org/model/content/1.0}content");
+            Map<String, Object> content = (Map<String, Object>) node.getProperties().get("{http://www.alfresco.org/model/content/1.0}content");
             if (content != null) {
 
                 builder.startObject("content");
@@ -312,7 +312,7 @@ public class WorkspaceService {
             }
 
 
-            HashMap<String, Serializable> contributorProperties = new HashMap<>();
+            Map<String, Serializable> contributorProperties = new HashMap<>();
             builder.startObject("properties");
             for (Map.Entry<String, Serializable> prop : node.getProperties().entrySet()) {
 
@@ -339,7 +339,7 @@ public class WorkspaceService {
 
                     //i.e. cclom:general_keyword
                     if (!listvalue.isEmpty() && listvalue.get(0) instanceof List) {
-                        List<String> mvValue = new ArrayList<String>();
+                        List<String> mvValue = new ArrayList<>();
                         for (Object l : listvalue) {
                             String mlv = getMultilangValue((List) l);
                             if (mlv != null) {

@@ -42,7 +42,7 @@ class WorkspaceServiceTest {
     @Mock
     private AlfrescoWebscriptClient alfrescoClient;
     @Mock
-    private  co.elastic.clients.elasticsearch.ElasticsearchClient elasticsearchClient;
+    private co.elastic.clients.elasticsearch.ElasticsearchClient elasticsearchClient;
     @Mock
     private ScriptExecutor scriptExecutor;
 
@@ -62,36 +62,36 @@ class WorkspaceServiceTest {
         when(eduSharingClient.getHomeRepository()).thenReturn(repository);
         when(repository.getId()).thenReturn("local");
 
-        underTest = Mockito.spy(new WorkspaceService(elasticsearchClient, scriptExecutor, eduSharingClient, alfrescoClient, new IndexConfiguration(req->req.index("workspace"))));
+        underTest = Mockito.spy(new WorkspaceService(elasticsearchClient, scriptExecutor, eduSharingClient, alfrescoClient, new IndexConfiguration(req -> req.index("workspace"))));
     }
 
     @Test
     void getTest() throws Exception {
         NodeData data = getNodeDataDummy(NodeData.class);
-        DataBuilder builder =  new DataBuilder();
-        underTest.fillData(data,builder, null);
+        DataBuilder builder = new DataBuilder();
+        underTest.fillData(data, builder, null);
         String actual = indentJson(new Gson().toJson(builder.build()));
         String expected = StreamUtils.copyToString(getClass().getClassLoader().getResource("getTest.json").openStream(), StandardCharsets.UTF_8);
         assertEquals(expected, actual);
     }
 
-   @Test
-   void getProposalDataTest() throws Exception {
-       NodeDataProposal data = getNodeDataDummy(NodeDataProposal.class);
-       data.setCollection(getNodeDataDummy(NodeData.class));
-       data.setOriginal(getNodeDataDummy(NodeData.class));
-       DataBuilder builder = new DataBuilder();
-       underTest.fillData(data, builder, null);
-       String actual = indentJson(new Gson().toJson(builder.build()));
-       String expected = StreamUtils.copyToString(getClass().getClassLoader().getResource("getProposalDataTest.json").openStream(), StandardCharsets.UTF_8);
-       assertEquals(expected, actual);
-   }
+    @Test
+    void getProposalDataTest() throws Exception {
+        NodeDataProposal data = getNodeDataDummy(NodeDataProposal.class);
+        data.setCollection(getNodeDataDummy(NodeData.class));
+        data.setOriginal(getNodeDataDummy(NodeData.class));
+        DataBuilder builder = new DataBuilder();
+        underTest.fillData(data, builder, null);
+        String actual = indentJson(new Gson().toJson(builder.build()));
+        String expected = StreamUtils.copyToString(getClass().getClassLoader().getResource("getProposalDataTest.json").openStream(), StandardCharsets.UTF_8);
+        assertEquals(expected, actual);
+    }
 
 
     @Test
     void mapWorkflowProtocolTest() throws Exception {
         DataBuilder builder = new DataBuilder();
-        Serializable entry= (Serializable) Arrays.asList(
+        Serializable entry = (Serializable) Arrays.asList(
                 "{\"editor\":\"admin\",\"receiver\":[\"admin\"],\"comment\":\"\",\"time\":1703251657754,\"status\":\"TASK_DECLINE_ELEMENT\"}",
                 "{\"editor\":\"admin\",\"receiver\":[\"admin\"],\"comment\":\"\",\"time\":1703250527971,\"status\":\"TASK_DECLINE_ELEMENT\"}",
                 "{\"editor\":\"admin\",\"receiver\":[],\"time\":1598997699092,\"status\":\"140_ELEMENT_LEGALLY_APPROVED\"}",
@@ -107,7 +107,7 @@ class WorkspaceServiceTest {
 
     @Test
     void indexCollectionsTest() throws Exception {
-       assertThrows(IOException.class, () -> underTest.indexCollections(getNodeDataDummy(NodeData.class).getNodeMetadata()), "wrong type:ccm:io");
+        assertThrows(IOException.class, () -> underTest.indexCollections(getNodeDataDummy(NodeData.class).getNodeMetadata()), "wrong type:ccm:io");
 
         // no collections to index test
         NodeData data = getNodeDataDummy(NodeData.class);
@@ -127,25 +127,21 @@ class WorkspaceServiceTest {
         data.getNodeMetadata().getProperties().put("{http://www.campuscontent.de/model/1.0}usagecourseid", "0192f8a9-374d-41f3-9025-83e8f75c8717");
         data.getNodeMetadata().getProperties().put("{http://www.campuscontent.de/model/1.0}usageparentnodeid", "0192f8a9-374d-41f3-9025-83e8f75c8717");
 
-        Hit<Map> hit = Mockito.spy(Hit.of(h->h.index("workspace").id("1")));
+        Hit<Map> hit = Mockito.spy(Hit.of(h -> h.index("workspace").id("1")));
         //SearchHit hit = Mockito.spy(new SearchHit(1, "1", new Text("node"), Collections.emptyMap(), Collections.emptyMap()));
-        Mockito.doReturn(new HashMap<String, Object>() {{
-            put("dbid", "123");
-            put("properties", getDummyProperties("0192f8a9-374d-41f3-9025-83e8f75c8717"));
-            put("collections", Collections.singletonList(
-                            new HashMap<String, Object>() {{
-                                put("dbid", "123");
-                                put("relation", new HashMap<String, Object>() {{
-                                    put("dbid", 123);
-                                }});
-                                put("properties", getDummyProperties("0192f8a9-374d-41f3-9025-83e8f75c8717"));
-                            }}
-                    )
-            );
-        }}).when(hit).source();
+        Mockito.doReturn(Map.of(
+                        "dbid", "123",
+                        "properties", getDummyProperties("0192f8a9-374d-41f3-9025-83e8f75c8717"),
+                        "collections", Collections.singletonList(Map.of(
+                                "dbid", "123",
+                                "relation", Map.of("dbid", 123),
+                                "properties", getDummyProperties("0192f8a9-374d-41f3-9025-83e8f75c8717")
+                        ))))
+                .when(hit)
+                .source();
 
         when(alfrescoClient.getNodeData(ArgumentMatchers.anyList())).thenReturn(Collections.singletonList(getNodeDataDummy(NodeData.class)));
-        Mockito.doReturn(HitsMetadata.of((HitsMetadata.Builder<Map> b)->b.total(t->t.value(1).relation(TotalHitsRelation.Eq)).hits(hit))).when(underTest).search(ArgumentMatchers.any(), ArgumentMatchers.anyInt(), ArgumentMatchers.anyInt());
+        Mockito.doReturn(HitsMetadata.of((HitsMetadata.Builder<Map> b) -> b.total(t -> t.value(1).relation(TotalHitsRelation.Eq)).hits(hit))).when(underTest).search(ArgumentMatchers.any(), ArgumentMatchers.anyInt(), ArgumentMatchers.anyInt());
         Mockito.doNothing().when(underTest).update(ArgumentMatchers.anyLong(), ArgumentMatchers.any(Map.class));
         Mockito.doNothing().when(underTest).refreshWorkspace();
         builder = underTest.indexCollections(data.getNodeMetadata());
@@ -191,9 +187,9 @@ class WorkspaceServiceTest {
         data.getNodeMetadata().setAncestors(Set.of(data.getNodeMetadata().getNodeRef()));
         rating.getNodeMetadata().setAncestors(Set.of(data.getNodeMetadata().getNodeRef()));
         Map<String, Serializable> properties = getDummyProperties(nodeId);
-        rating.getNodeMetadata().setProperties(new HashMap<String, Serializable>() {{
+        rating.getNodeMetadata().setProperties(new HashMap<>() {{
             put(CCConstants.CM_PROP_C_MODIFIED, ZonedDateTime.of(
-                    2023,1, 1, 0, 0, 0, 0, ZoneId.of("Europe/Berlin")
+                    2023, 1, 1, 0, 0, 0, 0, ZoneId.of("Europe/Berlin")
             ).format(DateTimeFormatter.ISO_INSTANT));
             put(CCConstants.CCM_PROP_RATING_VALUE, "5.0");
         }});

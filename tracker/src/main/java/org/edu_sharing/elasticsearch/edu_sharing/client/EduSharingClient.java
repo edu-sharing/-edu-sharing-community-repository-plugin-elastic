@@ -100,7 +100,7 @@ public class EduSharingClient {
 
     NewCookie jsessionId = null;
 
-    HashMap<String,HashMap<String, HashMap<String,ValuespaceEntries>>> cache = new HashMap<>();
+    Map<String,Map<String, Map<String,ValuespaceEntries>>> cache = new HashMap<>();
 
     @Autowired
     EduSharingAuthentication.EduSharingAuthenticationResponseFilter eduSharingAuthenticationResponseFilter;
@@ -555,7 +555,7 @@ public class EduSharingClient {
 
     private ValuespaceEntries getValuespaceFromCache(String mds, String language, String property){
 
-        HashMap<String,HashMap<String,ValuespaceEntries>> mdsMap = cache.get(mds);
+        Map<String,Map<String,ValuespaceEntries>> mdsMap = cache.get(mds);
         if(mdsMap == null){
             return null;
         }
@@ -569,13 +569,13 @@ public class EduSharingClient {
 
     private void addValuespaceToCache(String mds, String language, String property, ValuespaceEntries entries){
 
-        HashMap<String,HashMap<String,ValuespaceEntries>> mdsMap = cache.get(mds);
+        Map<String,Map<String,ValuespaceEntries>> mdsMap = cache.get(mds);
         if(mdsMap == null){
             mdsMap = new HashMap<>();
             cache.put(mds,mdsMap);
         }
 
-        HashMap<String,ValuespaceEntries> propMap = mdsMap.get(language);
+        Map<String,ValuespaceEntries> propMap = mdsMap.get(language);
         if(propMap == null){
             propMap = new HashMap<>();
             mdsMap.put(language,propMap);

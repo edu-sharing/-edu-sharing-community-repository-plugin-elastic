@@ -4,7 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class GetNodeMetadataParam {
-    List<Long> nodeIds = new ArrayList<Long>();
+    List<Long> nodeIds = new ArrayList<>();
 
 
     private boolean includeProperties = true;

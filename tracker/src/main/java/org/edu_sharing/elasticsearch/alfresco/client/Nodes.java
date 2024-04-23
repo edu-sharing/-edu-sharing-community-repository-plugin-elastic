@@ -5,7 +5,7 @@ import java.util.List;
 
 public class Nodes {
 
-    List<Node> nodes = new ArrayList<Node>();
+    List<Node> nodes = new ArrayList<>();
 
     public List<Node> getNodes() {
         return nodes;

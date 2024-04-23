@@ -349,7 +349,7 @@ public class AlfrescoWebscriptClient {
         long aclId = nodeMetadata.getAclId();
         acls.add(aclId);
         GetPermissionsParam getPermissionsParam = new GetPermissionsParam();
-        getPermissionsParam.setAclIds(new ArrayList<Long>(acls));
+        getPermissionsParam.setAclIds(new ArrayList<>(acls));
         ReadersACL readersACL = this.getReader(getPermissionsParam);
         AccessControlLists permissions = this.getAccessControlLists(getPermissionsParam);
 

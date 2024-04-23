@@ -9,7 +9,7 @@ public class GetNodeParam {
 
     }
 
-    List<Long> txnIds = new ArrayList<Long>();
+    List<Long> txnIds = new ArrayList<>();
 
 
     public List<Long> getTxnIds() {
