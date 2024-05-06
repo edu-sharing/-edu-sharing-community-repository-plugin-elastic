@@ -6,6 +6,7 @@ import co.elastic.clients.elasticsearch.tasks.GetTasksResponse;
 import co.elastic.clients.elasticsearch.tasks.TaskInfo;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.time.DurationFormatUtils;
 import org.edu_sharing.elasticsearch.elasticsearch.core.AdminService;
 import org.edu_sharing.elasticsearch.elasticsearch.core.IndexConfiguration;
 import org.edu_sharing.elasticsearch.elasticsearch.core.StatusIndexService;
@@ -19,6 +20,7 @@ import org.springframework.context.annotation.DependsOn;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.Date;
 import java.util.List;
 import java.util.Objects;
@@ -187,17 +189,22 @@ public class MigrationService {
                     case REINDEX_WORKSPACE_INDEX_PROGRESS_STEP: {
                         GetTasksResponse tasksResponse = client.tasks().get(req -> req.taskId(migrationState.getProgressContent()));
 
+                        TaskInfo task = tasksResponse.task();
+                        if(tasksResponse.error() != null){
+                            throw new MigrationException(String.format("Task %s failed with: %s", task.id(), tasksResponse.error().reason()));
+                        }
+
+                        if (Boolean.TRUE.equals(task.cancelled())) {
+                            throw new MigrationException(String.format("Task %s was cancelled", task.id()));
+                        }
+
                         if (tasksResponse.completed()) {
+                            log.info("reindexing workspace finished");
+                            logTaskInfo(task);
                             String taskId = reindex(sourceTransactionIndex, "transactions_" + version);
                             curStep = MigrationStep.REINDEX_TRANSACTIONS_INDEX_PROGRESS_STEP;
                             updateMigrationState(migrationState, curStep, taskId);
-                            log.info("reindexing workspace finished");
                             break;
-                        }
-
-                        TaskInfo task = tasksResponse.task();
-                        if (Boolean.TRUE.equals(task.cancelled())) {
-                            throw new MigrationException(String.format("Task %s was cancelled", task.id()));
                         }
 
                         log.info("reindexing workspace...");
@@ -207,8 +214,20 @@ public class MigrationService {
 
                     case REINDEX_TRANSACTIONS_INDEX_PROGRESS_STEP: {
                         GetTasksResponse tasksResponse = client.tasks().get(req -> req.taskId(migrationState.getProgressContent()));
+
+
+                        TaskInfo task = tasksResponse.task();
+                        if(tasksResponse.error() != null){
+                            throw new MigrationException(String.format("Task %s failed with: %s", task.id(), tasksResponse.error().reason()));
+                        }
+
+                        if (Boolean.TRUE.equals(task.cancelled())) {
+                            throw new MigrationException(String.format("Task %s was cancelled", task.id()));
+                        }
+
                         if (tasksResponse.completed()) {
                             log.info("reindexing transactions finished");
+                            logTaskInfo(task);
                             if (requiresDocumentMigration) {
 
 
@@ -230,11 +249,6 @@ public class MigrationService {
                                 log.info("migration completed");
                             }
                             break;
-                        }
-
-                        TaskInfo task = tasksResponse.task();
-                        if (Boolean.TRUE.equals(task.cancelled())) {
-                            throw new MigrationException(String.format("Task %s was cancelled", task.id()));
                         }
 
                         log.info("reindexing transactions...");
@@ -290,6 +304,12 @@ public class MigrationService {
                     .id(version)
                     .document(migrationState));
         }
+    }
+
+    private static void logTaskInfo(TaskInfo task) {
+        log.info("Task Info: id: {} action: {}, runtime: {}",
+                task.id(), task.action(),
+                DurationFormatUtils.formatDuration(Duration.ofNanos(task.runningTimeInNanos()).toMillis(), "H:mm:ss**", true));
     }
 }
 
