@@ -77,12 +77,14 @@ public class MigrationService {
 
 
     public boolean requiresMigration() throws IOException {
+        log.info("Check if migration is required");
         AppInfo appInfo = getAppInfo();
 
         String latestVersion = migrationInfos.get(migrationInfos.size() - 1).getVersion();
         String currentVersion = appInfo.getTrackerVersion();
 
         if (Objects.equals(latestVersion, currentVersion)) {
+            log.info("elastic search is on the latest tracker version ({}).", latestVersion);
             return false;
         }
 
@@ -90,9 +92,11 @@ public class MigrationService {
         String sourceTransactionIndex = currentVersion == null ? "transactions" : "transactions_" + currentVersion;
 
         if (indicesExists(sourceWorkspaceIndex, sourceTransactionIndex)) {
+            log.info("Index \"{}\" and Index \"{}\" requires migration.", sourceWorkspaceIndex, sourceTransactionIndex);
             return true;
         } else {
             // no migration required we should set the appInfo
+            log.info("Plain elastic search detected, no migration required");
             appInfo.setTrackerVersion(latestVersion);
             appInfoStatusService.setState(appInfo);
             return false;
@@ -104,11 +108,13 @@ public class MigrationService {
      * @throws IOException indicates that elasticsearch can't be reached
      */
     public boolean checkForMigrationStatus() throws IOException {
+        log.info("Check for migration status");
         AppInfo appInfo = getAppInfo();
         String latestVersion = migrationInfos.get(migrationInfos.size() - 1).getVersion();
         String currentVersion = appInfo.getTrackerVersion();
 
         if(Objects.equals(latestVersion, currentVersion)){
+            log.info("Migration completed! Running on tracker version {}", currentVersion);
             return true;
         }
 
@@ -117,9 +123,14 @@ public class MigrationService {
             switch (MigrationStep.valueOf(migrationState.getProgressStep())) {
                 case MIGRATE_DOCUMENTS_PROGRESS_STEP:
                 case COMPLETED_PROGRESS_STEP:
+                    log.info("Migration completed! Running on tracker version {}", currentVersion);
                     return true;
             }
-        } catch (IllegalArgumentException ignored) { }
+
+            log.info("Migration in progress {}: {}", MigrationStep.valueOf(migrationState.getProgressStep()),migrationState.getStatusMessage());
+        } catch (IllegalArgumentException ignored) {
+            log.warn("Unknown migration step {}", migrationState.getProgressStep());
+        }
         return false;
     }
 
