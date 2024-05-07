@@ -6,6 +6,7 @@ import co.elastic.clients.elasticsearch.tasks.GetTasksResponse;
 import co.elastic.clients.elasticsearch.tasks.TaskInfo;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.time.DurationFormatUtils;
 import org.edu_sharing.elasticsearch.elasticsearch.core.AdminService;
 import org.edu_sharing.elasticsearch.elasticsearch.core.IndexConfiguration;
 import org.edu_sharing.elasticsearch.elasticsearch.core.StatusIndexService;
@@ -19,6 +20,7 @@ import org.springframework.context.annotation.DependsOn;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.Date;
 import java.util.List;
 import java.util.Objects;
@@ -75,12 +77,14 @@ public class MigrationService {
 
 
     public boolean requiresMigration() throws IOException {
+        log.info("Check if migration is required");
         AppInfo appInfo = getAppInfo();
 
         String latestVersion = migrationInfos.get(migrationInfos.size() - 1).getVersion();
         String currentVersion = appInfo.getTrackerVersion();
 
         if (Objects.equals(latestVersion, currentVersion)) {
+            log.info("elastic search is on the latest tracker version ({}).", latestVersion);
             return false;
         }
 
@@ -88,9 +92,11 @@ public class MigrationService {
         String sourceTransactionIndex = currentVersion == null ? "transactions" : "transactions_" + currentVersion;
 
         if (indicesExists(sourceWorkspaceIndex, sourceTransactionIndex)) {
+            log.info("Index \"{}\" and Index \"{}\" requires migration.", sourceWorkspaceIndex, sourceTransactionIndex);
             return true;
         } else {
             // no migration required we should set the appInfo
+            log.info("Plain elastic search detected, no migration required");
             appInfo.setTrackerVersion(latestVersion);
             appInfoStatusService.setState(appInfo);
             return false;
@@ -102,11 +108,13 @@ public class MigrationService {
      * @throws IOException indicates that elasticsearch can't be reached
      */
     public boolean checkForMigrationStatus() throws IOException {
+        log.info("Check for migration status");
         AppInfo appInfo = getAppInfo();
         String latestVersion = migrationInfos.get(migrationInfos.size() - 1).getVersion();
         String currentVersion = appInfo.getTrackerVersion();
 
         if(Objects.equals(latestVersion, currentVersion)){
+            log.info("Migration completed! Running on tracker version {}", currentVersion);
             return true;
         }
 
@@ -115,9 +123,14 @@ public class MigrationService {
             switch (MigrationStep.valueOf(migrationState.getProgressStep())) {
                 case MIGRATE_DOCUMENTS_PROGRESS_STEP:
                 case COMPLETED_PROGRESS_STEP:
+                    log.info("Migration completed! Running on tracker version {}", currentVersion);
                     return true;
             }
-        } catch (IllegalArgumentException ignored) { }
+
+            log.info("Migration in progress {}: {}", MigrationStep.valueOf(migrationState.getProgressStep()),migrationState.getStatusMessage());
+        } catch (IllegalArgumentException ignored) {
+            log.warn("Unknown migration step {}", migrationState.getProgressStep());
+        }
         return false;
     }
 
@@ -187,17 +200,22 @@ public class MigrationService {
                     case REINDEX_WORKSPACE_INDEX_PROGRESS_STEP: {
                         GetTasksResponse tasksResponse = client.tasks().get(req -> req.taskId(migrationState.getProgressContent()));
 
+                        TaskInfo task = tasksResponse.task();
+                        if(tasksResponse.error() != null){
+                            throw new MigrationException(String.format("Task %s failed with: %s", task.id(), tasksResponse.error().reason()));
+                        }
+
+                        if (Boolean.TRUE.equals(task.cancelled())) {
+                            throw new MigrationException(String.format("Task %s was cancelled", task.id()));
+                        }
+
                         if (tasksResponse.completed()) {
+                            log.info("reindexing workspace finished");
+                            logTaskInfo(task);
                             String taskId = reindex(sourceTransactionIndex, "transactions_" + version);
                             curStep = MigrationStep.REINDEX_TRANSACTIONS_INDEX_PROGRESS_STEP;
                             updateMigrationState(migrationState, curStep, taskId);
-                            log.info("reindexing workspace finished");
                             break;
-                        }
-
-                        TaskInfo task = tasksResponse.task();
-                        if (Boolean.TRUE.equals(task.cancelled())) {
-                            throw new MigrationException(String.format("Task %s was cancelled", task.id()));
                         }
 
                         log.info("reindexing workspace...");
@@ -207,8 +225,20 @@ public class MigrationService {
 
                     case REINDEX_TRANSACTIONS_INDEX_PROGRESS_STEP: {
                         GetTasksResponse tasksResponse = client.tasks().get(req -> req.taskId(migrationState.getProgressContent()));
+
+
+                        TaskInfo task = tasksResponse.task();
+                        if(tasksResponse.error() != null){
+                            throw new MigrationException(String.format("Task %s failed with: %s", task.id(), tasksResponse.error().reason()));
+                        }
+
+                        if (Boolean.TRUE.equals(task.cancelled())) {
+                            throw new MigrationException(String.format("Task %s was cancelled", task.id()));
+                        }
+
                         if (tasksResponse.completed()) {
                             log.info("reindexing transactions finished");
+                            logTaskInfo(task);
                             if (requiresDocumentMigration) {
 
 
@@ -230,11 +260,6 @@ public class MigrationService {
                                 log.info("migration completed");
                             }
                             break;
-                        }
-
-                        TaskInfo task = tasksResponse.task();
-                        if (Boolean.TRUE.equals(task.cancelled())) {
-                            throw new MigrationException(String.format("Task %s was cancelled", task.id()));
                         }
 
                         log.info("reindexing transactions...");
@@ -290,6 +315,12 @@ public class MigrationService {
                     .id(version)
                     .document(migrationState));
         }
+    }
+
+    private static void logTaskInfo(TaskInfo task) {
+        log.info("Task Info: id: {} action: {}, runtime: {}",
+                task.id(), task.action(),
+                DurationFormatUtils.formatDuration(Duration.ofNanos(task.runningTimeInNanos()).toMillis(), "H:mm:ss**", true));
     }
 }
 
