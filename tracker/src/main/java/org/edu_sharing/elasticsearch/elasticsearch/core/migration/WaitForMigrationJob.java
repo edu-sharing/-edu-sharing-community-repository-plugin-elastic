@@ -33,7 +33,7 @@ public class WaitForMigrationJob implements ApplicationContextAware {
         scheduledFuture = Executors.newSingleThreadScheduledExecutor().scheduleAtFixedRate(() -> {
             try {
                 if (!migrationService.checkForMigrationStatus()) {
-                    log.info("wait for migration...");
+                    log.info("Wait for migration...");
                     return;
                 }
 
