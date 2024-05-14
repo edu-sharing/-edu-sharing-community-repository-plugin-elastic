@@ -12,6 +12,5 @@ services:
 
 
   repository-search-elastic-migration:
-    restart: no
     volumes:
       - ./tracker/scripts:/opt/alfresco/scripts
