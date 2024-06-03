@@ -109,6 +109,10 @@ public class ElasticsearchClient {
     @Value("${tracker.bulk.size.elastic}")
     int bulkSizeElastic;
 
+    @Value("${maxContentLength}")
+    int maxContentLength;
+
+
     Logger logger = LogManager.getLogger(ElasticsearchClient.class);
 
     public static String INDEX_WORKSPACE = "workspace";
@@ -447,7 +451,12 @@ public class ElasticsearchClient {
                 builder.field("mimetype", content.get("mimetype"));
                 builder.field("size", content.get("size"));
                 if(nodeData.getFullText() != null){
-                    builder.field("fulltext", nodeData.getFullText());
+                    if(maxContentLength > 0 && nodeData.getFullText().length() > maxContentLength) {
+                        logger.info("Node " + node.getNodeRef() + " has too large fulltext: " + nodeData.getFullText().length() + ". Will be truncated to " + maxContentLength);
+                        builder.field("fulltext", nodeData.getFullText().substring(0, maxContentLength));
+                    } else {
+                        builder.field("fulltext", nodeData.getFullText());
+                    }
                 }
                 builder.endObject();
             }
