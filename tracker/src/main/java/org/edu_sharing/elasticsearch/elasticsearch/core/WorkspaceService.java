@@ -60,6 +60,9 @@ public class WorkspaceService {
     @Value("${statistic.historyInDays}")
     int statisticHistoryInDays;
 
+    @Value("${maxContentLength}")
+    int maxContentLength;
+
     @Value("${elastic.maxCollectionChildItemsUpdateSize}")
     int maxCollectionChildItemsUpdateSize;
 
@@ -306,7 +309,12 @@ public class WorkspaceService {
                 builder.field("mimetype", content.get("mimetype"));
                 builder.field("size", content.get("size"));
                 if (nodeData.getFullText() != null) {
-                    builder.field("fulltext", nodeData.getFullText());
+                    if(maxContentLength > 0 && nodeData.getFullText().length() > maxContentLength) {
+                        logger.info("Node " + node.getNodeRef() + " has too large fulltext: " + nodeData.getFullText().length() + ". Will be truncated to " + maxContentLength);
+                        builder.field("fulltext", nodeData.getFullText().substring(0, maxContentLength));
+                    } else {
+                        builder.field("fulltext", nodeData.getFullText());
+                    }
                 }
                 builder.endObject();
             }
