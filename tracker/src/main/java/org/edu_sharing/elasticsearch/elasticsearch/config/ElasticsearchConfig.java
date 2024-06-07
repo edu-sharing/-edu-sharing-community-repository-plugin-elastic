@@ -1,6 +1,7 @@
 package org.edu_sharing.elasticsearch.elasticsearch.config;
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
+import co.elastic.clients.elasticsearch.synonyms.ElasticsearchSynonymsClient;
 import co.elastic.clients.json.jackson.JacksonJsonpMapper;
 import co.elastic.clients.transport.ElasticsearchTransport;
 import co.elastic.clients.transport.rest_client.RestClientTransport;
@@ -51,8 +52,12 @@ public class ElasticsearchConfig {
     
     @Bean
     public ElasticsearchClient client(ElasticsearchTransport transport) {
-
         return new ElasticsearchClient(transport);
+    }
+
+    @Bean
+    ElasticsearchSynonymsClient clientSynonyms(ElasticsearchTransport transport) {
+        return new ElasticsearchSynonymsClient(transport);
     }
 
 }
