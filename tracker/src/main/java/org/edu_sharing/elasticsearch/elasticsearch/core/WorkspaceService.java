@@ -893,9 +893,9 @@ public class WorkspaceService {
     }
 
     public void delete(List<Node> nodes) throws IOException {
-        logger.info("starting size:" + nodes.size());
+        logger.info("starting delete size:" + nodes.size());
         for (Node node : nodes) {
-            logger.info("nodeid to delete: " + node.getNodeRef() + " / " + node.getId());
+            logger.debug("nodeid to delete: " + node.getNodeRef() + " / " + node.getId());
         }
         if (!nodes.isEmpty()) {
             BulkResponse response = client.bulk(req -> req
@@ -914,7 +914,7 @@ public class WorkspaceService {
                 }
             }
         }
-        logger.info("returning");
+        logger.debug("returning delete");
     }
 
     public HitsMetadata<Map> search(Query queryBuilder, int from, int size) throws IOException {
