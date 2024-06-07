@@ -897,14 +897,17 @@ public class WorkspaceService {
         if (!nodes.isEmpty()) {
             BulkResponse response = client.bulk(req -> req
                     .index(index)
-                    .operations(op -> {
-                        nodes.forEach(n -> op.delete(d -> d.index(index).id(Long.toString(n.getId()))));
-                        return op;
-                    }));
-
+                    .operations(
+                            nodes.stream().map(n -> BulkOperation.of(
+                                    b -> b.delete(d -> d.index(index).id(Long.toString(n.getId())))
+                            )
+                    ).collect(Collectors.toList())));
+            if(response.items().size() != nodes.size()) {
+                logger.error("Errors occured while deleting nodes: Actual Deleted count " + response.items().size() + " does not match actual count: " + nodes.size())
+            }
             for (BulkResponseItem item : response.items()) {
                 if (item.error() != null) {
-                    logger.error(item.error().causedBy());
+                    logger.error(item.error().causedBy() + " dbnodeid: " + item.id());
                 }
             }
         }
