@@ -2,59 +2,83 @@
 # GLOBAL
 ########################################################################################################################
 
+## @section Global parameters
 global:
 
+  ## @param global.annotations Define global annotations
   annotations: {}
 
   cluster:
 
     istio:
+      ## @param global.cluster.istio.enabled Enable Istio Service mesh
       enabled: false
 
     pdb:
+      ## @param global.cluster.pdb.enabled Enable PDB
       enabled: false
 
     storage:
       data:
+        ## @param global.cluster.storage.data.permission Enable global custom data storage permissions
         permission: false
+        ## @param global.cluster.storage.data.spec Set data storage spec
         spec: {}
       share:
+        ## @param global.cluster.storage.share.permission Enable global custom share storage permissions
         permission: false
+        ## @param global.cluster.storage.share.spec Set share storage spec
         spec: {}
 
     sysctl:
+      ## @param global.cluster.sysctl.enabled Enable global sysctl
       enabled: false
 
+  ## @param global.debug Enable global debugging
   debug: false
 
   image:
+    ## @param global.image.pullPolicy Set global image pullPolicy
     pullPolicy: Always
+    ## @param global.image.pullSecrets Set global image pullSecrets
     pullSecrets: []
+    ## @param global.image.registry Set global image container registry
     registry: ${docker.registry}
+    ## @param global.image.repository Set global image container repository
     repository: ${docker.repository}
+    ## @param global.image.common Set global image container common
     common: ${docker.common}
 
   metrics:
     scrape:
+      ## @param global.metrics.scrape.interval Set prometheus scrape interval
       interval: 60s
+      ## @param global.metrics.scrape.timeout Set prometheus scrape timeout
       timeout: 60s
     servicemonitor:
+      ## @param global.metrics.servicemonitor.enabled Enable metrics service monitor
       enabled: false
 
+  ## @param global.security Set global custom security parameters
   security: {}
 
 ########################################################################################################################
 # LOCAL
 ########################################################################################################################
 
+## @section Local parameters
+## @param nameOverride Override name
 nameOverride: edusharing-repository-search-elastic-index
 
 image:
+  ## @param image.name Set image name
   name: ${docker.edu_sharing.community.common.elasticsearch.name}
+  ## @param image.tag Set image tag
   tag: "${docker.edu_sharing.community.common.elasticsearch.tag}"
 
 ########################################################################################################################
 
+## @param replicaCount Define amount of parallel replicas to run
 replicaCount: 3
 
 ########################################################################################################################
@@ -62,8 +86,11 @@ replicaCount: 3
 service:
 
   port:
+    ## @param service.port.api Set port for service API
     api: 9200
+    ## @param service.port.gossip Set port for service gossip
     gossip: 9300
+    ## @param service.port.metrics Set port for service metrics
     metrics: 9114
 
 ########################################################################################################################
@@ -71,37 +98,48 @@ service:
 config:
 
   http:
+    ## @param config.http.maxContentLength Set http maxContentLength
     maxContentLength: "2147483647b"
 
   jvm:
     ram:
+      ## @param config.jvm.ram.minPercentage Set minimum memory in percentages
       minPercentage: "75.0"
+      ## @param config.jvm.ram.maxPercentage Set maximum memory in percentages
       maxPercentage: "75.0"
 
   store:
+    ## @param config.store.mmap Enable mmap store
     mmap: false
 
 ########################################################################################################################
 
 multistage:
 
+  ## @param multistage.enabled Enable multistage
   enabled: false
 
+  ## @param multistage.current Set multistage current
   current: ""
 
+  ## @param multistage.stages Define stages for multistages
+  #    - name: blue
+  #    - name: green
   stages: []
-#    - name: blue
-#    - name: green
 
 ########################################################################################################################
 
+## @param debug Enable debugging
 debug: false
 
 ########################################################################################################################
 
+## @param nodeAffinity Set node affinity
 nodeAffinity: {}
+## @param podAntiAffinity Set pod antiaffinity
 podAntiAffinity: "soft"
 
+## @param tolerations Set tolerations
 tolerations: []
 
 ########################################################################################################################
@@ -110,61 +148,83 @@ persistence:
 
   data:
     spec:
+      ## @param persistence.data.spec.accessModes Set access modes for persistent data
       accessModes: [ "ReadWriteOnce" ]
       resources:
         requests:
+          ## @param persistence.data.spec.resources.requests.storage Set storage request for persistent data
           storage: 5Gi
   share:
     data:
+      ## @param persistence.share.data.create Create data share
       create: true
       spec:
+        ## @param persistence.share.data.spec.accessModes Set access modes for persistent data share
         accessModes: [ "ReadWriteMany" ]
         resources:
           requests:
+            ## @param persistence.share.data.spec.resources.requests.storage Set storage request for persistent data share
             storage: 5Gi
 
 ########################################################################################################################
 
+## @param podAnnotations Set custom pod annotations
 podAnnotations: {}
 
 podSecurityContext:
 
+  ## @param podSecurityContext.fsGroup Set fs group for access
   fsGroup: 1000
+  ## @param podSecurityContext.fsGroupChangePolicy Set change policy for fs group
   fsGroupChangePolicy: OnRootMismatch
 
 securityContext:
-
+  ## @param securityContext.allowPrivilegeEscalation Allow privilege escalation
   allowPrivilegeEscalation: false
   capabilities:
+    ## @param securityContext.capabilities.drop Set drop capabilities
     drop:
-    - ALL
+      - ALL
+  ## @param securityContext.runAsUser Define user to run under
   runAsUser: 1000
 
 ########################################################################################################################
 
+## @param terminationGracePeriod Define grace period for termination
 terminationGracePeriod: 120
 
 startupProbe:
-
+  ## @param startupProbe.failureThreshold Failure threshold for startupProbe
   failureThreshold: 30
+  ## @param startupProbe.initialDelaySeconds Initial delay seconds for startupProbe
   initialDelaySeconds: 0
+  ## @param startupProbe.periodSeconds Period seconds for startupProbe
   periodSeconds: 20
+  ## @param startupProbe.successThreshold Success threshold for startupProbe
   successThreshold: 1
+  ## @param startupProbe.timeoutSeconds Timeout seconds for startupProbe
   timeoutSeconds: 10
 
 livenessProbe:
-
+  ## @param livenessProbe.failureThreshold Failure threshold for livenessProbe
   failureThreshold: 3
+  ## @param livenessProbe.initialDelaySeconds Initial delay seconds for livenessProbe
   initialDelaySeconds: 30
+  ## @param livenessProbe.periodSeconds Period seconds for livenessProbe
   periodSeconds: 30
+  ## @param livenessProbe.timeoutSeconds Timeout seconds for livenessProbe
   timeoutSeconds: 10
 
 readinessProbe:
-
+  ## @param readinessProbe.failureThreshold Failure threshold for readinessProbe
   failureThreshold: 1
+  ## @param readinessProbe.initialDelaySeconds Initial delay seconds for readinessProbe
   initialDelaySeconds: 10
+  ## @param readinessProbe.periodSeconds Period seconds for readinessProbe
   periodSeconds: 10
+  ## @param readinessProbe.successThreshold Set threshold for success on readiness probe
   successThreshold: 1
+  ## @param readinessProbe.timeoutSeconds Timeout seconds for readinessProbe
   timeoutSeconds: 10
 
 ########################################################################################################################
@@ -172,10 +232,14 @@ readinessProbe:
 resources:
 
   limits:
+    ## @param resources.limits.cpu Set CPU limit on resources
     cpu: 500m
+    ## @param resources.limits.memory Set memory limit on resources
     memory: 2Gi
   requests:
+    ## @param resources.requests.cpu Set CPU for requests on resources
     cpu: 500m
+    ## @param resources.requests.memory Set memory for requests on resources
     memory: 2Gi
 
 ########################################################################################################################
@@ -185,40 +249,55 @@ init:
   permission:
 
     image:
+      ## @param init.permission.image.name Set init permission container image name
       name: ${docker.edu_sharing.community.common.minideb.name}
+      ## @param init.permission.image.tag Set init permission container image tag
       tag: "${docker.edu_sharing.community.common.minideb.tag}"
 
     resources:
 
       limits:
+        ## @param init.permission.resources.limits.cpu Set init permission container CPU limit on resources
         cpu: 125m
+        ## @param init.permission.resources.limits.memory Set init permission container memory limit on resources
         memory: 512Mi
       requests:
+        ## @param init.permission.resources.requests.cpu Set init permission container CPU for requests on resources
         cpu: 125m
+        ## @param init.permission.resources.requests.memory Set init permission container memory for requests on resources
         memory: 512Mi
 
     securityContext:
 
+      ## @param init.permission.securityContext.runAsUser Set user to run init permission container under
       runAsUser: 0
 
   sysctl:
 
     image:
+      ## @param init.sysctl.image.name Set init sysctl container image name
       name: ${docker.edu_sharing.community.common.minideb.name}
+      ## @param init.sysctl.image.tag Set init sysctl container image tag
       tag: "${docker.edu_sharing.community.common.minideb.tag}"
 
     resources:
 
       limits:
+        ## @param init.sysctl.resources.limits.cpu Set init sysctl container CPU limit on resources
         cpu: 125m
+        ## @param init.sysctl.resources.limits.memory Set init sysctl container memory limit on resources
         memory: 512Mi
       requests:
+        ## @param init.sysctl.resources.requests.cpu Set init sysctl container CPU for requests on resources
         cpu: 125m
+        ## @param init.sysctl.resources.requests.memory Set init sysctl container memory for requests on resources
         memory: 512Mi
 
     securityContext:
 
+      ## @param init.sysctl.securityContext.privileged Set init sysctl container to run in privileged mode
       privileged: true
+      ## @param init.sysctl.securityContext.runAsUser Set user to run init sysctl container under
       runAsUser: 0
 
 ########################################################################################################################
@@ -227,29 +306,40 @@ sidecar:
 
   metrics:
 
+    ## @param sidecar.metrics.enabled Enable metrics sidecar container
     enabled: true
 
     image:
+      ## @param sidecar.metrics.image.name Set metrics sidecar image name
       name: ${docker.edu_sharing.community.common.elasticsearch.exporter.name}
+      ## @param sidecar.metrics.image.tag Set metrics sidecar image tag
       tag: "${docker.edu_sharing.community.common.elasticsearch.exporter.tag}"
 
+    ## @param sidecar.metrics.relabelings Define relabelings for metrics sidecar container
     relabelings: []
 
     resources:
 
       limits:
+        ## @param sidecar.metrics.resources.limits.cpu Set metrics sidecar container CPU limit on resources
         cpu: 125m
+        ## @param sidecar.metrics.resources.limits.memory Set metrics sidecar container memory limit on resources
         memory: 512Mi
       requests:
+        ## @param sidecar.metrics.resources.requests.cpu Set metrics sidecar container CPU for requests on resources
         cpu: 125m
+        ## @param sidecar.metrics.resources.requests.memory Set metrics sidecar container memory for requests on resources
         memory: 512Mi
 
     securityContext:
 
+      ## @param sidecar.metrics.securityContext.allowPrivilegeEscalation Allow privilege escalation for metrics sidecar
       allowPrivilegeEscalation: false
       capabilities:
+        ## @param sidecar.metrics.securityContext.capabilities.drop Set drop capabilities for metrics sidecar
         drop:
           - ALL
+      ## @param sidecar.metrics.securityContext.runAsUser Define user to run metrics sidecar under
       runAsUser: 1000
 
 ########################################################################################################################
