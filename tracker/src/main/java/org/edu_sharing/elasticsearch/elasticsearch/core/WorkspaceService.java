@@ -894,6 +894,9 @@ public class WorkspaceService {
 
     public void delete(List<Node> nodes) throws IOException {
         logger.info("starting size:" + nodes.size());
+        for (Node node : nodes) {
+            logger.info("nodeid to delete: " + node.getNodeRef() + " / " + node.getId());
+        }
         if (!nodes.isEmpty()) {
             BulkResponse response = client.bulk(req -> req
                     .index(index)
@@ -903,7 +906,7 @@ public class WorkspaceService {
                             )
                     ).collect(Collectors.toList())));
             if(response.items().size() != nodes.size()) {
-                logger.error("Errors occured while deleting nodes: Actual Deleted count " + response.items().size() + " does not match actual count: " + nodes.size())
+                logger.error("Errors occured while deleting nodes: Actual Deleted count " + response.items().size() + " does not match actual count: " + nodes.size());
             }
             for (BulkResponseItem item : response.items()) {
                 if (item.error() != null) {
