@@ -202,6 +202,7 @@ public class AutoConfigurationTracker {
                                 .pathMatch("^(?:\\w+\\.)*properties.(cclom:title)$")
                                 .mapping(mp -> mp.text(t -> t.copyTo("properties_aggregated.cclom:title")
                                         .fields("keyword", prop -> prop.keyword(v -> v.ignoreAbove(256)))
+                                        .fields("sort", prop -> prop.keyword(v -> v.normalizer("lowercase")))
                                         .fields("trigram", prop -> prop.text(v -> v.analyzer("trigram")))
                                         .fields("reverse", prop -> prop.text(v -> v.analyzer("reverse"))))))),
 
