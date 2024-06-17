@@ -468,9 +468,13 @@ public class WorkspaceService {
 
                                     if (vcard.getN() != null) {
                                         NType n = vcard.getN();
-                                        builder.field("displayname", vcard.getTitle() + " " + n.getGivenName() + " " + n.getFamilyName());
+                                        builder.field("displayname", (
+                                                (vcard.getTitle() != null && vcard.getTitle().getTitle() != null ? vcard.getTitle().getTitle() : "") + " " +
+                                                        (n.getGivenName() != null ? n.getGivenName() : "") + " " +
+                                                        (n.getFamilyName() != null ? n.getFamilyName() : "")
+                                        ).trim());
                                     } else if (vcard.getOrg() != null) {
-                                        builder.field("displayname", vcard.getOrg().getOrgName());
+                                        builder.field("displayname", vcard.getOrg().getOrgName() != null ? vcard.getOrg().getOrgName().trim() : "");
                                     }
 
                                     List<ExtendedType> extendedTypes = vcard.getExtendedTypes();
