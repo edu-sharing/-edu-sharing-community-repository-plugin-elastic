@@ -60,4 +60,11 @@ public class About {
         this.plugins = plugins;
     }
 
+    public Object getFeatures() {
+        return features;
+    }
+
+    public void setFeatures(Object features) {
+        this.features = features;
+    }
 }
