@@ -16,6 +16,9 @@ public class About {
     @JsonIgnore
     Object plugins;
 
+    @JsonIgnore
+    Object features;
+
 
     public String getThemesUrl() {
         return themesUrl;
