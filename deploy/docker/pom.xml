@@ -34,7 +34,7 @@
       dockerio.mirror.docker.edu-sharing.com/openjdk:11-jdk
     </docker.from.openjdk>
 
-    <helm.kube.version>&gt;= 1.20.0</helm.kube.version>
+    <helm.kube.version>&gt;= 1.20.0-0</helm.kube.version>
     <helm.version>3.10.0</helm.version>
 
   </properties>
