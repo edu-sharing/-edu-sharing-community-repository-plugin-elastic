@@ -311,6 +311,10 @@ spec:
       containers:
       - name: {{ include "edusharing_common_lib.names.name" $ }}
         image: {{ include "edusharing_common_lib.images.common" $ }}{{ $.Values.image.name }}:{{ $.Values.image.tag }}
+        command:
+          - bash
+          - '-ec'
+          - find /usr/share/elasticsearch/data -name *.lock -delete && /usr/local/bin/docker-entrypoint.sh
         imagePullPolicy: {{ $.Values.global.image.pullPolicy }}
         env:
         - name: cluster.initial_master_nodes

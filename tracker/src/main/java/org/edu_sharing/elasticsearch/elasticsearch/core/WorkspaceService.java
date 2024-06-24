@@ -60,6 +60,9 @@ public class WorkspaceService {
     @Value("${statistic.historyInDays}")
     int statisticHistoryInDays;
 
+    @Value("${maxContentLength}")
+    int maxContentLength;
+
     @Value("${elastic.maxCollectionChildItemsUpdateSize}")
     int maxCollectionChildItemsUpdateSize;
 
@@ -306,7 +309,12 @@ public class WorkspaceService {
                 builder.field("mimetype", content.get("mimetype"));
                 builder.field("size", content.get("size"));
                 if (nodeData.getFullText() != null) {
-                    builder.field("fulltext", nodeData.getFullText());
+                    if(maxContentLength > 0 && nodeData.getFullText().length() > maxContentLength) {
+                        logger.info("Node " + node.getNodeRef() + " has too large fulltext: " + nodeData.getFullText().length() + ". Will be truncated to " + maxContentLength);
+                        builder.field("fulltext", nodeData.getFullText().substring(0, maxContentLength));
+                    } else {
+                        builder.field("fulltext", nodeData.getFullText());
+                    }
                 }
                 builder.endObject();
             }
@@ -460,9 +468,13 @@ public class WorkspaceService {
 
                                     if (vcard.getN() != null) {
                                         NType n = vcard.getN();
-                                        builder.field("displayname", vcard.getTitle() + " " + n.getGivenName() + " " + n.getFamilyName());
+                                        builder.field("displayname", (
+                                                (vcard.getTitle() != null && vcard.getTitle().getTitle() != null ? vcard.getTitle().getTitle() : "") + " " +
+                                                        (n.getGivenName() != null ? n.getGivenName() : "") + " " +
+                                                        (n.getFamilyName() != null ? n.getFamilyName() : "")
+                                        ).trim());
                                     } else if (vcard.getOrg() != null) {
-                                        builder.field("displayname", vcard.getOrg().getOrgName());
+                                        builder.field("displayname", vcard.getOrg().getOrgName() != null ? vcard.getOrg().getOrgName().trim() : "");
                                     }
 
                                     List<ExtendedType> extendedTypes = vcard.getExtendedTypes();
@@ -885,22 +897,28 @@ public class WorkspaceService {
     }
 
     public void delete(List<Node> nodes) throws IOException {
-        logger.info("starting size:" + nodes.size());
+        logger.info("starting delete size:" + nodes.size());
+        for (Node node : nodes) {
+            logger.debug("nodeid to delete: " + node.getNodeRef() + " / " + node.getId());
+        }
         if (!nodes.isEmpty()) {
             BulkResponse response = client.bulk(req -> req
                     .index(index)
-                    .operations(op -> {
-                        nodes.forEach(n -> op.delete(d -> d.index(index).id(Long.toString(n.getId()))));
-                        return op;
-                    }));
-
+                    .operations(
+                            nodes.stream().map(n -> BulkOperation.of(
+                                    b -> b.delete(d -> d.index(index).id(Long.toString(n.getId())))
+                            )
+                    ).collect(Collectors.toList())));
+            if(response.items().size() != nodes.size()) {
+                logger.error("Errors occured while deleting nodes: Actual Deleted count " + response.items().size() + " does not match actual count: " + nodes.size());
+            }
             for (BulkResponseItem item : response.items()) {
                 if (item.error() != null) {
-                    logger.error(item.error().causedBy());
+                    logger.error(item.error().causedBy() + " dbnodeid: " + item.id());
                 }
             }
         }
-        logger.info("returning");
+        logger.debug("returning delete");
     }
 
     public HitsMetadata<Map> search(Query queryBuilder, int from, int size) throws IOException {

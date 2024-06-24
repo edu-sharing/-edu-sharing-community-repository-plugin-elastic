@@ -1,12 +1,12 @@
 package org.edu_sharing.elasticsearch.elasticsearch.core.migration;
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
+import co.elastic.clients.elasticsearch._types.Conflicts;
 import co.elastic.clients.elasticsearch.core.search.Hit;
 import co.elastic.clients.elasticsearch.tasks.GetTasksResponse;
 import co.elastic.clients.elasticsearch.tasks.TaskInfo;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.time.DurationFormatUtils;
 import org.edu_sharing.elasticsearch.elasticsearch.core.AdminService;
 import org.edu_sharing.elasticsearch.elasticsearch.core.IndexConfiguration;
 import org.edu_sharing.elasticsearch.elasticsearch.core.StatusIndexService;
@@ -20,7 +20,6 @@ import org.springframework.context.annotation.DependsOn;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
-import java.time.Duration;
 import java.util.Date;
 import java.util.List;
 import java.util.Objects;
