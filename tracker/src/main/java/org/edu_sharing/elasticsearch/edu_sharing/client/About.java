@@ -16,6 +16,9 @@ public class About {
     @JsonIgnore
     Object plugins;
 
+    @JsonIgnore
+    Object features;
+
 
     public String getThemesUrl() {
         return themesUrl;
@@ -57,4 +60,11 @@ public class About {
         this.plugins = plugins;
     }
 
+    public Object getFeatures() {
+        return features;
+    }
+
+    public void setFeatures(Object features) {
+        this.features = features;
+    }
 }

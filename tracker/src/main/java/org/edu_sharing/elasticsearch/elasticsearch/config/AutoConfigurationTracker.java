@@ -41,13 +41,13 @@ public class AutoConfigurationTracker {
 
     public AutoConfigurationTracker(List<MigrationInfo> migrationInfos) {
         // Migration information is sorted, with the latest version being the last item in the list
-        version = migrationInfos.get(migrationInfos.size()-1).getVersion();
+        version = migrationInfos.get(migrationInfos.size() - 1).getVersion();
     }
 
 
     @Bean
     @ConditionalOnMissingBean(AdminService.class)
-    public AdminService adminService(ElasticsearchClient client, Collection<IndexConfiguration> indexConfigurations){
+    public AdminService adminService(ElasticsearchClient client, Collection<IndexConfiguration> indexConfigurations) {
         return new AdminService(client, indexConfigurations);
     }
 
@@ -61,7 +61,7 @@ public class AutoConfigurationTracker {
     }
 
     @Bean
-    public IndexConfiguration migrationIndex(){
+    public IndexConfiguration migrationIndex() {
         return new IndexConfiguration(req -> req
                 .index("migrations")
                 .settings(s -> s.index(id -> id
@@ -200,7 +200,9 @@ public class AutoConfigurationTracker {
                                 .matchMappingType("*")
                                 .matchPattern(MatchType.Regex)
                                 .pathMatch("^(?:\\w+\\.)*properties.(cclom:title)$")
-                                .mapping(mp -> mp.text(t -> t.copyTo("properties_aggregated.cclom:title")
+                                .mapping(mp -> mp.text(t -> t
+                                        .store(true)
+                                        .copyTo("properties_aggregated.cclom:title")
                                         .fields("keyword", prop -> prop.keyword(v -> v.ignoreAbove(256)))
                                         .fields("sort", prop -> prop.keyword(v -> v.normalizer("lowercase")))
                                         .fields("trigram", prop -> prop.text(v -> v.analyzer("trigram")))
@@ -226,28 +228,32 @@ public class AutoConfigurationTracker {
                         Map.of("convert_date", DynamicTemplate.of(dt -> dt
                                 .matchMappingType("date")
                                 .pathMatch("*properties.*")
-                                .mapping(mp -> mp.text(t -> t.store(true)
+                                .mapping(mp -> mp.text(t -> t
+                                        .store(true)
                                         .fields("keyword", f -> f.keyword(kw -> kw.ignoreAbove(256)))
                                         .fields("date", f -> f.date(v -> v.ignoreMalformed(true))))))),
 
                         Map.of("convert_numeric_long", DynamicTemplate.of(dt -> dt
                                 .matchMappingType("long")
                                 .pathMatch("*properties.*")
-                                .mapping(mp -> mp.text(t -> t.store(true)
+                                .mapping(mp -> mp.text(t -> t
+                                        .store(true)
                                         .fields("keyword", f -> f.keyword(kw -> kw.ignoreAbove(256)))
                                         .fields("number", f -> f.long_(v -> v.ignoreMalformed(true))))))),
 
                         Map.of("convert_numeric_double", DynamicTemplate.of(dt -> dt
                                 .matchMappingType("double")
                                 .pathMatch("*properties.*")
-                                .mapping(mp -> mp.text(t -> t.store(true)
+                                .mapping(mp -> mp.text(t -> t
+                                        .store(true)
                                         .fields("keyword", f -> f.keyword(kw -> kw.ignoreAbove(256)))
                                         .fields("number", f -> f.float_(v -> v.ignoreMalformed(true))))))),
 
                         Map.of("generate_sort_lowercase", DynamicTemplate.of(dt -> dt
                                 .matchMappingType("string")
-                                .pathMatch("properties.*")
+                                .pathMatch("*properties.*")
                                 .mapping(mp -> mp.text(t -> t
+                                                .store(true)
                                                 .fields("keyword", f -> f.keyword(kw -> kw.ignoreAbove(256)))
                                                 .fields("sort", f2 -> f2.keyword(kw2 -> kw2.ignoreAbove(256).normalizer("lowercase")))
                                         )
@@ -262,28 +268,33 @@ public class AutoConfigurationTracker {
                         Map.of("copy_facettes", DynamicTemplate.of(dt -> dt
                                 .matchMappingType("string")
                                 .pathMatch("*properties.*")
-                                .mapping(mp -> mp.text(t -> t.copyTo("properties_aggregated.{name}")
-                                        .fields("keyword", f -> f.keyword(kw -> kw.ignoreAbove(256)))
+                                .mapping(mp -> mp.text(t -> t
+                                                .store(true)
+                                                .copyTo("properties_aggregated.{name}")
+                                                .fields("keyword", f -> f.keyword(kw -> kw.ignoreAbove(256)))
                                         )
                                 ))),
                         Map.of("convert_date_aggregated", DynamicTemplate.of(dt -> dt
                                 .matchMappingType("date")
                                 .pathMatch("*properties_aggregated.*")
-                                .mapping(mp -> mp.text(t -> t.store(true)
+                                .mapping(mp -> mp.text(t -> t
+                                        .store(true)
                                         .fields("keyword", f -> f.keyword(kw -> kw.ignoreAbove(256)))
                                         .fields("date", f -> f.date(v -> v.ignoreMalformed(true))))))),
 
                         Map.of("convert_numeric_long_aggregated", DynamicTemplate.of(dt -> dt
                                 .matchMappingType("long")
                                 .pathMatch("*properties_aggregated.*")
-                                .mapping(mp -> mp.text(t -> t.store(true)
+                                .mapping(mp -> mp.text(t -> t
+                                        .store(true)
                                         .fields("keyword", f -> f.keyword(kw -> kw.ignoreAbove(256)))
                                         .fields("number", f -> f.long_(v -> v.ignoreMalformed(true))))))),
 
                         Map.of("convert_numeric_double_aggregated", DynamicTemplate.of(dt -> dt
                                 .matchMappingType("double")
                                 .pathMatch("*properties_aggregated.*")
-                                .mapping(mp -> mp.text(t -> t.store(true)
+                                .mapping(mp -> mp.text(t -> t
+                                        .store(true)
                                         .fields("keyword", f -> f.keyword(kw -> kw.ignoreAbove(256)))
                                         .fields("number", f -> f.float_(v -> v.ignoreMalformed(true))))))),
 
@@ -312,7 +323,7 @@ public class AutoConfigurationTracker {
 
     @Bean
     public StatusIndexService<AppInfo> appInfoStatusService(ElasticsearchClient client, IndexConfiguration appInfo) {
-        return new StatusIndexService<>(appInfo.getIndex(), client, AppInfo::new,"0", AppInfo.class);
+        return new StatusIndexService<>(appInfo.getIndex(), client, AppInfo::new, "0", AppInfo.class);
     }
 
     @Bean

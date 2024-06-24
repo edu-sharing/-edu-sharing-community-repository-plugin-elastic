@@ -46,10 +46,10 @@ spec:
         - name: jpda
           containerPort: 5005
         {{- end }}
-        {{- with .Values.resources }}
+        {{- with .Values.job.migration.resources }}
         resources: {{ toYaml . | nindent 10 }}
         {{- end }}
-        {{- with .Values.securityContext }}
+        {{- with .Values.job.migration.securityContext }}
         securityContext: {{ toYaml . | nindent 10 }}
         {{- end }}
       {{- if .Values.config.tracker.customScript }}
