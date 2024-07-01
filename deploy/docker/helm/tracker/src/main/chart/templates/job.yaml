@@ -46,6 +46,37 @@ spec:
         - name: jpda
           containerPort: 5005
         {{- end }}
+        {{- with .Values.job.migration.startupProbe }}
+        startupProbe:
+          httpGet:
+            path: /actuator/health/readiness
+            port: management
+          failureThreshold: {{ .failureThreshold }}
+          initialDelaySeconds: {{ .initialDelaySeconds }}
+          periodSeconds: {{ .periodSeconds }}
+          timeoutSeconds: {{ .timeoutSeconds }}
+        {{- end }}
+        {{- with .Values.job.migration.livenessProbe }}
+        livenessProbe:
+          httpGet:
+            path: /actuator/health/liveness
+            port: management
+          failureThreshold: {{ .failureThreshold }}
+          initialDelaySeconds: {{ .initialDelaySeconds }}
+          periodSeconds: {{ .periodSeconds }}
+          timeoutSeconds: {{ .timeoutSeconds }}
+        {{- end }}
+        {{- with .Values.job.migration.readinessProbe }}
+        readinessProbe:
+          httpGet:
+            path: /actuator/health/readiness
+            port: management
+          failureThreshold: {{ .failureThreshold }}
+          initialDelaySeconds: {{ .initialDelaySeconds }}
+          periodSeconds: {{ .periodSeconds }}
+          successThreshold: {{ .successThreshold }}
+          timeoutSeconds: {{ .timeoutSeconds }}
+        {{- end }}
         {{- with .Values.job.migration.resources }}
         resources: {{ toYaml . | nindent 10 }}
         {{- end }}
