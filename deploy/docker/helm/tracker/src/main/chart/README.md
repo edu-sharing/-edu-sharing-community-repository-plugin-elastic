@@ -75,6 +75,9 @@
 | `job.migration.image.name`                 | Set name for migration job image             | `${docker.prefix}-deploy-docker-build-tracker` |
 | `job.migration.image.tag`                  | Set tag for migration job image              | `${docker.tag}`                                |
 | `job.migration.podAnnotations`             | Set pod annotations for migration job        | `{}`                                           |
+| `job.migration.startupProbe`               | Optional specs for startupProbe              | `nil`                                          |
+| `job.migration.livenessProbe`              | Optional specs for livenessProbe             | `nil`                                          |
+| `job.migration.readinessProbe`             | Optional specs for readinessProbe            | `nil`                                          |
 | `job.migration.resources.limits.cpu`       | Set CPU limit on resources                   | `500m`                                         |
 | `job.migration.resources.limits.memory`    | Set memory limit on resources                | `2Gi`                                          |
 | `job.migration.resources.requests.cpu`     | Set CPU for requests on resources            | `500m`                                         |

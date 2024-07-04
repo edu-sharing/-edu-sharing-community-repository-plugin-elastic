@@ -254,6 +254,15 @@ init:
       ## @param init.permission.image.tag Set init permission container image tag
       tag: "${docker.edu_sharing.community.common.minideb.tag}"
 
+    ## @param init.permission.startupProbe Optional specs for startupProbe
+    startupProbe:
+
+    ## @param init.permission.livenessProbe Optional specs for livenessProbe
+    livenessProbe:
+
+    ## @param init.permission.readinessProbe Optional specs for readinessProbe
+    readinessProbe:
+
     resources:
 
       limits:
@@ -279,6 +288,15 @@ init:
       name: ${docker.edu_sharing.community.common.minideb.name}
       ## @param init.sysctl.image.tag Set init sysctl container image tag
       tag: "${docker.edu_sharing.community.common.minideb.tag}"
+
+    ## @param init.sysctl.startupProbe Optional specs for startupProbe
+    startupProbe:
+
+    ## @param init.sysctl.livenessProbe Optional specs for livenessProbe
+    livenessProbe:
+
+    ## @param init.sysctl.readinessProbe Optional specs for readinessProbe
+    readinessProbe:
 
     resources:
 
@@ -317,6 +335,15 @@ sidecar:
 
     ## @param sidecar.metrics.relabelings Define relabelings for metrics sidecar container
     relabelings: []
+
+    ## @param sidecar.metrics.startupProbe Optional specs for startupProbe
+    startupProbe:
+
+    ## @param sidecar.metrics.livenessProbe Optional specs for livenessProbe
+    livenessProbe:
+
+    ## @param sidecar.metrics.readinessProbe Optional specs for readinessProbe
+    readinessProbe:
 
     resources:
 

@@ -77,6 +77,9 @@
 | `resources.requests.memory`                                | Set memory for requests on resources                           | `2Gi`                                                                |
 | `init.permission.image.name`                               | Set init permission container image name                       | `${docker.edu_sharing.community.common.minideb.name}`                |
 | `init.permission.image.tag`                                | Set init permission container image tag                        | `${docker.edu_sharing.community.common.minideb.tag}`                 |
+| `init.permission.startupProbe`                             | Optional specs for startupProbe                                | `nil`                                                                |
+| `init.permission.livenessProbe`                            | Optional specs for livenessProbe                               | `nil`                                                                |
+| `init.permission.readinessProbe`                           | Optional specs for readinessProbe                              | `nil`                                                                |
 | `init.permission.resources.limits.cpu`                     | Set init permission container CPU limit on resources           | `125m`                                                               |
 | `init.permission.resources.limits.memory`                  | Set init permission container memory limit on resources        | `512Mi`                                                              |
 | `init.permission.resources.requests.cpu`                   | Set init permission container CPU for requests on resources    | `125m`                                                               |
@@ -84,6 +87,9 @@
 | `init.permission.securityContext.runAsUser`                | Set user to run init permission container under                | `0`                                                                  |
 | `init.sysctl.image.name`                                   | Set init sysctl container image name                           | `${docker.edu_sharing.community.common.minideb.name}`                |
 | `init.sysctl.image.tag`                                    | Set init sysctl container image tag                            | `${docker.edu_sharing.community.common.minideb.tag}`                 |
+| `init.sysctl.startupProbe`                                 | Optional specs for startupProbe                                | `nil`                                                                |
+| `init.sysctl.livenessProbe`                                | Optional specs for livenessProbe                               | `nil`                                                                |
+| `init.sysctl.readinessProbe`                               | Optional specs for readinessProbe                              | `nil`                                                                |
 | `init.sysctl.resources.limits.cpu`                         | Set init sysctl container CPU limit on resources               | `125m`                                                               |
 | `init.sysctl.resources.limits.memory`                      | Set init sysctl container memory limit on resources            | `512Mi`                                                              |
 | `init.sysctl.resources.requests.cpu`                       | Set init sysctl container CPU for requests on resources        | `125m`                                                               |
@@ -94,6 +100,9 @@
 | `sidecar.metrics.image.name`                               | Set metrics sidecar image name                                 | `${docker.edu_sharing.community.common.elasticsearch.exporter.name}` |
 | `sidecar.metrics.image.tag`                                | Set metrics sidecar image tag                                  | `${docker.edu_sharing.community.common.elasticsearch.exporter.tag}`  |
 | `sidecar.metrics.relabelings`                              | Define relabelings for metrics sidecar container               | `[]`                                                                 |
+| `sidecar.metrics.startupProbe`                             | Optional specs for startupProbe                                | `nil`                                                                |
+| `sidecar.metrics.livenessProbe`                            | Optional specs for livenessProbe                               | `nil`                                                                |
+| `sidecar.metrics.readinessProbe`                           | Optional specs for readinessProbe                              | `nil`                                                                |
 | `sidecar.metrics.resources.limits.cpu`                     | Set metrics sidecar container CPU limit on resources           | `125m`                                                               |
 | `sidecar.metrics.resources.limits.memory`                  | Set metrics sidecar container memory limit on resources        | `512Mi`                                                              |
 | `sidecar.metrics.resources.requests.cpu`                   | Set metrics sidecar container CPU for requests on resources    | `125m`                                                               |

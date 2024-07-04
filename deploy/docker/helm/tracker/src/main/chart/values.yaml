@@ -248,6 +248,15 @@ job:
     ## @param job.migration.podAnnotations Set pod annotations for migration job
     podAnnotations: {}
 
+    ## @param job.migration.startupProbe Optional specs for startupProbe
+    startupProbe:
+
+    ## @param job.migration.livenessProbe Optional specs for livenessProbe
+    livenessProbe:
+
+    ## @param job.migration.readinessProbe Optional specs for readinessProbe
+    readinessProbe:
+
     resources:
 
       limits:
