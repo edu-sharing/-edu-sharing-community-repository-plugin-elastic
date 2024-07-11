@@ -39,6 +39,7 @@ spec:
         {{- toYaml . | nindent 8 }}
         {{- end }}
     spec:
+      {{- if (or (default .Values.global.cluster.storage.data.permission .Values.persistence.data.permission) .Values.global.cluster.sysctl.enabled) }}
       initContainers:
       {{- if (default .Values.global.cluster.storage.data.permission .Values.persistence.data.permission) }}
       - name: {{ include "edusharing_repository_search_elastic_index.name" . }}-init-permission
@@ -80,6 +81,7 @@ spec:
         {{- with .Values.init.sysctl.securityContext }}
         securityContext: {{ toYaml . | nindent 10 }}
         {{- end }}
+      {{- end }}
       {{- end }}
       containers:
       - name: {{ include "edusharing_repository_search_elastic_index.name" . }}
@@ -272,6 +274,7 @@ spec:
         {{- toYaml . | nindent 8 }}
         {{- end }}
     spec:
+      {{- if (or (default .Values.global.cluster.storage.data.permission .Values.persistence.data.permission) .Values.global.cluster.sysctl.enabled) }}
       initContainers:
       {{- if (default $.Values.global.cluster.storage.data.permission $.Values.persistence.data.permission) }}
       - name: {{ include "edusharing_repository_search_elastic_index.name" $ }}-init-permission
@@ -313,6 +316,7 @@ spec:
         {{- with $.Values.init.sysctl.securityContext }}
         securityContext: {{ toYaml . | nindent 10 }}
         {{- end }}
+      {{- end }}
       {{- end }}
       containers:
       - name: {{ include "edusharing_repository_search_elastic_index.name" $ }}
