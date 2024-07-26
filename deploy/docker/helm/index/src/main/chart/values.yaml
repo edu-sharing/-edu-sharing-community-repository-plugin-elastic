@@ -158,6 +158,10 @@ persistence:
     data:
       ## @param persistence.share.data.create Create data share
       create: true
+      ## @param persistence.share.data.type Set volume type of data share
+      type: |
+        persistentVolumeClaim:
+          claimName: {{ include "edusharing_repository_search_elastic_index.pvc.share.data" . }}
       spec:
         ## @param persistence.share.data.spec.accessModes Set access modes for persistent data share
         accessModes: [ "ReadWriteMany" ]

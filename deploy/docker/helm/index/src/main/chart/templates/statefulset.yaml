@@ -336,8 +336,7 @@ spec:
       {{- end }}
       volumes:
       - name: share-data
-        persistentVolumeClaim:
-          claimName: {{ include "edusharing_repository_search_elastic_index.pvc.share.data" . }}
+        {{ tpl .Values.persistence.share.data.type . | nindent 8 }}
   volumeClaimTemplates:
   - metadata:
       name: data
@@ -679,8 +678,7 @@ spec:
       {{- end }}
       volumes:
       - name: share-data
-        persistentVolumeClaim:
-          claimName: {{ include "edusharing_repository_search_elastic_index.pvc.share.data" $ }}
+        {{ tpl $.Values.persistence.share.data.type . | nindent 8 }}
   volumeClaimTemplates:
   - metadata:
       name: data
