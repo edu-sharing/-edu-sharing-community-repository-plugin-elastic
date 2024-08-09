@@ -144,7 +144,7 @@ public class AclTracker {
             double percentage = ((double) lastAclChangeSet.getId() - 1) / (double) aclChangeSets.getMaxChangeSetId() * 100.0d;
             DecimalFormat df = new DecimalFormat("0.00");
             logger.info("finished " + df.format(percentage) + "% lastACLChangeSetId:" + lastAclChangeSet.getId() +" maxChangeSetId:" + aclChangeSets.getMaxChangeSetId());
-            return true;
+            return false;
 
         }catch (IOException e) {
             logger.error(e.getMessage(), e);
