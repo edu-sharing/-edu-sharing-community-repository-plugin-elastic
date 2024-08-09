@@ -26,7 +26,7 @@ public class AclTracker {
     @Value("${allowed.types}")
     String allowedTypes;
 
-    final static int maxResults = 500;
+    final static int maxResults = 100;
 
     @Value("${tracker.timestep:36000000}")
     int nextTimeStep;
@@ -141,9 +141,9 @@ public class AclTracker {
             aclStateService.setState(new AclTx(lastAclChangeSet.getId() + 1, lastAclChangeSet.getCommitTimeMs()));
 
 
-            double percentage = ((double) aclChangeSets.getAclChangeSets().get(aclChangeSets.getAclChangeSets().size() - 1).getId() - 1) / (double) aclChangeSets.getMaxChangeSetId() * 100.0d;
+            double percentage = ((double) lastAclChangeSet.getId() - 1) / (double) aclChangeSets.getMaxChangeSetId() * 100.0d;
             DecimalFormat df = new DecimalFormat("0.00");
-            logger.info("finished " + df.format(percentage) + "% lastACLChangeSetId:" + lastACLChangeSetId);
+            logger.info("finished " + df.format(percentage) + "% lastACLChangeSetId:" + lastAclChangeSet.getId() +" maxChangeSetId:" + aclChangeSets.getMaxChangeSetId());
             return true;
 
         }catch (IOException e) {
