@@ -64,15 +64,7 @@ public class AclTracker {
             logger.info("starting lastACLChangeSetId:" + lastACLChangeSetId + " lastFromCommitTime:" + lastFromCommitTime + " " + new Date(lastFromCommitTime));
 
 
-            AclChangeSets aclChangeSets = alfClient.getAclChangeSets(lastACLChangeSetId, lastACLChangeSetId + AclTracker.maxResults, AclTracker.maxResults);
-
-            //step forward
-            if (aclChangeSets.getMaxChangeSetId() > (lastACLChangeSetId + AclTracker.maxResults)) {
-                lastACLChangeSetId += AclTracker.maxResults;
-            } else {
-                lastACLChangeSetId = aclChangeSets.getMaxChangeSetId();
-            }
-
+            AclChangeSets aclChangeSets = alfClient.getAclChangeSets(lastACLChangeSetId, AclTracker.maxResults);
 
             if (aclChangeSets.getAclChangeSets().isEmpty()) {
 
@@ -82,19 +74,13 @@ public class AclTracker {
                     //not longer necessary when we remember last transaction id in idx
                     lastFromCommitTime = aclChangeSets.getMaxChangeSetId() + 1;
                 } else {
-                    logger.info("did not found new aclchangesets in last aclchangeset block from:" + (lastACLChangeSetId - AclTracker.maxResults) + " to:" + lastACLChangeSetId + " MaxChangeSetId:" + aclChangeSets.getMaxChangeSetId());
+                    //should not happen
+                    logger.info("did not found new aclchangesets in last aclchangeset block from:" + (lastACLChangeSetId ) + " MaxChangeSetId:" + aclChangeSets.getMaxChangeSetId());
                 }
                 return false;
             }
 
-            AclChangeSet last = aclChangeSets.getAclChangeSets().get(aclChangeSets.getAclChangeSets().size() - 1);
-            if (aclTx != null && aclTx.getAclChangeSetId() == aclChangeSets.getMaxChangeSetId()) {
-                logger.info("nothing to do.");
-                return false;
-            }
-
-
-            lastFromCommitTime = last.getCommitTimeMs();
+            logger.info("aclChangeSets:" + aclChangeSets.getAclChangeSets().stream().map(s -> s.getId()).collect(Collectors.toList()));
 
 
             GetAclsParam param = new GetAclsParam();
@@ -114,53 +100,50 @@ public class AclTracker {
             Map<Long, Reader> readersMap = readers.getAclsReaders().stream()
                     .collect(Collectors.toMap(Reader::getAclId, readersList -> readersList));
 
-            logger.debug(grp.getAclIds().toString());
+            logger.debug("aclIds:" + grp.getAclIds().toString());
             AccessControlLists accessControlLists = alfClient.getAccessControlLists(grp);
             Map<Long, AccessControlList> accessControlListMap = accessControlLists.getAccessControlLists().stream()
                     .collect(Collectors.toMap(AccessControlList::getAclId, accessControlList -> accessControlList));
 
-            try {
-                for (Acl acl : acls.getAcls()) {
+            for (Acl acl : acls.getAcls()) {
 
-                    Reader reader = readersMap.get(acl.getId());
-                    if (reader.getAclId() != acl.getId()) {
-                        logger.warn("reader aclid:" + reader.getAclId() + " does not match " + acl.getId());
-                        continue;
-                    }
-
-                    List<String> alfReader = reader.getReaders();
-                    Collections.sort(alfReader);
-                    /**
-                     *  alfresco permissions
-                     */
-                    Map<String, List<String>> permissionsAlf = new HashMap<>();
-                    for (AccessControlEntry ace : accessControlListMap.get(acl.getId()).getAces()) {
-                        List<String> authorities = permissionsAlf.get(ace.getPermission());
-                        if (authorities == null) {
-                            authorities = new ArrayList<>();
-                        }
-                        if (!authorities.contains(ace.getAuthority())) {
-                            authorities.add(ace.getAuthority());
-                        }
-                        Collections.sort(authorities);
-                        permissionsAlf.put(ace.getPermission(), authorities);
-                    }
-                    if (!alfReader.isEmpty()) {
-                        permissionsAlf.put("read", alfReader);
-                    }
-                    //sort alf map keys:
-                    permissionsAlf = new TreeMap<>(permissionsAlf);
-                    workspaceService.updateNodesWithAcl(acl.getId(), permissionsAlf);
+                Reader reader = readersMap.get(acl.getId());
+                if (reader.getAclId() != acl.getId()) {
+                    logger.warn("reader aclid:" + reader.getAclId() + " does not match " + acl.getId());
+                    continue;
                 }
-                long lastAclChangesetid = aclChangeSets.getAclChangeSets().get(aclChangeSets.getAclChangeSets().size() - 1).getId();
-                aclStateService.setState(new AclTx(lastAclChangesetid, lastFromCommitTime));
-            } catch (IOException e) {
-                logger.error("elastic search server not reachable", e);
+
+                List<String> alfReader = reader.getReaders();
+                Collections.sort(alfReader);
+                /**
+                 *  alfresco permissions
+                 */
+                Map<String, List<String>> permissionsAlf = new HashMap<>();
+                for (AccessControlEntry ace : accessControlListMap.get(acl.getId()).getAces()) {
+                    List<String> authorities = permissionsAlf.get(ace.getPermission());
+                    if (authorities == null) {
+                        authorities = new ArrayList<>();
+                    }
+                    if (!authorities.contains(ace.getAuthority())) {
+                        authorities.add(ace.getAuthority());
+                    }
+                    Collections.sort(authorities);
+                    permissionsAlf.put(ace.getPermission(), authorities);
+                }
+                if (!alfReader.isEmpty()) {
+                    permissionsAlf.put("read", alfReader);
+                }
+                //sort alf map keys:
+                permissionsAlf = new TreeMap<>(permissionsAlf);
+                workspaceService.updateNodesWithAcl(acl.getId(), permissionsAlf);
             }
+            AclChangeSet lastAclChangeSet = aclChangeSets.getAclChangeSets().get(aclChangeSets.getAclChangeSets().size() - 1);
+            aclStateService.setState(new AclTx(lastAclChangeSet.getId() + 1, lastAclChangeSet.getCommitTimeMs()));
+
 
             double percentage = ((double) aclChangeSets.getAclChangeSets().get(aclChangeSets.getAclChangeSets().size() - 1).getId() - 1) / (double) aclChangeSets.getMaxChangeSetId() * 100.0d;
             DecimalFormat df = new DecimalFormat("0.00");
-            logger.info("finished " + df.format(percentage) + "% lastACLChangeSetId:" + last.getId());
+            logger.info("finished " + df.format(percentage) + "% lastACLChangeSetId:" + lastACLChangeSetId);
             return true;
 
         }catch (IOException e) {
