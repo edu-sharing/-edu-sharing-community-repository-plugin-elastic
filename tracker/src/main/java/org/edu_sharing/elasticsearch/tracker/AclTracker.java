@@ -61,21 +61,23 @@ public class AclTracker {
             long lastACLChangeSetId = Optional.ofNullable(aclTx).map(AclTx::getAclChangeSetId).orElse(0L);
             long lastFromCommitTime = Optional.ofNullable(aclTx).map(AclTx::getAclChangeSetCommitTime).orElse(0L);
 
-            logger.info("starting lastACLChangeSetId:" + lastACLChangeSetId + " lastFromCommitTime:" + lastFromCommitTime + " " + new Date(lastFromCommitTime));
+            long nextACLChangeSetId = lastACLChangeSetId + 1;
+
+            logger.info("starting lastACLChangeSetId:" + nextACLChangeSetId + " lastFromCommitTime:" + lastFromCommitTime + " " + new Date(lastFromCommitTime));
 
 
-            AclChangeSets aclChangeSets = alfClient.getAclChangeSets(lastACLChangeSetId, AclTracker.maxResults);
+            AclChangeSets aclChangeSets = alfClient.getAclChangeSets(nextACLChangeSetId, AclTracker.maxResults);
 
             if (aclChangeSets.getAclChangeSets().isEmpty()) {
 
-                if (aclChangeSets.getMaxChangeSetId() <= lastACLChangeSetId) {
-                    logger.info("index is up to date:" + lastACLChangeSetId + " lastFromCommitTime:" + lastFromCommitTime);
+                if (aclChangeSets.getMaxChangeSetId() <= nextACLChangeSetId) {
+                    logger.info("index is up to date:" + nextACLChangeSetId + " lastFromCommitTime:" + lastFromCommitTime);
                     //+1 to prevent repeating the last transaction over and over
                     //not longer necessary when we remember last transaction id in idx
                     lastFromCommitTime = aclChangeSets.getMaxChangeSetId() + 1;
                 } else {
                     //should not happen
-                    logger.info("did not found new aclchangesets in last aclchangeset block from:" + (lastACLChangeSetId ) + " MaxChangeSetId:" + aclChangeSets.getMaxChangeSetId());
+                    logger.info("did not found new aclchangesets in last aclchangeset block from:" + (nextACLChangeSetId ) + " MaxChangeSetId:" + aclChangeSets.getMaxChangeSetId());
                 }
                 return false;
             }
@@ -138,7 +140,7 @@ public class AclTracker {
                 workspaceService.updateNodesWithAcl(acl.getId(), permissionsAlf);
             }
             AclChangeSet lastAclChangeSet = aclChangeSets.getAclChangeSets().get(aclChangeSets.getAclChangeSets().size() - 1);
-            aclStateService.setState(new AclTx(lastAclChangeSet.getId() + 1, lastAclChangeSet.getCommitTimeMs()));
+            aclStateService.setState(new AclTx(lastAclChangeSet.getId(), lastAclChangeSet.getCommitTimeMs()));
 
 
             double percentage = ((double) lastAclChangeSet.getId() - 1) / (double) aclChangeSets.getMaxChangeSetId() * 100.0d;
