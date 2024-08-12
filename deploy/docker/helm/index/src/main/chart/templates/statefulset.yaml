@@ -39,6 +39,7 @@ spec:
         {{- toYaml . | nindent 8 }}
         {{- end }}
     spec:
+      {{- if (or (default .Values.global.cluster.storage.data.permission .Values.persistence.data.permission) .Values.global.cluster.sysctl.enabled) }}
       initContainers:
       {{- if (default .Values.global.cluster.storage.data.permission .Values.persistence.data.permission) }}
       - name: {{ include "edusharing_common_lib.names.name" . }}-init-permission
@@ -57,6 +58,44 @@ spec:
           mountPath: /usr/share/elasticsearch/data
         - name: share-data
           mountPath: /usr/share/elasticsearch/share
+        {{- with .Values.init.permission.startupProbe }}
+        startupProbe:
+          exec:
+            command:
+              - "/bin/sh"
+              - "-c"
+              - "echo startupProbe > /dev/null"
+          failureThreshold: {{ .failureThreshold }}
+          initialDelaySeconds: {{ .initialDelaySeconds }}
+          periodSeconds: {{ .periodSeconds }}
+          successThreshold: {{ .successThreshold }}
+          timeoutSeconds: {{ .timeoutSeconds }}
+        {{- end }}
+        {{- with .Values.init.permission.livenessProbe }}
+        livenessProbe:
+          exec:
+            command:
+              - "/bin/sh"
+              - "-c"
+              - "echo livenessProbe > /dev/null"
+          failureThreshold: {{ .failureThreshold }}
+          initialDelaySeconds: {{ .initialDelaySeconds }}
+          periodSeconds: {{ .periodSeconds }}
+          timeoutSeconds: {{ .timeoutSeconds }}
+        {{- end }}
+        {{- with .Values.init.permission.readinessProbe }}
+        readinessProbe:
+          exec:
+            command:
+              - "/bin/sh"
+              - "-c"
+              - "echo readinessProbe > /dev/null"
+          failureThreshold: {{ .failureThreshold }}
+          initialDelaySeconds: {{ .initialDelaySeconds }}
+          periodSeconds: {{ .periodSeconds }}
+          successThreshold: {{ .successThreshold }}
+          timeoutSeconds: {{ .timeoutSeconds }}
+        {{- end }}
         {{- with .Values.init.permission.resources }}
         resources: {{ toYaml . | nindent 10 }}
         {{- end }}
@@ -74,12 +113,51 @@ spec:
         - |
           if [[ "$(sysctl -n fs.file-max)" -lt "65536" ]]; then sysctl -w fs.file-max=65536; fi
           if [[ "$(sysctl -n vm.max_map_count)" -lt "262144" ]]; then sysctl -w vm.max_map_count=262144; fi
+        {{- with .Values.init.sysctl.startupProbe }}
+        startupProbe:
+          exec:
+            command:
+              - "/bin/sh"
+              - "-c"
+              - "echo startupProbe > /dev/null"
+          failureThreshold: {{ .failureThreshold }}
+          initialDelaySeconds: {{ .initialDelaySeconds }}
+          periodSeconds: {{ .periodSeconds }}
+          successThreshold: {{ .successThreshold }}
+          timeoutSeconds: {{ .timeoutSeconds }}
+        {{- end }}
+        {{- with .Values.init.sysctl.livenessProbe }}
+        livenessProbe:
+          exec:
+            command:
+              - "/bin/sh"
+              - "-c"
+              - "echo livenessProbe > /dev/null"
+          failureThreshold: {{ .failureThreshold }}
+          initialDelaySeconds: {{ .initialDelaySeconds }}
+          periodSeconds: {{ .periodSeconds }}
+          timeoutSeconds: {{ .timeoutSeconds }}
+        {{- end }}
+        {{- with .Values.init.sysctl.readinessProbe }}
+        readinessProbe:
+          exec:
+            command:
+              - "/bin/sh"
+              - "-c"
+              - "echo readinessProbe > /dev/null"
+          failureThreshold: {{ .failureThreshold }}
+          initialDelaySeconds: {{ .initialDelaySeconds }}
+          periodSeconds: {{ .periodSeconds }}
+          successThreshold: {{ .successThreshold }}
+          timeoutSeconds: {{ .timeoutSeconds }}
+        {{- end }}
         {{- with .Values.init.sysctl.resources }}
         resources: {{ toYaml . | nindent 10 }}
         {{- end }}
         {{- with .Values.init.sysctl.securityContext }}
         securityContext: {{ toYaml . | nindent 10 }}
         {{- end }}
+      {{- end }}
       {{- end }}
       containers:
       - name: {{ include "edusharing_common_lib.names.name" . }}
@@ -171,6 +249,44 @@ spec:
         ports:
         - name: metrics
           containerPort: 9114
+        {{- with .Values.sidecar.metrics.startupProbe }}
+        startupProbe:
+          exec:
+            command:
+              - "/bin/sh"
+              - "-c"
+              - "echo startupProbe > /dev/null"
+          failureThreshold: {{ .failureThreshold }}
+          initialDelaySeconds: {{ .initialDelaySeconds }}
+          periodSeconds: {{ .periodSeconds }}
+          successThreshold: {{ .successThreshold }}
+          timeoutSeconds: {{ .timeoutSeconds }}
+        {{- end }}
+        {{- with .Values.sidecar.metrics.livenessProbe }}
+        livenessProbe:
+          exec:
+            command:
+              - "/bin/sh"
+              - "-c"
+              - "echo livenessProbe > /dev/null"
+          failureThreshold: {{ .failureThreshold }}
+          initialDelaySeconds: {{ .initialDelaySeconds }}
+          periodSeconds: {{ .periodSeconds }}
+          timeoutSeconds: {{ .timeoutSeconds }}
+        {{- end }}
+        {{- with .Values.sidecar.metrics.readinessProbe }}
+        readinessProbe:
+          exec:
+            command:
+              - "/bin/sh"
+              - "-c"
+              - "echo readinessProbe > /dev/null"
+          failureThreshold: {{ .failureThreshold }}
+          initialDelaySeconds: {{ .initialDelaySeconds }}
+          periodSeconds: {{ .periodSeconds }}
+          successThreshold: {{ .successThreshold }}
+          timeoutSeconds: {{ .timeoutSeconds }}
+        {{- end }}
         {{- with .Values.sidecar.metrics.resources }}
         resources: {{ toYaml . | nindent 10 }}
         {{- end }}
@@ -220,8 +336,7 @@ spec:
       {{- end }}
       volumes:
       - name: share-data
-        persistentVolumeClaim:
-          claimName: {{ include "edusharing_repository_search_elastic_index.pvc.share.data" . }}
+        {{ tpl .Values.persistence.share.data.type . | nindent 8 }}
   volumeClaimTemplates:
   - metadata:
       name: data
@@ -266,6 +381,7 @@ spec:
         {{- toYaml . | nindent 8 }}
         {{- end }}
     spec:
+      {{- if (or (default .Values.global.cluster.storage.data.permission .Values.persistence.data.permission) .Values.global.cluster.sysctl.enabled) }}
       initContainers:
       {{- if (default $.Values.global.cluster.storage.data.permission $.Values.persistence.data.permission) }}
       - name: {{ include "edusharing_common_lib.names.name" $ }}-init-permission
@@ -284,6 +400,44 @@ spec:
           mountPath: /usr/share/elasticsearch/data
         - name: share-data
           mountPath: /usr/share/elasticsearch/share
+        {{- with $.Values.init.permission.startupProbe }}
+        startupProbe:
+          exec:
+            command:
+              - "/bin/sh"
+              - "-c"
+              - "echo startupProbe > /dev/null"
+          failureThreshold: {{ .failureThreshold }}
+          initialDelaySeconds: {{ .initialDelaySeconds }}
+          periodSeconds: {{ .periodSeconds }}
+          successThreshold: {{ .successThreshold }}
+          timeoutSeconds: {{ .timeoutSeconds }}
+        {{- end }}
+        {{- with $.Values.init.permission.livenessProbe }}
+        livenessProbe:
+          exec:
+            command:
+              - "/bin/sh"
+              - "-c"
+              - "echo livenessProbe > /dev/null"
+          failureThreshold: {{ .failureThreshold }}
+          initialDelaySeconds: {{ .initialDelaySeconds }}
+          periodSeconds: {{ .periodSeconds }}
+          timeoutSeconds: {{ .timeoutSeconds }}
+        {{- end }}
+        {{- with $.Values.init.permission.readinessProbe }}
+        readinessProbe:
+          exec:
+            command:
+              - "/bin/sh"
+              - "-c"
+              - "echo readinessProbe > /dev/null"
+          failureThreshold: {{ .failureThreshold }}
+          initialDelaySeconds: {{ .initialDelaySeconds }}
+          periodSeconds: {{ .periodSeconds }}
+          successThreshold: {{ .successThreshold }}
+          timeoutSeconds: {{ .timeoutSeconds }}
+        {{- end }}
         {{- with $.Values.init.permission.resources }}
         resources: {{ toYaml . | nindent 10 }}
         {{- end }}
@@ -301,12 +455,51 @@ spec:
         - |
           if [[ "$(sysctl -n fs.file-max)" -lt "65536" ]]; then sysctl -w fs.file-max=65536; fi
           if [[ "$(sysctl -n vm.max_map_count)" -lt "262144" ]]; then sysctl -w vm.max_map_count=262144; fi
+        {{- with $.Values.init.sysctl.startupProbe }}
+        startupProbe:
+          exec:
+            command:
+              - "/bin/sh"
+              - "-c"
+              - "echo startupProbe > /dev/null"
+          failureThreshold: {{ .failureThreshold }}
+          initialDelaySeconds: {{ .initialDelaySeconds }}
+          periodSeconds: {{ .periodSeconds }}
+          successThreshold: {{ .successThreshold }}
+          timeoutSeconds: {{ .timeoutSeconds }}
+        {{- end }}
+        {{- with $.Values.init.sysctl.livenessProbe }}
+        livenessProbe:
+          exec:
+            command:
+              - "/bin/sh"
+              - "-c"
+              - "echo livenessProbe > /dev/null"
+          failureThreshold: {{ .failureThreshold }}
+          initialDelaySeconds: {{ .initialDelaySeconds }}
+          periodSeconds: {{ .periodSeconds }}
+          timeoutSeconds: {{ .timeoutSeconds }}
+        {{- end }}
+        {{- with $.Values.init.sysctl.readinessProbe }}
+        readinessProbe:
+          exec:
+            command:
+              - "/bin/sh"
+              - "-c"
+              - "echo readinessProbe > /dev/null"
+          failureThreshold: {{ .failureThreshold }}
+          initialDelaySeconds: {{ .initialDelaySeconds }}
+          periodSeconds: {{ .periodSeconds }}
+          successThreshold: {{ .successThreshold }}
+          timeoutSeconds: {{ .timeoutSeconds }}
+        {{- end }}
         {{- with $.Values.init.sysctl.resources }}
         resources: {{ toYaml . | nindent 10 }}
         {{- end }}
         {{- with $.Values.init.sysctl.securityContext }}
         securityContext: {{ toYaml . | nindent 10 }}
         {{- end }}
+      {{- end }}
       {{- end }}
       containers:
       - name: {{ include "edusharing_common_lib.names.name" $ }}
@@ -402,6 +595,44 @@ spec:
         ports:
         - name: metrics
           containerPort: 9114
+        {{- with $.Values.sidecar.metrics.startupProbe }}
+        startupProbe:
+          exec:
+            command:
+              - "/bin/sh"
+              - "-c"
+              - "echo startupProbe > /dev/null"
+          failureThreshold: {{ .failureThreshold }}
+          initialDelaySeconds: {{ .initialDelaySeconds }}
+          periodSeconds: {{ .periodSeconds }}
+          successThreshold: {{ .successThreshold }}
+          timeoutSeconds: {{ .timeoutSeconds }}
+        {{- end }}
+        {{- with $.Values.sidecar.metrics.livenessProbe }}
+        livenessProbe:
+          exec:
+            command:
+              - "/bin/sh"
+              - "-c"
+              - "echo livenessProbe > /dev/null"
+          failureThreshold: {{ .failureThreshold }}
+          initialDelaySeconds: {{ .initialDelaySeconds }}
+          periodSeconds: {{ .periodSeconds }}
+          timeoutSeconds: {{ .timeoutSeconds }}
+        {{- end }}
+        {{- with $.Values.sidecar.metrics.readinessProbe }}
+        readinessProbe:
+          exec:
+            command:
+              - "/bin/sh"
+              - "-c"
+              - "echo readinessProbe > /dev/null"
+          failureThreshold: {{ .failureThreshold }}
+          initialDelaySeconds: {{ .initialDelaySeconds }}
+          periodSeconds: {{ .periodSeconds }}
+          successThreshold: {{ .successThreshold }}
+          timeoutSeconds: {{ .timeoutSeconds }}
+        {{- end }}
         {{- with $.Values.sidecar.metrics.resources }}
         resources: {{ toYaml . | nindent 10 }}
         {{- end }}
@@ -447,8 +678,7 @@ spec:
       {{- end }}
       volumes:
       - name: share-data
-        persistentVolumeClaim:
-          claimName: {{ include "edusharing_repository_search_elastic_index.pvc.share.data" $ }}
+        {{ tpl $.Values.persistence.share.data.type . | nindent 8 }}
   volumeClaimTemplates:
   - metadata:
       name: data
