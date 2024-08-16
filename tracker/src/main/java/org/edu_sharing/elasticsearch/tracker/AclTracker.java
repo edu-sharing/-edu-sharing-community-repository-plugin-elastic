@@ -4,7 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.edu_sharing.elasticsearch.alfresco.client.*;
 import org.edu_sharing.elasticsearch.elasticsearch.core.StatusIndexService;
 import org.edu_sharing.elasticsearch.elasticsearch.core.WorkspaceService;
-import org.edu_sharing.elasticsearch.elasticsearch.core.state.ACLChangeSet;
+import org.edu_sharing.elasticsearch.elasticsearch.core.state.AclTx;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -26,16 +26,13 @@ public class AclTracker {
     @Value("${allowed.types}")
     String allowedTypes;
 
-    long lastFromCommitTime = -1;
-    long lastACLChangeSetId = -1;
-
-    final static int maxResults = 500;
+    final static int maxResults = 100;
 
     @Value("${tracker.timestep:36000000}")
     int nextTimeStep;
 
     Logger logger = LoggerFactory.getLogger(AclTracker.class);
-    private final StatusIndexService<ACLChangeSet> aclStateService;
+    private final StatusIndexService<AclTx> aclStateService;
 
 
 //    @PostConstruct
@@ -55,80 +52,61 @@ public class AclTracker {
 //    }
 
     public boolean track() {
-        logger.info("starting lastACLChangeSetId:" + lastACLChangeSetId + " lastFromCommitTime:" + lastFromCommitTime + " " + new Date(lastFromCommitTime));
-
-
-        AclChangeSets aclChangeSets = (lastACLChangeSetId < 1)
-                ? alfClient.getAclChangeSets(0L, 500L, 1)
-                : alfClient.getAclChangeSets(lastACLChangeSetId, lastACLChangeSetId + AclTracker.maxResults, AclTracker.maxResults);
-
-
-        //initialize
-        if (lastACLChangeSetId < 1) lastACLChangeSetId = aclChangeSets.getAclChangeSets().get(0).getId();
-
-        //step forward
-        if (aclChangeSets.getMaxChangeSetId() > (lastACLChangeSetId + AclTracker.maxResults)) {
-            lastACLChangeSetId += AclTracker.maxResults;
-        } else {
-            lastACLChangeSetId = aclChangeSets.getMaxChangeSetId();
-        }
-
-
-        if (aclChangeSets.getAclChangeSets().isEmpty()) {
-
-            if (aclChangeSets.getMaxChangeSetId() <= lastACLChangeSetId) {
-                logger.info("index is up to date:" + lastACLChangeSetId + " lastFromCommitTime:" + lastFromCommitTime);
-                //+1 to prevent repeating the last transaction over and over
-                //not longer necessary when we remember last transaction id in idx
-                this.lastFromCommitTime = aclChangeSets.getMaxChangeSetId() + 1;
-            } else {
-                logger.info("did not found new aclchangesets in last aclchangeset block from:" + (lastACLChangeSetId - AclTracker.maxResults) + " to:" + lastACLChangeSetId + " MaxChangeSetId:" +aclChangeSets.getMaxChangeSetId());
-            }
-            return false;
-        }
-
-        AclChangeSet last = aclChangeSets.getAclChangeSets().get(aclChangeSets.getAclChangeSets().size() - 1);
-
         try {
-            ACLChangeSet aclChangeSet = aclStateService.getState();
-            if(aclChangeSet != null && (aclChangeSet.getAclChangeSetId() == aclChangeSets.getMaxChangeSetId())){
-                logger.info("nothing to do.");
+            AclTx aclTx = aclStateService.getState();
+            if (aclTx != null) {
+                logger.info("got last aclTxn from index aclCommitTime:" + aclTx.getAclChangeSetCommitTime() + " aclId" + aclTx.getAclChangeSetId());
+            }
+
+            long lastACLChangeSetId = Optional.ofNullable(aclTx).map(AclTx::getAclChangeSetId).orElse(0L);
+            long lastFromCommitTime = Optional.ofNullable(aclTx).map(AclTx::getAclChangeSetCommitTime).orElse(0L);
+
+            long nextACLChangeSetId = lastACLChangeSetId + 1;
+
+            logger.info("starting lastACLChangeSetId:" + nextACLChangeSetId + " lastFromCommitTime:" + lastFromCommitTime + " " + new Date(lastFromCommitTime));
+
+
+            AclChangeSets aclChangeSets = alfClient.getAclChangeSets(nextACLChangeSetId, AclTracker.maxResults);
+
+            if (aclChangeSets.getAclChangeSets().isEmpty()) {
+
+                if (aclChangeSets.getMaxChangeSetId() <= nextACLChangeSetId) {
+                    logger.info("index is up to date:" + nextACLChangeSetId + " lastFromCommitTime:" + lastFromCommitTime);
+                    //+1 to prevent repeating the last transaction over and over
+                    //not longer necessary when we remember last transaction id in idx
+                    lastFromCommitTime = aclChangeSets.getMaxChangeSetId() + 1;
+                } else {
+                    //should not happen
+                    logger.info("did not found new aclchangesets in last aclchangeset block from:" + (nextACLChangeSetId ) + " MaxChangeSetId:" + aclChangeSets.getMaxChangeSetId());
+                }
                 return false;
             }
-        } catch (IOException e) {
-            logger.error(e.getMessage(),e);
-            return false;
-        }
+
+            logger.info("aclChangeSets:" + aclChangeSets.getAclChangeSets().stream().map(s -> s.getId()).collect(Collectors.toList()));
 
 
-        if (lastFromCommitTime < 1) {
-            this.lastFromCommitTime = last.getCommitTimeMs();
-        }
+            GetAclsParam param = new GetAclsParam();
+            for (AclChangeSet aclChangeSet : aclChangeSets.getAclChangeSets()) {
+                param.getAclChangeSetIds().add(aclChangeSet.getId());
+            }
 
 
-        GetAclsParam param = new GetAclsParam();
-        for (AclChangeSet aclChangeSet : aclChangeSets.getAclChangeSets()) {
-            param.getAclChangeSetIds().add(aclChangeSet.getId());
-        }
+            Acls acls = alfClient.getAcls(param);
 
+            GetPermissionsParam grp = new GetPermissionsParam();
+            Map<Long, Acl> aclIdMap = acls.getAcls().stream()
+                    .collect(Collectors.toMap(Acl::getId, accessControlList -> accessControlList));
 
-        Acls acls = alfClient.getAcls(param);
+            grp.setAclIds(new ArrayList<>(aclIdMap.keySet()));
+            ReadersACL readers = alfClient.getReader(grp);
+            Map<Long, Reader> readersMap = readers.getAclsReaders().stream()
+                    .collect(Collectors.toMap(Reader::getAclId, readersList -> readersList));
 
-        GetPermissionsParam grp = new GetPermissionsParam();
-        Map<Long, Acl> aclIdMap = acls.getAcls().stream()
-                .collect(Collectors.toMap(Acl::getId, accessControlList -> accessControlList));
+            logger.debug("aclIds:" + grp.getAclIds().toString());
+            AccessControlLists accessControlLists = alfClient.getAccessControlLists(grp);
+            Map<Long, AccessControlList> accessControlListMap = accessControlLists.getAccessControlLists().stream()
+                    .collect(Collectors.toMap(AccessControlList::getAclId, accessControlList -> accessControlList));
 
-        grp.setAclIds(new ArrayList<>(aclIdMap.keySet()));
-        ReadersACL readers = alfClient.getReader(grp);
-        Map<Long, Reader> readersMap = readers.getAclsReaders().stream()
-                .collect(Collectors.toMap(Reader::getAclId, readersList -> readersList));
-
-        logger.debug(grp.getAclIds().toString());
-        AccessControlLists accessControlLists = alfClient.getAccessControlLists(grp);
-        Map<Long, AccessControlList> accessControlListMap = accessControlLists.getAccessControlLists().stream()
-                .collect(Collectors.toMap(AccessControlList::getAclId, accessControlList -> accessControlList));
-
-        try {
             for (Acl acl : acls.getAcls()) {
 
                 Reader reader = readersMap.get(acl.getId());
@@ -159,17 +137,20 @@ public class AclTracker {
                 }
                 //sort alf map keys:
                 permissionsAlf = new TreeMap<>(permissionsAlf);
-                workspaceService.updateNodesWithAcl(acl.getId(),permissionsAlf);
+                workspaceService.updateNodesWithAcl(acl.getId(), permissionsAlf);
             }
-            long lastAclChangesetid = aclChangeSets.getAclChangeSets().get(aclChangeSets.getAclChangeSets().size() - 1).getId();
-            aclStateService.setState(new ACLChangeSet(lastAclChangesetid, lastFromCommitTime));
-        }catch(IOException e){
-            logger.error("elastic search server not reachable", e);
-        }
+            AclChangeSet lastAclChangeSet = aclChangeSets.getAclChangeSets().get(aclChangeSets.getAclChangeSets().size() - 1);
+            aclStateService.setState(new AclTx(lastAclChangeSet.getId(), lastAclChangeSet.getCommitTimeMs()));
 
-        double percentage = ((double) aclChangeSets.getAclChangeSets().get(aclChangeSets.getAclChangeSets().size() - 1).getId() - 1) / (double) aclChangeSets.getMaxChangeSetId() * 100.0d;
-        DecimalFormat df = new DecimalFormat("0.00");
-        logger.info("finished "+df.format(percentage)+"% lastACLChangeSetId:" + last.getId());
-        return true;
+
+            double percentage = ((double) lastAclChangeSet.getId() - 1) / (double) aclChangeSets.getMaxChangeSetId() * 100.0d;
+            DecimalFormat df = new DecimalFormat("0.00");
+            logger.info("finished " + df.format(percentage) + "% lastACLChangeSetId:" + lastAclChangeSet.getId() +" maxChangeSetId:" + aclChangeSets.getMaxChangeSetId());
+            return false;
+
+        }catch (IOException e) {
+            logger.error(e.getMessage(), e);
+            return false;
+        }
     }
 }

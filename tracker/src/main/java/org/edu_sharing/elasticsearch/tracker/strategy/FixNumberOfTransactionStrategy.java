@@ -4,12 +4,6 @@ import lombok.RequiredArgsConstructor;
 
 @RequiredArgsConstructor
 public class FixNumberOfTransactionStrategy implements TrackerStrategy {
-
-    @Override
-    public long getNext(long nextTransactionId, long maxTransactions) {
-        return nextTransactionId + maxTransactions;
-    }
-
     @Override
     public Long getLimit() {
         return null;
