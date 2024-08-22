@@ -4,9 +4,6 @@ kind: Service
 metadata:
   name: {{ include "edusharing_common_lib.names.name" . }}
   labels: {{ include "edusharing_common_lib.labels.app" . | nindent 4 }}
-    {{- if .Values.multistage.enabled }}
-    app.kubernetes.io/stage: ""
-    {{- end }}
 spec:
   type: ClusterIP
   selector: {{ include "edusharing_common_lib.labels.app" . | nindent 4 }}
