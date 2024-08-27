@@ -42,7 +42,7 @@ public abstract class TransactionTrackerBase implements TransactionTracker {
     Integer threadCount = 4;
 
     @Setter
-    int numberOfTransactions = 500;
+    int numberOfTransactions = 200;
 
     protected ForkJoinPool threadPool;
 
@@ -73,28 +73,25 @@ public abstract class TransactionTrackerBase implements TransactionTracker {
 
             long nextTransactionId = lastTransactionId + 1;
 
-            Transactions transactions = alfClient.getTransactions(nextTransactionId, trackerStrategy.getNext(nextTransactionId, numberOfTransactions), null, null, numberOfTransactions);
+
+            long queryMaxTxnId = trackerStrategy.getLimit() != null
+                    ? trackerStrategy.getLimit()
+                    : alfClient.getTransactions(0L,0L,null,null,1).getMaxTxnId();
+
+            //to include queryMaxTxnId in result (look at toIdExclusive in alfresco ibatis template "select_Txns")
+            queryMaxTxnId = queryMaxTxnId+1;
+
+            Transactions transactions = alfClient.getTransactions(nextTransactionId, queryMaxTxnId, null, null, numberOfTransactions);
 
             long maxTrackerTxnId = transactions.getMaxTxnId();
-            if (nextTransactionId > maxTrackerTxnId) {
-                log.info("Tracker {} is up to date. maxTrackerTxnId: {}, lastTransactionId: {}", this.getClass().getSimpleName(), maxTrackerTxnId, lastTransactionId);
-                return false;
-            }
 
             if (transactions.getTransactions().isEmpty()) {
-                if (
-                        trackerStrategy.getLimit() != null &&
-                        trackerStrategy.getNext(nextTransactionId, numberOfTransactions) >= trackerStrategy.getLimit()
-                ) {
+                if (trackerStrategy.getLimit() != null) {
                     log.info("max transaction limit by strategy reached: {} / {}", maxTrackerTxnId, trackerStrategy.getLimit());
                     return false;
-                } else if (maxTrackerTxnId <= trackerStrategy.getNext(lastTransactionId, numberOfTransactions)) {
-                    log.info("index is up to date getMaxTxnId(): {}", maxTrackerTxnId);
-                    return false;
                 } else {
-                    log.info("did not found new transactions in last transaction block min: {} max: {}", lastTransactionId, trackerStrategy.getNext(lastTransactionId, numberOfTransactions));
-                    commit(transactionStateService,trackerStrategy.getNext(lastTransactionId, numberOfTransactions));
-                    return true;
+                    log.info("index is up to date getMaxTxnId(): {} lastTransactionId: {}", maxTrackerTxnId, lastTransactionId);
+                    return false;
                 }
             }
 

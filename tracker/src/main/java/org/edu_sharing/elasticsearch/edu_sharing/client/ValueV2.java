@@ -8,6 +8,6 @@ import java.util.List;
 
 @Data
 public class ValueV2{
-	private String id,caption,description,parent,url;
+	private String id,caption,description,parent,url,abbreviation;
 	private List<String> alternativeIds;
 }

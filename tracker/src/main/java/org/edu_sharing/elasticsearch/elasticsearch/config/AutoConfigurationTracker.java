@@ -14,7 +14,7 @@ import co.elastic.clients.elasticsearch.synonyms.get_synonyms_sets.SynonymsSetIt
 import co.elastic.clients.util.ObjectBuilder;
 import org.edu_sharing.elasticsearch.elasticsearch.core.*;
 import org.edu_sharing.elasticsearch.elasticsearch.core.migration.MigrationInfo;
-import org.edu_sharing.elasticsearch.elasticsearch.core.state.ACLChangeSet;
+import org.edu_sharing.elasticsearch.elasticsearch.core.state.AclTx;
 import org.edu_sharing.elasticsearch.elasticsearch.core.state.AppInfo;
 import org.edu_sharing.elasticsearch.elasticsearch.core.state.StatisticTimestamp;
 import org.edu_sharing.elasticsearch.elasticsearch.core.state.Tx;
@@ -261,6 +261,7 @@ public class AutoConfigurationTracker {
                                         .store(true)
                                         .copyTo("properties_aggregated.cclom:title")
                                         .fields("keyword", prop -> prop.keyword(v -> v.ignoreAbove(256)))
+                                        .fields("sort", prop -> prop.keyword(v -> v.normalizer("lowercase")))
                                         .fields("trigram", prop -> prop.text(v -> v.analyzer("trigram")))
                                         .fields("reverse", prop -> prop.text(v -> v.analyzer("reverse"))))))),
 
@@ -390,7 +391,7 @@ public class AutoConfigurationTracker {
 
     @Bean
     @ConditionalOnMissingBean(name = "aclStateService")
-    public StatusIndexService<ACLChangeSet> aclStateService(StatusIndexServiceFactory trackerStateServiceFactory, IndexConfiguration transactions) {
+    public StatusIndexService<AclTx> aclStateService(StatusIndexServiceFactory trackerStateServiceFactory, IndexConfiguration transactions) {
         return trackerStateServiceFactory.createAclStateService(transactions.getIndex());
     }
 

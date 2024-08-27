@@ -45,7 +45,7 @@
     </docker.edu_sharing.community.common.elasticsearch.exporter.name>
 
     <docker.edu_sharing.community.common.elasticsearch.exporter.tag>
-      1.5.0
+      1.7.0
     </docker.edu_sharing.community.common.elasticsearch.exporter.tag>
 
     <docker.edu_sharing.community.common.minideb.name>
@@ -57,10 +57,10 @@
     </docker.edu_sharing.community.common.minideb.tag>
 
     <docker.from.openjdk>
-      dockerio.mirror.docker.edu-sharing.com/openjdk:11-jdk
+      dockerio.mirror.docker.edu-sharing.com/bitnami/java:11.0.23-12
     </docker.from.openjdk>
 
-    <helm.kube.version>&gt;= 1.20.0</helm.kube.version>
+    <helm.kube.version>&gt;= 1.20.0-0</helm.kube.version>
     <helm.version>3.14.2</helm.version>
 
   </properties>

@@ -394,11 +394,10 @@ public class AlfrescoWebscriptClient {
                 .get(Transactions.class);
     }
 
-    public AclChangeSets getAclChangeSets(Long fromId, Long toId, int maxResults) {
+    public AclChangeSets getAclChangeSets(Long fromId, int maxResults) {
         String url = getUrl(URL_ACL_CHANGESETS);
         return client.target(url)
                 .queryParam("fromId", fromId)
-                .queryParam("toId", toId)
                 .queryParam("maxResults", maxResults)
                 .request(MediaType.APPLICATION_JSON)
                 .get(AclChangeSets.class);
