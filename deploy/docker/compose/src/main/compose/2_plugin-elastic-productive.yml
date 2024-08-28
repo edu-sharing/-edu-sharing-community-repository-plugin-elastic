@@ -9,8 +9,11 @@ services:
     restart: unless-stopped
     volumes:
       - ./tracker/scripts:/opt/alfresco/scripts
+      - ./tracker/synonyms:/opt/alfresco/synonyms
 
 
   repository-search-elastic-migration:
     volumes:
       - ./tracker/scripts:/opt/alfresco/scripts
+      - ./tracker/synonyms:/opt/alfresco/synonyms
+

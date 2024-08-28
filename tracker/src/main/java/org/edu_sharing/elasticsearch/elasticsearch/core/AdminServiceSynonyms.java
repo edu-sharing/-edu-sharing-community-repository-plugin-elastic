@@ -7,6 +7,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.codec.binary.Base64;
 import org.edu_sharing.elasticsearch.tracker.Partition;
+import org.edu_sharing.repository.client.tools.CCConstants;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
@@ -38,8 +39,8 @@ public class AdminServiceSynonyms {
     public void putSynonymsSet() throws IOException {
         //InputStream is = getClass().getClassLoader().getResourceAsStream("synonyms.txt");
 
-        Path pathSynFile = Paths.get("synonyms.txt");
-        Path pathSynHashFile = Paths.get("synonymsHash.txt");
+        Path pathSynFile = Paths.get("synonyms/synonyms.txt");
+        Path pathSynHashFile = Paths.get("synonyms/synonymsHash.txt");
 
         if(!Files.exists(pathSynFile)){
             return;
@@ -70,9 +71,9 @@ public class AdminServiceSynonyms {
             int suffixId = 1;
             for(List<SynonymRule> r : partitions){
                 String suffix = (suffixId == 1) ? "" : "_"+suffixId;
-                System.out.println("put "+ r.size() +" synonyms ");
+                log.info("put "+ r.size() +" synonyms ");
                 synonymsClient.putSynonym(syn -> syn
-                        .id("es-synonym-set"+suffix)
+                        .id(CCConstants.ELASTICSEARCH_SYNONYMSET_PREFIX + suffix)
                         .synonymsSet(r));
                 suffixId++;
             }

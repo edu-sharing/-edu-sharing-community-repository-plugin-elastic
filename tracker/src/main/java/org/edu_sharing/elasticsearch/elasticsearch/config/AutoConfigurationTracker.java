@@ -20,6 +20,7 @@ import org.edu_sharing.elasticsearch.elasticsearch.core.state.StatisticTimestamp
 import org.edu_sharing.elasticsearch.elasticsearch.core.state.Tx;
 import org.edu_sharing.elasticsearch.tracker.TrackerServiceFactory;
 import org.edu_sharing.elasticsearch.tracker.TransactionTracker;
+import org.edu_sharing.repository.client.tools.CCConstants;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
@@ -156,7 +157,7 @@ public class AutoConfigurationTracker {
             int suffixId = 1;
             for(SynonymsSetItem item: synonymsSets.results()){
                 String suffix = (suffixId == 1) ? "" : "_"+suffixId;
-                builder.analyzer("synonyms" + suffix, a -> a
+                builder.analyzer(CCConstants.ELASTICSEARCH_ANALYZER_PREFIX + suffix, a -> a
                                 .custom(c -> c
                                         .tokenizer("standard")
                                         .filter("lowercase")

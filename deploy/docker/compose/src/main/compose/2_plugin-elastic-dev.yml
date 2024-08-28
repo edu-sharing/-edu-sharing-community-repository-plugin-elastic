@@ -15,12 +15,14 @@ services:
       - "${GIT_ROOT}/repository/Backend/services/rest/client/java/target/edu_sharing-community-repository-backend-services-rest-client-java-${org.edu_sharing:edu_sharing-community-repository-backend-services-rest-client-java:jar.version}.jar:/opt/alfresco/tomcat/webapps/edu-sharing/WEB-INF/lib/edu_sharing-community-repository-backend-services-rest-client-java-${org.edu_sharing:edu_sharing-community-repository-backend-services-rest-client-java:jar.version}.jar"
       - "${GIT_ROOT}/repository-elastic/tracker/target/edu_sharing-community-repository-plugin-elastic-tracker-${org.edu_sharing:edu_sharing-community-repository-plugin-elastic-tracker:jar.version}.jar:/opt/alfresco/edu_sharing-community-repository-plugin-elastic-tracker-${org.edu_sharing:edu_sharing-community-repository-plugin-elastic-tracker:jar.version}.jar"
       - "${GIT_ROOT}/deploy/deploy/docker/compose/src/main/scripts/tracker/scripts:/opt/alfresco/scripts"
+      - "${GIT_ROOT}/deploy/deploy/docker/compose/src/main/scripts/tracker/synonyms:/opt/alfresco/synonyms"
 
   repository-search-elastic-migration:
     volumes:
       - "${GIT_ROOT}/repository/Backend/services/rest/client/java/target/edu_sharing-community-repository-backend-services-rest-client-java-${org.edu_sharing:edu_sharing-community-repository-backend-services-rest-client-java:jar.version}.jar:/opt/alfresco/tomcat/webapps/edu-sharing/WEB-INF/lib/edu_sharing-community-repository-backend-services-rest-client-java-${org.edu_sharing:edu_sharing-community-repository-backend-services-rest-client-java:jar.version}.jar"
       - "${GIT_ROOT}/repository-elastic/tracker/target/edu_sharing-community-repository-plugin-elastic-tracker-${org.edu_sharing:edu_sharing-community-repository-plugin-elastic-tracker:jar.version}.jar:/opt/alfresco/edu_sharing-community-repository-plugin-elastic-tracker-${org.edu_sharing:edu_sharing-community-repository-plugin-elastic-tracker:jar.version}.jar"
       - "${GIT_ROOT}/deploy/deploy/docker/compose/src/main/scripts/tracker/scripts:/opt/alfresco/scripts"
+      - "${GIT_ROOT}/deploy/deploy/docker/compose/src/main/scripts/tracker/synonyms:/opt/alfresco/synonyms"
 
 
   repository-service:
