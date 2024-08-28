@@ -37,6 +37,7 @@
 | `config.repository.port`                   | Configure repository port                    | `8080`                                         |
 | `config.repository.password`               | Configure repository password                | `""`                                           |
 | `config.tracker.customScript`              | Configure a custom script for the tracker    | `""`                                           |
+| `config.tracker.customSynonyms`            | Configure custom synonyms for the tracker    | `""`                                           |
 | `config.search.elastic.host`               | Set elasticsearch host                       | `edusharing-repository-search-elastic-index`   |
 | `config.search.elastic.port`               | Set elasticsearch port                       | `9200`                                         |
 | `config.search.elastic.index.shards`       | Set elasticsearch index shards               | `1`                                            |
