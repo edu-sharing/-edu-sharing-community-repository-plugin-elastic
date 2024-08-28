@@ -106,6 +106,7 @@ config:
   tracker:
     ## @param config.tracker.customScript Configure a custom script for the tracker
     customScript: ""
+    ## @param config.tracker.customSynonyms Configure custom synonyms for the tracker
     customSynonyms: ""
 
   search:
