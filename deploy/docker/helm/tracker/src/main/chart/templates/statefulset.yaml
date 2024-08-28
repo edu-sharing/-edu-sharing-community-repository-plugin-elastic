@@ -26,6 +26,9 @@ spec:
         {{- if .Values.config.tracker.customScript }}
         checksum/script-env: {{ include (print .Template.BasePath "/configmap-script.yaml") . | sha256sum | trunc 63 }}
         {{- end }}
+        {{- if .Values.config.tracker.customSynonyms }}
+        checksum/synonyms-env: {{ include (print .Template.BasePath "/configmap-synonyms.yaml") . | sha256sum | trunc 63 }}
+        {{- end }}
         {{- if not .Values.global.metrics.servicemonitor.enabled }}
         prometheus.io/path: "/actuator/prometheus"
         prometheus.io/port: "8081"
@@ -50,11 +53,19 @@ spec:
             name: {{ include "edusharing_common_lib.names.name" . }}-env
         - secretRef:
             name: {{ include "edusharing_common_lib.names.name" . }}-env
-        {{- if .Values.config.tracker.customScript }}
+        {{- if or (.Values.config.tracker.customScript) (.Values.config.tracker.customSynonyms) }}
         volumeMounts:
+        {{- end }}
+        {{- if .Values.config.tracker.customScript }}
           - name: script
             mountPath: /opt/alfresco/scripts/script.groovy
             subPath: script.groovy
+            readOnly: true
+        {{- end }}
+        {{- if .Values.config.tracker.customSynonyms }}
+          - name: synonyms
+            mountPath: /opt/alfresco/synonyms/synonyms.txt
+            subPath: synonyms.txt
             readOnly: true
         {{- end }}
         ports:
@@ -106,6 +117,12 @@ spec:
         - configMap:
             name: {{ include "edusharing_common_lib.names.name" . }}-script
           name: script
+      {{- end }}
+      {{- if .Values.config.tracker.customSynonyms }}
+      volumes:
+        - configMap:
+            name: {{ include "edusharing_common_lib.names.name" . }}-synonyms
+          name: synonyms
       {{- end }}
       {{- with .Values.global.image.pullSecrets }}
       imagePullSecrets: {{ toYaml . | nindent 8 }}
@@ -170,11 +187,19 @@ spec:
             name: {{ include "edusharing_common_lib.names.name" $ }}-env
         - secretRef:
             name: {{ include "edusharing_common_lib.names.name" $ }}-env
-        {{- if .spec.config.tracker.customScript }}
+        {{- if or (.Values.config.tracker.customScript) (.Values.config.tracker.customSynonyms) }}
         volumeMounts:
+        {{- end }}
+        {{- if .Values.config.tracker.customScript }}
           - name: script
             mountPath: /opt/alfresco/scripts/script.groovy
             subPath: script.groovy
+            readOnly: true
+        {{- end }}
+        {{- if .Values.config.tracker.customSynonyms }}
+          - name: synonyms
+            mountPath: /opt/alfresco/synonyms/synonyms.txt
+            subPath: synonyms.txt
             readOnly: true
         {{- end }}
         ports:
@@ -226,6 +251,12 @@ spec:
       - configMap:
           name: {{ include "edusharing_common_lib.names.name" $ }}-script-{{ .name }}
         name: script
+      {{- end }}
+      {{- if .spec.config.tracker.customSynonyms }}
+      volumes:
+        - configMap:
+            name: {{ include "edusharing_common_lib.names.name" $ }}-synonyms-{{ .name }}
+          name: synonyms
       {{- end }}
       {{- with $.Values.global.image.pullSecrets }}
       imagePullSecrets: {{ toYaml . | nindent 8 }}

@@ -106,6 +106,7 @@ config:
   tracker:
     ## @param config.tracker.customScript Configure a custom script for the tracker
     customScript: ""
+    customSynonyms: ""
 
   search:
 
@@ -133,12 +134,14 @@ multistage:
   #          override: ""
   #          tracker:
   #              customScript: ""
+  #              customSynonyms: ""
   #    - name: green
   #      spec:
   #        config:
   #          override: ""
   #          tracker:
   #              customScript: ""
+  #              customSynonyms: ""
   stages: []
 
 
