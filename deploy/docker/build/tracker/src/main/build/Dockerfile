@@ -33,6 +33,11 @@ USER worker
 
 ########################################################################################################################
 
+RUN set -eux \
+    && mkdir synonyms
+
+########################################################################################################################
+
 COPY --chown=worker:worker artifacts/edu_sharing-community-repository-plugin-elastic-tracker-${org.edu_sharing:edu_sharing-community-repository-plugin-elastic-tracker:jar.version}.jar ./
 
 ########################################################################################################################
