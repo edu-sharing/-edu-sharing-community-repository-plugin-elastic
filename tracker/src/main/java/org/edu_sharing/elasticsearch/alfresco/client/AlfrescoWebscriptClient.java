@@ -66,6 +66,7 @@ public class AlfrescoWebscriptClient {
 
     public AlfrescoWebscriptClient() {
         client = ClientBuilder.newBuilder()
+                .connectTimeout(alfrescoReadTimeout, TimeUnit.MILLISECONDS)
                 .readTimeout(alfrescoReadTimeout, TimeUnit.MILLISECONDS)
                 .register(JacksonJsonProvider.class).build();
         //client.property("use.async.http.conduit", Boolean.TRUE);
