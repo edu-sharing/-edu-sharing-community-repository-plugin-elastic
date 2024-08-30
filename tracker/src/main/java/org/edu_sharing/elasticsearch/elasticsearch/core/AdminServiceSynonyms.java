@@ -1,17 +1,16 @@
 package org.edu_sharing.elasticsearch.elasticsearch.core;
 
+import co.elastic.clients.elasticsearch.ElasticsearchClient;
+import co.elastic.clients.elasticsearch.indices.*;
 import co.elastic.clients.elasticsearch.synonyms.ElasticsearchSynonymsClient;
 import co.elastic.clients.elasticsearch.synonyms.SynonymRule;
-import co.elastic.clients.transport.ElasticsearchTransport;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.codec.binary.Base64;
+import org.edu_sharing.elasticsearch.elasticsearch.config.AutoConfigurationTracker;
+import org.edu_sharing.elasticsearch.elasticsearch.core.migration.MigrationInfo;
 import org.edu_sharing.elasticsearch.tracker.Partition;
 import org.edu_sharing.repository.client.tools.CCConstants;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.DependsOn;
 
 import javax.annotation.PostConstruct;
 import java.io.IOException;
@@ -29,14 +28,16 @@ import java.util.stream.Stream;
 @RequiredArgsConstructor
 public class AdminServiceSynonyms {
 
+    private final ElasticsearchClient client;
     private final ElasticsearchSynonymsClient synonymsClient;
+    private final List<MigrationInfo> migrationInfos;
 
     @PostConstruct
     private void init() throws IOException{
         putSynonymsSet();
     }
 
-    public void putSynonymsSet() throws IOException {
+    private void putSynonymsSet() throws IOException {
         //InputStream is = getClass().getClassLoader().getResourceAsStream("synonyms.txt");
 
         Path pathSynFile = Paths.get("synonyms/synonyms.txt");
@@ -97,5 +98,37 @@ public class AdminServiceSynonyms {
             e.printStackTrace();
         }
         return null;
+    }
+
+    public void updateSynonymSettings() throws IOException {
+        String version = migrationInfos.get(migrationInfos.size() - 1).getVersion();
+        String index = "workspace_" + version;
+        GetIndicesSettingsResponse settings = client.indices().getSettings(r -> r.index(index));
+        if(!settings.get(index).settings().index().analysis().analyzer().keySet().contains(CCConstants.ELASTICSEARCH_ANALYZER_PREFIX)){
+            log.info("existing workspace index must be updated to add synonym analyzers for recently added synonymset");
+
+
+            PutIndicesSettingsRequest putIndicesSettingsRequest = PutIndicesSettingsRequest.of(p -> p
+                    .index(index)
+                    .settings(b -> {
+                        b
+                                .analysis(ba -> {
+                                    try {
+                                        AutoConfigurationTracker.addSynonymsAnalyzer(ba, synonymsClient);
+                                    } catch (IOException e) {
+                                        throw new RuntimeException(e);
+                                    }
+                                    return ba;
+                                });
+                        return b;
+                    }));
+
+            client.indices().close(CloseIndexRequest.of(c -> c.index(index)));
+            client.indices().putSettings(putIndicesSettingsRequest);
+            OpenResponse open = client.indices().open(OpenRequest.of(o -> o.index(index)));
+            if(!open.acknowledged() || !open.acknowledged()){
+                log.error("failed to open index:" +  index +" after updating synonyms. resp:"+open);
+            }
+        }
     }
 }

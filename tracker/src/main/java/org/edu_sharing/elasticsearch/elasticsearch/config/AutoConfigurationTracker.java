@@ -56,14 +56,14 @@ public class AutoConfigurationTracker {
 
     @Bean
     @ConditionalOnMissingBean(AdminService.class)
-    public AdminService adminService(ElasticsearchClient client, Collection<IndexConfiguration> indexConfigurations) {
-        return new AdminService(client, indexConfigurations);
+    public AdminService adminService(ElasticsearchClient client, Collection<IndexConfiguration> indexConfigurations, AdminServiceSynonyms adminServiceSynonyms) {
+        return new AdminService(client, indexConfigurations, adminServiceSynonyms);
     }
 
     @Bean
     @ConditionalOnMissingBean(AdminServiceSynonyms.class)
-    public AdminServiceSynonyms adminServiceSynonyms(ElasticsearchSynonymsClient client) {
-        return new AdminServiceSynonyms(client);
+    public AdminServiceSynonyms adminServiceSynonyms(ElasticsearchClient client, ElasticsearchSynonymsClient clientSynonyms, List<MigrationInfo> migrationInfos) {
+        return new AdminServiceSynonyms(client, clientSynonyms, migrationInfos);
     }
 
     @Bean
@@ -86,6 +86,8 @@ public class AutoConfigurationTracker {
 
     @Bean
     @ConditionalOnMissingBean(name = "workspace")
+    //synonyms set must be created before synonym analyzers can be set
+    //so use synonym api to get configured synonyms sets to be sure set is configured
     @DependsOn("adminServiceSynonyms")
     public IndexConfiguration workspace() {
         return new IndexConfiguration(req -> req
@@ -153,28 +155,32 @@ public class AutoConfigurationTracker {
                                         .maxShingleSize("3"))));
 
         try {
-            GetSynonymsSetsResponse synonymsSets = synonymsClient.getSynonymsSets();
-            int suffixId = 1;
-            for(SynonymsSetItem item: synonymsSets.results()){
-                String suffix = (suffixId == 1) ? "" : "_"+suffixId;
-                builder.analyzer(CCConstants.ELASTICSEARCH_ANALYZER_PREFIX + suffix, a -> a
-                                .custom(c -> c
-                                        .tokenizer("standard")
-                                        .filter("lowercase")
-                                        .filter("synonym_graph" + suffix)))
-                        .filter("synonym_graph", f -> f.definition(def -> def
-                                .synonym(syn -> syn
-                                        .format(SynonymFormat.Solr)
-                                        .synonymsSet(item.synonymsSet())
-                                        .updateable(true))));
-                suffixId++;
-            }
+            addSynonymsAnalyzer(builder, synonymsClient);
         }catch (IOException e){
             e.printStackTrace();
         }
 
         return builder;
 
+    }
+
+    public static void addSynonymsAnalyzer(IndexSettingsAnalysis.Builder builder, ElasticsearchSynonymsClient synonymsClient) throws IOException {
+        GetSynonymsSetsResponse synonymsSets = synonymsClient.getSynonymsSets();
+        int suffixId = 1;
+        for(SynonymsSetItem item: synonymsSets.results()){
+            String suffix = (suffixId == 1) ? "" : "_"+suffixId;
+            builder.analyzer(CCConstants.ELASTICSEARCH_ANALYZER_PREFIX + suffix, a -> a
+                            .custom(c -> c
+                                    .tokenizer("standard")
+                                    .filter("lowercase")
+                                    .filter("synonym_graph" + suffix)))
+                    .filter("synonym_graph", f -> f.definition(def -> def
+                            .synonym(syn -> syn
+                                    .format(SynonymFormat.Solr)
+                                    .synonymsSet(item.synonymsSet())
+                                    .updateable(true))));
+            suffixId++;
+        }
     }
 
     ObjectBuilder<TypeMapping> getWorkspaceMappings(TypeMapping.Builder mapping) {
