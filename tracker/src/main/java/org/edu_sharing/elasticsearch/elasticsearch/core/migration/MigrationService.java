@@ -1,7 +1,6 @@
 package org.edu_sharing.elasticsearch.elasticsearch.core.migration;
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
-import co.elastic.clients.elasticsearch._types.Conflicts;
 import co.elastic.clients.elasticsearch.core.search.Hit;
 import co.elastic.clients.elasticsearch.tasks.GetTasksResponse;
 import co.elastic.clients.elasticsearch.tasks.TaskInfo;

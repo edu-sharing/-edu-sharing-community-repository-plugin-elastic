@@ -12,7 +12,7 @@ import org.edu_sharing.elasticsearch.elasticsearch.core.IndexConfiguration;
 import org.edu_sharing.elasticsearch.elasticsearch.core.StatusIndexService;
 import org.edu_sharing.elasticsearch.elasticsearch.core.StatusIndexServiceFactory;
 import org.edu_sharing.elasticsearch.elasticsearch.core.migration.MigrationInfo;
-import org.edu_sharing.elasticsearch.elasticsearch.core.state.ACLChangeSet;
+import org.edu_sharing.elasticsearch.elasticsearch.core.state.AclTx;
 import org.edu_sharing.elasticsearch.elasticsearch.core.state.AppInfo;
 import org.edu_sharing.elasticsearch.elasticsearch.core.state.StatisticTimestamp;
 import org.edu_sharing.elasticsearch.elasticsearch.core.state.Tx;
@@ -333,7 +333,7 @@ public class AutoConfigurationTracker {
 
     @Bean
     @ConditionalOnMissingBean(name = "aclStateService")
-    public StatusIndexService<ACLChangeSet> aclStateService(StatusIndexServiceFactory trackerStateServiceFactory, IndexConfiguration transactions) {
+    public StatusIndexService<AclTx> aclStateService(StatusIndexServiceFactory trackerStateServiceFactory, IndexConfiguration transactions) {
         return trackerStateServiceFactory.createAclStateService(transactions.getIndex());
     }
 

@@ -170,6 +170,10 @@ spec:
       containers:
       - name: {{ include "edusharing_common_lib.names.name" . }}
         image: {{ include "edusharing_common_lib.images.common" . }}{{ .Values.image.name }}:{{ .Values.image.tag }}
+        command:
+          - bash
+          - '-ec'
+          - find /usr/share/elasticsearch/data -name *.lock -delete && /usr/local/bin/docker-entrypoint.sh
         imagePullPolicy: {{ .Values.global.image.pullPolicy }}
         env:
         - name: cluster.initial_master_nodes
@@ -389,7 +393,7 @@ spec:
         {{- toYaml . | nindent 8 }}
         {{- end }}
     spec:
-      {{- if (or (default .Values.global.cluster.storage.data.permission .Values.persistence.data.permission) .Values.global.cluster.sysctl.enabled) }}
+      {{- if (or (default $.Values.global.cluster.storage.data.permission $.Values.persistence.data.permission) $.Values.global.cluster.sysctl.enabled) }}
       initContainers:
       {{- if (default $.Values.global.cluster.storage.data.permission $.Values.persistence.data.permission) }}
       - name: {{ include "edusharing_common_lib.names.name" $ }}-init-permission
@@ -686,7 +690,7 @@ spec:
       {{- end }}
       volumes:
       - name: share-data
-        {{ tpl $.Values.persistence.share.data.type . | nindent 8 }}
+        {{ tpl $.Values.persistence.share.data.type $ | nindent 8 }}
   volumeClaimTemplates:
   - metadata:
       name: data

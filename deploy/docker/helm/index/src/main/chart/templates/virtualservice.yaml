@@ -18,5 +18,51 @@ spec:
     - destination:
         host: {{ include "edusharing_common_lib.names.name" . }}
       weight: 100
+{{- if .Values.multistage.enabled }}
+{{ $stage := printf "%s-stage" (include "edusharing_common_lib.names.name" .) }}
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: {{ $stage }}
+  labels: {{ include "edusharing_common_lib.labels.app" . | nindent 4 }}
+    app.kubernetes.io/stage: ""
+spec:
+  hosts:
+    - {{ $stage }}
+  http:
+    - route:
+        - destination:
+            host: {{ $stage }}
+          weight: 100
+  tcp:
+    - route:
+        - destination:
+            host: {{ $stage }}
+          weight: 100
+{{- range .Values.multistage.stages }}
+{{ $stage := printf "%s-stage-%s" (include "edusharing_common_lib.names.name" $) .name }}
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: {{ $stage }}
+  labels: {{ include "edusharing_common_lib.labels.app" $ | nindent 4 }}
+    app.kubernetes.io/stage: {{ .name }}
+spec:
+  hosts:
+    - {{ $stage }}
+  http:
+    - route:
+        - destination:
+            host: {{ $stage }}
+          weight: 100
+  tcp:
+    - route:
+        - destination:
+            host: {{ $stage }}
+          weight: 100
+{{- end }}
+{{- end }}
 {{- end }}
 {{- end }}
