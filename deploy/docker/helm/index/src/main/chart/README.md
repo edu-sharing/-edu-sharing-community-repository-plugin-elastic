@@ -7,6 +7,7 @@
 | `global.annotations`                      | Define global annotations                      | `{}`                   |
 | `global.cluster.istio.enabled`            | Enable Istio Service mesh                      | `false`                |
 | `global.cluster.pdb.enabled`              | Enable PDB                                     | `false`                |
+| `global.cluster.backup.enabled`           | Enable Velero backup                           | `false`                |
 | `global.cluster.storage.data.permission`  | Enable global custom data storage permissions  | `false`                |
 | `global.cluster.storage.data.spec`        | Set data storage spec                          | `{}`                   |
 | `global.cluster.storage.share.permission` | Enable global custom share storage permissions | `false`                |

@@ -18,6 +18,10 @@ global:
       ## @param global.cluster.pdb.enabled Enable PDB
       enabled: false
 
+    backup:
+      ## @param global.cluster.backup.enabled Enable Velero backup
+      enabled: false
+
     storage:
       data:
         ## @param global.cluster.storage.data.permission Enable global custom data storage permissions
