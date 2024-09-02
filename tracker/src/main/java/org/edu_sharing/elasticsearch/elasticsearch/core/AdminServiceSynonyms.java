@@ -3,6 +3,7 @@ package org.edu_sharing.elasticsearch.elasticsearch.core;
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
 import co.elastic.clients.elasticsearch.indices.*;
 import co.elastic.clients.elasticsearch.synonyms.ElasticsearchSynonymsClient;
+import co.elastic.clients.elasticsearch.synonyms.GetSynonymsSetsResponse;
 import co.elastic.clients.elasticsearch.synonyms.SynonymRule;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -101,6 +102,10 @@ public class AdminServiceSynonyms {
     }
 
     public void updateSynonymSettings() throws IOException {
+        GetSynonymsSetsResponse synonymsSets = synonymsClient.getSynonymsSets();
+        if(synonymsSets == null || synonymsSets.count() == 0 ){
+            return;
+        }
         String version = migrationInfos.get(migrationInfos.size() - 1).getVersion();
         String index = "workspace_" + version;
         GetIndicesSettingsResponse settings = client.indices().getSettings(r -> r.index(index));
