@@ -126,7 +126,7 @@ public class AdminServiceSynonyms {
             client.indices().close(CloseIndexRequest.of(c -> c.index(index)));
             client.indices().putSettings(putIndicesSettingsRequest);
             OpenResponse open = client.indices().open(OpenRequest.of(o -> o.index(index)));
-            if(!open.acknowledged() || !open.acknowledged()){
+            if(!open.acknowledged() || !open.shardsAcknowledged()){
                 log.error("failed to open index:" +  index +" after updating synonyms. resp:"+open);
             }
         }
