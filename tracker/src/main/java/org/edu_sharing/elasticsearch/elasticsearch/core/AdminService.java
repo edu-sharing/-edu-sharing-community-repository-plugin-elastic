@@ -68,10 +68,8 @@ public class AdminService {  //, SmartInitializingSingleton {
         }
 
         try {
-            boolean anyIndexCreated = createIndex(indexConfigurations);
-            if(!anyIndexCreated) {
-                adminServiceSynonyms.updateSynonymSettings();
-            }
+            createIndex(indexConfigurations);
+            adminServiceSynonyms.updateSynonymSettings();
         } catch (IOException e) {
             throw new RuntimeException(e);
         }

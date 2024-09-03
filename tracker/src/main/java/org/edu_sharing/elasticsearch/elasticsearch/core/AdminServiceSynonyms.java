@@ -1,10 +1,12 @@
 package org.edu_sharing.elasticsearch.elasticsearch.core;
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
+import co.elastic.clients.elasticsearch._types.analysis.SynonymFormat;
 import co.elastic.clients.elasticsearch.indices.*;
 import co.elastic.clients.elasticsearch.synonyms.ElasticsearchSynonymsClient;
 import co.elastic.clients.elasticsearch.synonyms.GetSynonymsSetsResponse;
 import co.elastic.clients.elasticsearch.synonyms.SynonymRule;
+import co.elastic.clients.elasticsearch.synonyms.get_synonyms_sets.SynonymsSetItem;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.codec.binary.Base64;
@@ -104,6 +106,7 @@ public class AdminServiceSynonyms {
     public void updateSynonymSettings() throws IOException {
         GetSynonymsSetsResponse synonymsSets = synonymsClient.getSynonymsSets();
         if(synonymsSets == null || synonymsSets.count() == 0 ){
+            log.info("synonym analyzer settings not necessary cause no synonymset provided");
             return;
         }
         String version = migrationInfos.get(migrationInfos.size() - 1).getVersion();
@@ -119,7 +122,7 @@ public class AdminServiceSynonyms {
                         b
                                 .analysis(ba -> {
                                     try {
-                                        AutoConfigurationTracker.addSynonymsAnalyzer(ba, synonymsClient);
+                                        addSynonymsAnalyzer(ba);
                                     } catch (IOException e) {
                                         throw new RuntimeException(e);
                                     }
@@ -134,6 +137,25 @@ public class AdminServiceSynonyms {
             if(!open.acknowledged() || !open.shardsAcknowledged()){
                 log.error("failed to open index:" +  index +" after updating synonyms. resp:"+open);
             }
+        }
+    }
+
+    private void addSynonymsAnalyzer(IndexSettingsAnalysis.Builder builder) throws IOException {
+        GetSynonymsSetsResponse synonymsSets = synonymsClient.getSynonymsSets();
+        int suffixId = 1;
+        for(SynonymsSetItem item: synonymsSets.results()){
+            String suffix = (suffixId == 1) ? "" : "_"+suffixId;
+            builder.analyzer(CCConstants.ELASTICSEARCH_ANALYZER_PREFIX + suffix, a -> a
+                            .custom(c -> c
+                                    .tokenizer("standard")
+                                    .filter("lowercase")
+                                    .filter("synonym_graph" + suffix)))
+                    .filter("synonym_graph", f -> f.definition(def -> def
+                            .synonym(syn -> syn
+                                    .format(SynonymFormat.Solr)
+                                    .synonymsSet(item.synonymsSet())
+                                    .updateable(true))));
+            suffixId++;
         }
     }
 }

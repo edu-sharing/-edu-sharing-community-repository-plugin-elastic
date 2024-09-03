@@ -47,9 +47,6 @@ public class AutoConfigurationTracker {
 
     private final String version;
 
-    @Autowired
-    ElasticsearchSynonymsClient synonymsClient;
-
     public AutoConfigurationTracker(List<MigrationInfo> migrationInfos) {
         // Migration information is sorted, with the latest version being the last item in the list
         version = migrationInfos.get(migrationInfos.size() - 1).getVersion();
@@ -88,9 +85,6 @@ public class AutoConfigurationTracker {
 
     @Bean
     @ConditionalOnMissingBean(name = "workspace")
-    //synonyms set must be created before synonym analyzers can be set
-    //so use synonym api to get configured synonyms sets to be sure set is configured
-    @DependsOn("adminServiceSynonyms")
     public IndexConfiguration workspace() {
         return new IndexConfiguration(req -> req
                 .index("workspace_" + version)
@@ -142,33 +136,8 @@ public class AutoConfigurationTracker {
                                         .minShingleSize("2")
                                         .maxShingleSize("3"))));
 
-        try {
-            addSynonymsAnalyzer(builder, synonymsClient);
-        }catch (IOException e){
-           log.error(e.getMessage(),e);
-        }
-
         return builder;
 
-    }
-
-    public static void addSynonymsAnalyzer(IndexSettingsAnalysis.Builder builder, ElasticsearchSynonymsClient synonymsClient) throws IOException {
-        GetSynonymsSetsResponse synonymsSets = synonymsClient.getSynonymsSets();
-        int suffixId = 1;
-        for(SynonymsSetItem item: synonymsSets.results()){
-            String suffix = (suffixId == 1) ? "" : "_"+suffixId;
-            builder.analyzer(CCConstants.ELASTICSEARCH_ANALYZER_PREFIX + suffix, a -> a
-                            .custom(c -> c
-                                    .tokenizer("standard")
-                                    .filter("lowercase")
-                                    .filter("synonym_graph" + suffix)))
-                    .filter("synonym_graph", f -> f.definition(def -> def
-                            .synonym(syn -> syn
-                                    .format(SynonymFormat.Solr)
-                                    .synonymsSet(item.synonymsSet())
-                                    .updateable(true))));
-            suffixId++;
-        }
     }
 
     ObjectBuilder<TypeMapping> getWorkspaceMappings(TypeMapping.Builder mapping) {
