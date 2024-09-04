@@ -76,9 +76,20 @@
 | `job.migration.image.name`                 | Set name for migration job image               | `${docker.prefix}-deploy-docker-build-tracker` |
 | `job.migration.image.tag`                  | Set tag for migration job image                | `${docker.tag}`                                |
 | `job.migration.podAnnotations`             | Set pod annotations for migration job          | `{}`                                           |
-| `job.migration.startupProbe`               | Optional specs for startupProbe                | `nil`                                          |
-| `job.migration.livenessProbe`              | Optional specs for livenessProbe               | `nil`                                          |
-| `job.migration.readinessProbe`             | Optional specs for readinessProbe              | `nil`                                          |
+| `job.migration.startupProbe.failureThreshold`      | Failure threshold for startupProbe           | `30`                                           |
+| `job.migration.startupProbe.initialDelaySeconds`   | Initial delay seconds for startupProbe       | `0`                                            |
+| `job.migration.startupProbe.periodSeconds`         | Period seconds for startupProbe              | `20`                                           |
+| `job.migration.startupProbe.successThreshold`      | Success threshold for startupProbe           | `1`                                            |
+| `job.migration.startupProbe.timeoutSeconds`        | Timeout seconds for startupProbe             | `10`                                           |
+| `job.migration.livenessProbe.failureThreshold`     | Failure threshold for livenessProbe          | `3`                                            |
+| `job.migration.livenessProbe.initialDelaySeconds`  | Initial delay seconds for livenessProbe      | `30`                                           |
+| `job.migration.livenessProbe.periodSeconds`        | Period seconds for livenessProbe             | `30`                                           |
+| `job.migration.livenessProbe.timeoutSeconds`       | Timeout seconds for livenessProbe            | `10`                                           |
+| `job.migration.readinessProbe.failureThreshold`    | Failure threshold for readinessProbe         | `1`                                            |
+| `job.migration.readinessProbe.initialDelaySeconds` | Initial delay seconds for readinessProbe     | `10`                                           |
+| `job.migration.readinessProbe.periodSeconds`       | Period seconds for readinessProbe            | `10`                                           |
+| `job.migration.readinessProbe.successThreshold`    | Set threshold for success on readiness probe | `1`                                            |
+| `job.migration.readinessProbe.timeoutSeconds`      | Timeout seconds for readinessProbe           | `10`                                           |
 | `job.migration.resources.limits.cpu`       | Set CPU limit on resources                     | `500m`                                         |
 | `job.migration.resources.limits.memory`    | Set memory limit on resources                  | `2Gi`                                          |
 | `job.migration.resources.requests.cpu`     | Set CPU for requests on resources              | `500m`                                         |
