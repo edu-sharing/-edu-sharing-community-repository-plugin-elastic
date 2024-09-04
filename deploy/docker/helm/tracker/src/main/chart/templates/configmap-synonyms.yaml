@@ -1,0 +1,29 @@
+{{- if .Values.config.tracker.customSynonyms }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "edusharing_common_lib.names.name" . }}-synonyms
+  labels: {{ include "edusharing_common_lib.labels.app" . | nindent 4 }}
+    {{- if .Values.multistage.enabled }}
+    app.kubernetes.io/stage: ""
+    {{- end }}
+data:
+  synonyms.txt: |
+{{ .Values.config.tracker.customSynonyms | indent 4 }}
+{{- end }}
+{{- if .Values.multistage.enabled }}
+{{- range .Values.multistage.stages }}
+{{- if .spec.config.tracker.customSynonyms }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "edusharing_common_lib.names.name" $ }}-synonyms-{{ .name }}
+  labels: {{ include "edusharing_common_lib.labels.app" $ | nindent 4 }}
+    app.kubernetes.io/stage: {{ .name }}
+data:
+  synonyms.txt: |
+{{ .spec.config.tracker.customSynonyms | indent 4 }}
+{{- end }}
+{{- end }}
+{{- end }}

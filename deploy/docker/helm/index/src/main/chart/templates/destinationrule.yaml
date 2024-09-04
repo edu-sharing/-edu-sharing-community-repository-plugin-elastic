@@ -7,5 +7,29 @@ metadata:
   labels: {{ include "edusharing_common_lib.labels.app" . | nindent 4 }}
 spec:
   host: {{ include "edusharing_common_lib.names.name" . }}
+{{- if .Values.multistage.enabled }}
+{{ $stage := printf "%s-stage" (include "edusharing_common_lib.names.name" .) }}
+---
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: {{ $stage }}
+  labels: {{ include "edusharing_common_lib.labels.app" . | nindent 4 }}
+    app.kubernetes.io/stage: ""
+spec:
+  host: {{ $stage }}
+{{- range .Values.multistage.stages }}
+{{ $stage := printf "%s-stage-%s" (include "edusharing_common_lib.names.name" $) .name }}
+---
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: {{ $stage }}
+  labels: {{ include "edusharing_common_lib.labels.app" $ | nindent 4 }}
+    app.kubernetes.io/stage: {{ .name }}
+spec:
+  host: {{ $stage }}
+{{- end }}
+{{- end }}
 {{- end }}
 {{- end }}

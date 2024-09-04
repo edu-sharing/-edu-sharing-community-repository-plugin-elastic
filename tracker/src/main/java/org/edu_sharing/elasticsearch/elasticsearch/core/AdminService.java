@@ -19,6 +19,7 @@ public class AdminService {  //, SmartInitializingSingleton {
 
     private final ElasticsearchClient client;
     private final Collection<IndexConfiguration> indexConfigurations;
+    private final AdminServiceSynonyms adminServiceSynonyms;
 
     @Setter
     private boolean autocreateIndex = true;
@@ -29,6 +30,7 @@ public class AdminService {  //, SmartInitializingSingleton {
             try {
                 if (!client.indices().exists(req -> req.index(indexConfiguration.getIndex())).value()) {
                     client.indices().create(indexConfiguration.getCreateIndexRequest());
+                    createdAnyIndex = true;
                 }
             } catch (IOException ex) {
                 log.error("create index {} failed with {}", indexConfiguration.getIndex(), ex.getMessage(), ex);
@@ -67,6 +69,7 @@ public class AdminService {  //, SmartInitializingSingleton {
 
         try {
             createIndex(indexConfigurations);
+            adminServiceSynonyms.updateSynonymSettings();
         } catch (IOException e) {
             throw new RuntimeException(e);
         }

@@ -106,6 +106,8 @@ config:
   tracker:
     ## @param config.tracker.customScript Configure a custom script for the tracker
     customScript: ""
+    ## @param config.tracker.customSynonyms Configure custom synonyms file for the tracker
+    customSynonyms: ""
 
   search:
 
@@ -133,12 +135,14 @@ multistage:
   #          override: ""
   #          tracker:
   #              customScript: ""
+  #              customSynonyms: ""
   #    - name: green
   #      spec:
   #        config:
   #          override: ""
   #          tracker:
   #              customScript: ""
+  #              customSynonyms: ""
   stages: []
 
 
@@ -248,14 +252,39 @@ job:
     ## @param job.migration.podAnnotations Set pod annotations for migration job
     podAnnotations: {}
 
-    ## @param job.migration.startupProbe Optional specs for startupProbe
     startupProbe:
+      ## @param job.migration.startupProbe.failureThreshold Failure threshold for startupProbe
+      failureThreshold: 30
+      ## @param job.migration.startupProbe.initialDelaySeconds Initial delay seconds for startupProbe
+      initialDelaySeconds: 0
+      ## @param job.migration.startupProbe.periodSeconds Period seconds for startupProbe
+      periodSeconds: 20
+      ## @param job.migration.startupProbe.successThreshold Success threshold for startupProbe
+      successThreshold: 1
+      ## @param job.migration.startupProbe.timeoutSeconds Timeout seconds for startupProbe
+      timeoutSeconds: 10
 
-    ## @param job.migration.livenessProbe Optional specs for livenessProbe
     livenessProbe:
+      ## @param job.migration.livenessProbe.failureThreshold Failure threshold for livenessProbe
+      failureThreshold: 3
+      ## @param job.migration.livenessProbe.initialDelaySeconds Initial delay seconds for livenessProbe
+      initialDelaySeconds: 30
+      ## @param job.migration.livenessProbe.periodSeconds Period seconds for livenessProbe
+      periodSeconds: 30
+      ## @param job.migration.livenessProbe.timeoutSeconds Timeout seconds for livenessProbe
+      timeoutSeconds: 10
 
-    ## @param job.migration.readinessProbe Optional specs for readinessProbe
     readinessProbe:
+      ## @param job.migration.readinessProbe.failureThreshold Failure threshold for readinessProbe
+      failureThreshold: 1
+      ## @param job.migration.readinessProbe.initialDelaySeconds Initial delay seconds for readinessProbe
+      initialDelaySeconds: 10
+      ## @param job.migration.readinessProbe.periodSeconds Period seconds for readinessProbe
+      periodSeconds: 10
+      ## @param job.migration.readinessProbe.successThreshold Set threshold for success on readiness probe
+      successThreshold: 1
+      ## @param job.migration.readinessProbe.timeoutSeconds Timeout seconds for readinessProbe
+      timeoutSeconds: 10
 
     resources:
 
