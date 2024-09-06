@@ -17,11 +17,11 @@ default:
       command: [ "dockerd-entrypoint.sh" ]
 
 stages:
-  - lint
+  - test
   - deploy
 
 check-helmreadme:
-  stage: lint
+  stage: test
   image: node:lts-alpine3.20
   before_script:
     - ln -s $CI_PROJECT_DIR/deploy/docker/helm/index/src/main/chart /tmp/index && cp /tmp/index/README.md /tmp/README_index.md
