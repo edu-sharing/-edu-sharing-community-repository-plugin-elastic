@@ -3,6 +3,8 @@ package org.edu_sharing.elasticsearch.jobs;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
+import org.edu_sharing.elasticsearch.TrackerAvailabilityService;
+import org.edu_sharing.elasticsearch.TrackerAvailabilityTickService;
 import org.edu_sharing.elasticsearch.elasticsearch.core.migration.MigrationCompletedAware;
 import org.edu_sharing.elasticsearch.tracker.TransactionTracker;
 import org.springframework.beans.factory.annotation.Value;
@@ -16,6 +18,8 @@ import org.springframework.scheduling.annotation.Scheduled;
 public class TransactionTrackerJob implements MigrationCompletedAware, ApplicationContextAware {
 
     private final TransactionTracker transactionTracker;
+    private final TrackerAvailabilityTickService tickService;
+
     private boolean migrated = false;
 
     @Value("${shutdown.on.exception}")
@@ -26,6 +30,7 @@ public class TransactionTrackerJob implements MigrationCompletedAware, Applicati
 
     @Scheduled(fixedDelayString = "${tracker.delay}")
     public void track() {
+        tickService.tick();
         if (!migrated) {
             return;
         }
