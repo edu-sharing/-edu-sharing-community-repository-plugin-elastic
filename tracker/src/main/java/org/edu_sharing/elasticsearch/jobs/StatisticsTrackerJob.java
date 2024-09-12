@@ -2,6 +2,8 @@ package org.edu_sharing.elasticsearch.jobs;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.edu_sharing.elasticsearch.TrackerAvailabilityService;
+import org.edu_sharing.elasticsearch.TrackerAvailabilityTickService;
 import org.edu_sharing.elasticsearch.elasticsearch.core.migration.MigrationCompletedAware;
 import org.edu_sharing.elasticsearch.tracker.StatisticsTracker;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -11,6 +13,8 @@ import org.springframework.scheduling.annotation.Scheduled;
 public class StatisticsTrackerJob implements MigrationCompletedAware {
 
     private final StatisticsTracker statisticsTracker;
+    private final TrackerAvailabilityTickService tickService;
+
     private boolean migrated = false;
 
     /**
@@ -19,6 +23,7 @@ public class StatisticsTrackerJob implements MigrationCompletedAware {
      */
     @Scheduled(fixedDelayString = "${statistic.delay}")
     public void track() {
+        tickService.tick();
         if (!migrated) {
             return;
         }
