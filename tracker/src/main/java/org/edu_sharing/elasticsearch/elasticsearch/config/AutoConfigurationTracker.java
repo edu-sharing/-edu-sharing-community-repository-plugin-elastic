@@ -247,6 +247,42 @@ public class AutoConfigurationTracker {
                                         .fields("keyword", f -> f.keyword(kw -> kw.ignoreAbove(256)))
                                         .fields("date", f -> f.date(v -> v.ignoreMalformed(true))))))),
 
+                        Map.of("i18n_fields_string", DynamicTemplate.of(dt -> dt
+                                .matchMappingType("string")
+                                .pathMatch("i18n.*")
+                                .mapping(mp -> mp.keyword(t -> t
+                                                .fields("sort", f -> f.keyword(t2 -> t2.normalizer("lowercase")))
+                                        )
+                                ))),
+                        Map.of("i18n_fields_long", DynamicTemplate.of(dt -> dt
+                                .matchMappingType("long")
+                                .pathMatch("i18n.*")
+                                .mapping(mp -> mp.keyword(t -> t
+                                                .fields("sort", f -> f.keyword(t2 -> t2.normalizer("lowercase")))
+                                        )
+                                ))),
+                        Map.of("i18n_fields_double", DynamicTemplate.of(dt -> dt
+                                .matchMappingType("double")
+                                .pathMatch("i18n.*")
+                                .mapping(mp -> mp.keyword(t -> t
+                                                .fields("sort", f -> f.keyword(t2 -> t2.normalizer("lowercase")))
+                                        )
+                                ))),
+                        Map.of("i18n_fields_boolean", DynamicTemplate.of(dt -> dt
+                                .matchMappingType("boolean")
+                                .pathMatch("i18n.*")
+                                .mapping(mp -> mp.keyword(t -> t
+                                                .fields("sort", f -> f.keyword(t2 -> t2.normalizer("lowercase")))
+                                        )
+                                ))),
+                        Map.of("i18n_fields_date", DynamicTemplate.of(dt -> dt
+                                .matchMappingType("date")
+                                .pathMatch("i18n.*")
+                                .mapping(mp -> mp.keyword(t -> t
+                                                .fields("sort", f -> f.keyword(t2 -> t2.normalizer("lowercase")))
+                                        )
+                                ))),
+
                         Map.of("convert_numeric_long", DynamicTemplate.of(dt -> dt
                                 .matchMappingType("long")
                                 .pathMatch("*properties.*")
@@ -270,13 +306,6 @@ public class AutoConfigurationTracker {
                                                 .store(true)
                                                 .fields("keyword", f -> f.keyword(kw -> kw.ignoreAbove(256)))
                                                 .fields("sort", f2 -> f2.keyword(kw2 -> kw2.ignoreAbove(256).normalizer("lowercase")))
-                                        )
-                                ))),
-                        Map.of("i18n_fields", DynamicTemplate.of(dt -> dt
-                                .matchMappingType("string")
-                                .pathMatch("i18n.*")
-                                .mapping(mp -> mp.keyword(t -> t
-                                                .fields("sort", f -> f.keyword(t2 -> t2.normalizer("lowercase")))
                                         )
                                 ))),
                         Map.of("copy_facettes", DynamicTemplate.of(dt -> dt
