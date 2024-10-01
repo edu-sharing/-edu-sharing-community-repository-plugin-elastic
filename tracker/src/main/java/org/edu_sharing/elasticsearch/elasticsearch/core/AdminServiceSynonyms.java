@@ -22,9 +22,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
+import java.util.*;
 import java.util.stream.Stream;
 
 @Slf4j
@@ -33,7 +31,7 @@ public class AdminServiceSynonyms {
 
     private final ElasticsearchClient client;
     private final ElasticsearchSynonymsClient synonymsClient;
-    private final List<MigrationInfo> migrationInfos;
+    private final IndexConfiguration workspace;
 
     @PostConstruct
     private void init() throws IOException{
@@ -53,7 +51,7 @@ public class AdminServiceSynonyms {
         String currentFileHash = getFileHash(pathSynFile);
         String lastFileHash = Files.exists(pathSynHashFile) ? Files.readString(pathSynHashFile) : null;
 
-        if(currentFileHash.equals(lastFileHash)){
+        if(currentFileHash == null || currentFileHash.equals(lastFileHash)){
             return;
         }
 
@@ -62,12 +60,10 @@ public class AdminServiceSynonyms {
             stream.forEach(s -> rules.add(new SynonymRule.Builder().synonyms(s).build()));
         } catch (IOException e) {
             //@TODO
-            e.printStackTrace();
+            log.error(e.getMessage(), e);
         }
 
-        /**
-         * create an own synonymset for every 10000 entrie
-         */
+        // create an own synonymset for every 10000 entrie
         Collection<List<SynonymRule>> partitions = Partition.getPartitions(rules, 10000);
 
 
@@ -75,7 +71,7 @@ public class AdminServiceSynonyms {
             int suffixId = 1;
             for(List<SynonymRule> r : partitions){
                 String suffix = (suffixId == 1) ? "" : "_"+suffixId;
-                log.info("put "+ r.size() +" synonyms ");
+                log.info("put {} synonyms ", r.size());
                 synonymsClient.putSynonym(syn -> syn
                         .id(CCConstants.ELASTICSEARCH_SYNONYMSET_PREFIX + suffix)
                         .synonymsSet(r));
@@ -83,7 +79,7 @@ public class AdminServiceSynonyms {
             }
             Files.writeString(pathSynHashFile,currentFileHash);
         }catch (co.elastic.clients.transport.TransportException e ){
-            e.printStackTrace();
+            log.error(e.getMessage(), e);
             Files.writeString(pathSynHashFile,currentFileHash);
             //known elastic bug deserializing response
             //https://github.com/elastic/elasticsearch-java/issues/784
@@ -95,10 +91,8 @@ public class AdminServiceSynonyms {
             byte[] data = Files.readAllBytes(pathSynFileName);
             byte[] hash = MessageDigest.getInstance("SHA-256").digest(data);
             return Base64.encodeBase64String(hash);
-        }catch (NoSuchAlgorithmException e){
-            e.printStackTrace();
-        }catch (IOException e){
-            e.printStackTrace();
+        }catch (NoSuchAlgorithmException | IOException e){
+            log.error(e.getMessage(), e);
         }
         return null;
     }
@@ -109,15 +103,14 @@ public class AdminServiceSynonyms {
             log.info("synonym analyzer settings not necessary cause no synonymset provided");
             return;
         }
-        String version = migrationInfos.get(migrationInfos.size() - 1).getVersion();
-        String index = "workspace_" + version;
-        GetIndicesSettingsResponse settings = client.indices().getSettings(r -> r.index(index));
-        if(!settings.get(index).settings().index().analysis().analyzer().keySet().contains(CCConstants.ELASTICSEARCH_ANALYZER_PREFIX)){
+
+        GetIndicesSettingsResponse settings = client.indices().getSettings(r -> r.index(workspace.getIndex()));
+        if(!hasSynonymAnylzer(settings, workspace.getIndex())){
             log.info("existing workspace index must be updated to add synonym analyzers for recently added synonymset");
 
 
             PutIndicesSettingsRequest putIndicesSettingsRequest = PutIndicesSettingsRequest.of(p -> p
-                    .index(index)
+                    .index(workspace.getIndex())
                     .settings(b -> {
                         b
                                 .analysis(ba -> {
@@ -131,13 +124,25 @@ public class AdminServiceSynonyms {
                         return b;
                     }));
 
-            client.indices().close(CloseIndexRequest.of(c -> c.index(index)));
+            client.indices().close(CloseIndexRequest.of(c -> c.index(workspace.getIndex())));
             client.indices().putSettings(putIndicesSettingsRequest);
-            OpenResponse open = client.indices().open(OpenRequest.of(o -> o.index(index)));
+            OpenResponse open = client.indices().open(OpenRequest.of(o -> o.index(workspace.getIndex())));
             if(!open.acknowledged() || !open.shardsAcknowledged()){
-                log.error("failed to open index:" +  index +" after updating synonyms. resp:"+open);
+                log.error("failed to open index:{} after updating synonyms. resp:{}", workspace.getIndex(), open);
             }
         }
+    }
+
+    private static Boolean hasSynonymAnylzer(GetIndicesSettingsResponse settings, String index) {
+        return Optional.ofNullable(settings)
+                .map(x -> x.get(index))
+                .map(IndexState::settings)
+                .map(IndexSettings::index)
+                .map(IndexSettings::analysis)
+                .map(IndexSettingsAnalysis::analyzer)
+                .map(Map::keySet)
+                .map(x -> x.contains(CCConstants.ELASTICSEARCH_ANALYZER_PREFIX))
+                .orElse(false);
     }
 
     private void addSynonymsAnalyzer(IndexSettingsAnalysis.Builder builder) throws IOException {

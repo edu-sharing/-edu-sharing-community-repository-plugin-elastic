@@ -1,7 +1,6 @@
 package org.edu_sharing.elasticsearch.elasticsearch.config;
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
-import co.elastic.clients.elasticsearch._types.analysis.SynonymFormat;
 import co.elastic.clients.elasticsearch._types.mapping.DynamicMapping;
 import co.elastic.clients.elasticsearch._types.mapping.DynamicTemplate;
 import co.elastic.clients.elasticsearch._types.mapping.MatchType;
@@ -9,8 +8,6 @@ import co.elastic.clients.elasticsearch._types.mapping.TypeMapping;
 import co.elastic.clients.elasticsearch.indices.IndexSettings;
 import co.elastic.clients.elasticsearch.indices.IndexSettingsAnalysis;
 import co.elastic.clients.elasticsearch.synonyms.ElasticsearchSynonymsClient;
-import co.elastic.clients.elasticsearch.synonyms.GetSynonymsSetsResponse;
-import co.elastic.clients.elasticsearch.synonyms.get_synonyms_sets.SynonymsSetItem;
 import co.elastic.clients.util.ObjectBuilder;
 import lombok.extern.slf4j.Slf4j;
 import org.edu_sharing.elasticsearch.elasticsearch.core.*;
@@ -21,15 +18,11 @@ import org.edu_sharing.elasticsearch.elasticsearch.core.state.StatisticTimestamp
 import org.edu_sharing.elasticsearch.elasticsearch.core.state.Tx;
 import org.edu_sharing.elasticsearch.tracker.TrackerServiceFactory;
 import org.edu_sharing.elasticsearch.tracker.TransactionTracker;
-import org.edu_sharing.repository.client.tools.CCConstants;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.DependsOn;
 
-import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -61,8 +54,8 @@ public class AutoConfigurationTracker {
 
     @Bean
     @ConditionalOnMissingBean(AdminServiceSynonyms.class)
-    public AdminServiceSynonyms adminServiceSynonyms(ElasticsearchClient client, ElasticsearchSynonymsClient clientSynonyms, List<MigrationInfo> migrationInfos) {
-        return new AdminServiceSynonyms(client, clientSynonyms, migrationInfos);
+    public AdminServiceSynonyms adminServiceSynonyms(ElasticsearchClient client, ElasticsearchSynonymsClient clientSynonyms, IndexConfiguration workspace) {
+        return new AdminServiceSynonyms(client, clientSynonyms, workspace);
     }
 
     @Bean
@@ -117,7 +110,7 @@ public class AutoConfigurationTracker {
                         .numberOfShards(Integer.toString(indexNumberOfShards))
                         .numberOfReplicas(Integer.toString(indexNumberOfReplicas)))
                 .mapping(mapping -> mapping.totalFields(tf -> tf.limit(10000)))
-                .analysis(analysis -> getIndexSettingAnalysis(analysis));
+                .analysis(this::getIndexSettingAnalysis);
     }
 
     private IndexSettingsAnalysis.Builder getIndexSettingAnalysis(IndexSettingsAnalysis.Builder builder) {
