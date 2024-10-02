@@ -65,7 +65,7 @@ public class AlfrescoWebscriptClient {
     private Client client;
 
     @PostConstruct
-    private void init () {
+    void init() {
         client = ClientBuilder.newBuilder()
                 .connectTimeout(alfrescoReadTimeout, TimeUnit.MILLISECONDS)
                 .readTimeout(alfrescoReadTimeout, TimeUnit.MILLISECONDS)
