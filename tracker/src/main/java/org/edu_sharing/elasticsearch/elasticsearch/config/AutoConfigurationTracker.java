@@ -109,7 +109,7 @@ public class AutoConfigurationTracker {
         return s.index(id -> id
                         .numberOfShards(Integer.toString(indexNumberOfShards))
                         .numberOfReplicas(Integer.toString(indexNumberOfReplicas)))
-                .mapping(mapping -> mapping.totalFields(tf -> tf.limit(10000)))
+                .mapping(mapping -> mapping.totalFields(tf -> tf.limit(10000L)))
                 .analysis(this::getIndexSettingAnalysis);
     }
 
