@@ -52,7 +52,7 @@ public class MigrationService {
         int startIndex = IntStream.range(0, migrationInfos.size())
                 .filter(i -> migrationInfos.get(i).getVersion().equals(currentVersion))
                 .findFirst()
-                .orElse(0);
+                .orElse(-1) + 1;
 
         boolean requiresDocMigration = IntStream.range(startIndex, migrationInfos.size())
                 .mapToObj(migrationInfos::get)
@@ -112,7 +112,7 @@ public class MigrationService {
         String currentVersion = appInfo.getTrackerVersion();
 
         if (Objects.equals(latestVersion, currentVersion)) {
-            log.info("Migration completed! Running on tracker version {}", currentVersion);
+            log.info("Migration completed! Running on tracker version {}", latestVersion);
             return true;
         }
 
@@ -121,7 +121,7 @@ public class MigrationService {
             switch (MigrationStep.valueOf(migrationState.getProgressStep())) {
                 case MIGRATE_DOCUMENTS_PROGRESS_STEP:
                 case COMPLETED_PROGRESS_STEP:
-                    log.info("Migration completed! Running on tracker version {}", currentVersion);
+                    log.info("Migration completed! Running on tracker version {}", latestVersion);
                     return true;
             }
 
