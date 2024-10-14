@@ -10,6 +10,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+import javax.ws.rs.client.ResponseProcessingException;
 import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -64,8 +65,13 @@ public class StatisticsTracker {
                 logger.info("found " + statistics.size() + " statistic changes");
 
                 for(String nodeId : statistics){
-                    List<NodeStatistic> statisticsForNode = eduSharingClient.getStatisticsForNode(nodeId, trackFromTimeFull);
-                    nodeStatistics.put(nodeId,statisticsForNode);
+                    logger.debug("track statistics for node " + nodeId);
+                    try {
+                        List<NodeStatistic> statisticsForNode = eduSharingClient.getStatisticsForNode(nodeId, trackFromTimeFull);
+                        nodeStatistics.put(nodeId, statisticsForNode);
+                    } catch(ResponseProcessingException e) {
+                        logger.warn("Could not parse statistics for node " + nodeId, e);
+                    }
                 }
                 
                 AtomicInteger counter = new AtomicInteger();
