@@ -109,7 +109,7 @@ public class AutoConfigurationTracker {
         return s.index(id -> id
                         .numberOfShards(Integer.toString(indexNumberOfShards))
                         .numberOfReplicas(Integer.toString(indexNumberOfReplicas)))
-                .mapping(mapping -> mapping.totalFields(tf -> tf.limit(10000)))
+                .mapping(mapping -> mapping.totalFields(tf -> tf.limit(10000L)))
                 .analysis(this::getIndexSettingAnalysis);
     }
 
@@ -247,6 +247,14 @@ public class AutoConfigurationTracker {
                                         .fields("keyword", f -> f.keyword(kw -> kw.ignoreAbove(256)))
                                         .fields("date", f -> f.date(v -> v.ignoreMalformed(true))))))),
 
+                        Map.of("i18n_fields", DynamicTemplate.of(dt -> dt
+                                .matchMappingType("string" ,"long", "double", "boolean", "date")
+                                .pathMatch("i18n.*")
+                                .mapping(mp -> mp.keyword(t -> t
+                                                .fields("sort", f -> f.keyword(t2 -> t2.normalizer("lowercase")))
+                                        )
+                                ))),
+
                         Map.of("convert_numeric_long", DynamicTemplate.of(dt -> dt
                                 .matchMappingType("long")
                                 .pathMatch("*properties.*")
@@ -270,13 +278,6 @@ public class AutoConfigurationTracker {
                                                 .store(true)
                                                 .fields("keyword", f -> f.keyword(kw -> kw.ignoreAbove(256)))
                                                 .fields("sort", f2 -> f2.keyword(kw2 -> kw2.ignoreAbove(256).normalizer("lowercase")))
-                                        )
-                                ))),
-                        Map.of("i18n_fields", DynamicTemplate.of(dt -> dt
-                                .matchMappingType("string")
-                                .pathMatch("i18n.*")
-                                .mapping(mp -> mp.keyword(t -> t
-                                                .fields("sort", f -> f.keyword(t2 -> t2.normalizer("lowercase")))
                                         )
                                 ))),
                         Map.of("copy_facettes", DynamicTemplate.of(dt -> dt

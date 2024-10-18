@@ -13,4 +13,10 @@ public class Migrations {
     public MigrationInfo migration9_0() {
         return new MigrationInfo("9.0", true);
     }
+
+    @Bean
+    @Order(1)
+    public MigrationInfo migration9_1() {
+        return new MigrationInfo("9.1", false);
+    }
 }
