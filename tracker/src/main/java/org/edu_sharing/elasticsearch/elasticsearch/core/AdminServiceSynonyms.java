@@ -45,6 +45,7 @@ public class AdminServiceSynonyms {
         Path pathSynHashFile = Paths.get("synonyms/synonymsHash.txt");
 
         if(!Files.exists(pathSynFile)){
+            log.info("No file synonyms/synonyms.txt found");
             return;
         }
 
@@ -52,6 +53,7 @@ public class AdminServiceSynonyms {
         String lastFileHash = Files.exists(pathSynHashFile) ? Files.readString(pathSynHashFile) : null;
 
         if(currentFileHash == null || currentFileHash.equals(lastFileHash)){
+            log.info("Synonyms identical. No update required");
             return;
         }
 
