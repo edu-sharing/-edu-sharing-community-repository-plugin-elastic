@@ -125,7 +125,7 @@ public class MigrationService {
                     return true;
             }
 
-            log.info("Migration in progress {}: {}", MigrationStep.valueOf(migrationState.getProgressStep()), migrationState.getStatusMessage());
+            log.info("Migration in progress (version {}) {}: {}", latestVersion, MigrationStep.valueOf(migrationState.getProgressStep()), migrationState.getStatusMessage());
         } catch (IllegalArgumentException ignored) {
             log.warn("Unknown migration step {}", migrationState.getProgressStep());
         }
