@@ -97,9 +97,8 @@ public class WorkspaceService {
                 .conflicts(Conflicts.Proceed)
                 .refresh(true)
                 .script(scr -> scr
-                        .inline(il -> il
                                 .source("ctx._source.permissions=params")
-                                .params(permissions.entrySet().stream().collect(Collectors.toMap(Map.Entry::getKey, x -> JsonData.of(x.getValue()))))))
+                                .params(permissions.entrySet().stream().collect(Collectors.toMap(Map.Entry::getKey, x -> JsonData.of(x.getValue())))))
         );
 
         logger.debug("updated: {}", bulkByScrollResponse.updated());
@@ -1112,10 +1111,9 @@ public class WorkspaceService {
                             .index(index)
                             .id(id)
                             .script(scr -> scr
-                                    .inline(il -> il
                                             .lang("painless")
                                             .source("for(String prop : params.propsToRemove){ctx._source.remove(prop)}")
-                                            .params("propsToRemove", JsonData.of(propsToRemove)))),
+                                            .params("propsToRemove", JsonData.of(propsToRemove))),
                     Map.class);
         }
     }
