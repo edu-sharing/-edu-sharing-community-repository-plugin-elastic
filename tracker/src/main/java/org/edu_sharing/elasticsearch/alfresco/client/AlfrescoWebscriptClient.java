@@ -86,7 +86,8 @@ public class AlfrescoWebscriptClient {
             Nodes node = client.target(url)
                     .request(MediaType.APPLICATION_JSON)
                     .post(Entity.json(p)).readEntity(Nodes.class);
-            return node.getNodes();
+            throw new ResponseProcessingException(null, new Throwable());
+            // if(true) return node.getNodes();
         } catch (ResponseProcessingException e) {
             logger.warn("Could not parse nodes for all transaction ids, will fetch individually...", e);
             List<Node> result = new ArrayList<>();
