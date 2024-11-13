@@ -76,7 +76,7 @@ public abstract class TransactionTrackerBase implements TransactionTracker {
             long nextTransactionId = lastTransactionId + 1;
             Transactions transactions;
             if(lastTransactionTimestamp > 0) {
-             transactions = alfClient.getTransactions(null, null, lastTransactionTimestamp, null, numberOfTransactions);
+                transactions = alfClient.getTransactions(null, null, lastTransactionTimestamp + 1, null, numberOfTransactions);
             } else {
                 log.warn("no last transaction timestamp, need to fallback to id mode, txnId {}", nextTransactionId);
                 transactions = alfClient.getTransactions(nextTransactionId, null, null, null, numberOfTransactions);
