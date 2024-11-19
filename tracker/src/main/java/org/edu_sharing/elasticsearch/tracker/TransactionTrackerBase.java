@@ -16,6 +16,7 @@ import org.edu_sharing.elasticsearch.tracker.strategy.TrackerStrategy;
 import java.io.IOException;
 import java.text.DecimalFormat;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ForkJoinPool;
@@ -42,7 +43,7 @@ public abstract class TransactionTrackerBase implements TransactionTracker {
     Integer threadCount = 4;
 
     @Setter
-    int numberOfTransactions = 500;
+    int numberOfTransactions = 200;
 
     protected ForkJoinPool threadPool;
 
@@ -68,33 +69,28 @@ public abstract class TransactionTrackerBase implements TransactionTracker {
             }
 
             long lastTransactionId = Optional.ofNullable(txn).map(Tx::getTxnId).orElse(0L);
-            log.info("starting lastTransactionId: {}", lastTransactionId);
+            long lastTransactionTimestamp = Optional.ofNullable(txn).map(Tx::getTxnCommitTime).orElse(0L);
+            log.info("starting lastTransactionId: {} timestamp: {}", lastTransactionId, lastTransactionTimestamp);
 
 
             long nextTransactionId = lastTransactionId + 1;
-
-            Transactions transactions = alfClient.getTransactions(nextTransactionId, trackerStrategy.getNext(nextTransactionId, numberOfTransactions), null, null, numberOfTransactions);
-
-            long maxTrackerTxnId = transactions.getMaxTxnId();
-            if (nextTransactionId > maxTrackerTxnId) {
-                log.info("Tracker {} is up to date. maxTrackerTxnId: {}, lastTransactionId: {}", this.getClass().getSimpleName(), maxTrackerTxnId, lastTransactionId);
-                return false;
+            Transactions transactions;
+            if(lastTransactionTimestamp > 0) {
+                transactions = alfClient.getTransactions(null, null, lastTransactionTimestamp + 1, null, numberOfTransactions);
+            } else {
+                log.warn("no last transaction timestamp, need to fallback to id mode, txnId {}", nextTransactionId);
+                transactions = alfClient.getTransactions(nextTransactionId, null, null, null, numberOfTransactions);
             }
 
+            long maxTrackerTxnId = transactions.getMaxTxnId();
+
             if (transactions.getTransactions().isEmpty()) {
-                if (
-                        trackerStrategy.getLimit() != null &&
-                        trackerStrategy.getNext(nextTransactionId, numberOfTransactions) >= trackerStrategy.getLimit()
-                ) {
+                if (trackerStrategy.getLimit() != null) {
                     log.info("max transaction limit by strategy reached: {} / {}", maxTrackerTxnId, trackerStrategy.getLimit());
                     return false;
-                } else if (maxTrackerTxnId <= trackerStrategy.getNext(lastTransactionId, numberOfTransactions)) {
-                    log.info("index is up to date getMaxTxnId(): {}", maxTrackerTxnId);
-                    return false;
                 } else {
-                    log.info("did not found new transactions in last transaction block min: {} max: {}", lastTransactionId, trackerStrategy.getNext(lastTransactionId, numberOfTransactions));
-                    commit(transactionStateService,trackerStrategy.getNext(lastTransactionId, numberOfTransactions));
-                    return true;
+                    log.info("index is up to date getMaxTxnId(): {} lastTransactionId: {}", maxTrackerTxnId, lastTransactionId);
+                    return false;
                 }
             }
 
@@ -114,8 +110,10 @@ public abstract class TransactionTrackerBase implements TransactionTracker {
             trackNodes(nodes);
 
             //remember processed transaction
-            Long last = transactionIds.get(transactionIds.size() - 1);
-            commit(transactionStateService, last);
+            Transaction last = transactions.getTransactions().stream().max((a, b) -> Long.compare(
+                    a.getCommitTimeMs(), b.getCommitTimeMs()
+            )).get();
+            commit(transactionStateService, new Tx(last.getId(), last.getCommitTimeMs()));
 
             // log progress
             DecimalFormat df = new DecimalFormat("0.00");
@@ -133,9 +131,9 @@ public abstract class TransactionTrackerBase implements TransactionTracker {
         }
     }
 
-    private void commit(StatusIndexService<Tx> transactionStateService, long txId) throws IOException {
-        log.info("safe transactionId {}", txId);
-        transactionStateService.setState(new Tx(txId, 0L));
+    private void commit(StatusIndexService<Tx> transactionStateService, Tx tx) throws IOException {
+        log.info("safe transactionId {}", tx.getTxnId());
+        transactionStateService.setState(tx);
     }
 
     private Double calcProgress(Transactions transactions, List<Long> transactionIds) {
