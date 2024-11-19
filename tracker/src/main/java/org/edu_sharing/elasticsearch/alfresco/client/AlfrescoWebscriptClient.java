@@ -9,6 +9,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+import javax.annotation.PostConstruct;
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.client.Entity;
@@ -61,10 +62,10 @@ public class AlfrescoWebscriptClient {
 
     private static final Logger logger = LoggerFactory.getLogger(AlfrescoWebscriptClient.class);
 
-    private final Client client;
+    private Client client;
 
-
-    public AlfrescoWebscriptClient() {
+    @PostConstruct
+    void init() {
         client = ClientBuilder.newBuilder()
                 .connectTimeout(alfrescoReadTimeout, TimeUnit.MILLISECONDS)
                 .readTimeout(alfrescoReadTimeout, TimeUnit.MILLISECONDS)
@@ -305,7 +306,12 @@ public class AlfrescoWebscriptClient {
 
         for (NodeData nodeData : result) {
             if (trackContent) {
-                String fullText = getTextContent(nodeData.getNodeMetadata().getId());
+                String fullText = null;
+                try {
+                    fullText = getTextContent(nodeData.getNodeMetadata().getId());
+                }catch(Throwable t) {
+                    logger.warn("Error while fetching text content for " + nodeData.getNodeMetadata().getNodeRef(), t);
+                }
                 if (fullText != null) nodeData.setFullText(fullText);
             }
 

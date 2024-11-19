@@ -16,6 +16,7 @@ public class SortV2 {
 	}
 	private String id;
 	private SortV2Default defaultValue;
+	private SortV2Default defaultValueSearch;
 	private List<SortColumnV2> columns;
 
 	public SortV2(){}
@@ -34,6 +35,12 @@ public class SortV2 {
 	@JsonProperty("default")
 	public SortV2Default getDefaultValue() {
 		return defaultValue;
+	}
+
+
+	@JsonProperty("defaultSearch")
+	public SortV2Default getDefaultValueSearch() {
+		return defaultValueSearch;
 	}
 
 }

@@ -16,6 +16,7 @@ import org.edu_sharing.elasticsearch.tracker.strategy.TrackerStrategy;
 import java.io.IOException;
 import java.text.DecimalFormat;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ForkJoinPool;
@@ -68,20 +69,18 @@ public abstract class TransactionTrackerBase implements TransactionTracker {
             }
 
             long lastTransactionId = Optional.ofNullable(txn).map(Tx::getTxnId).orElse(0L);
-            log.info("starting lastTransactionId: {}", lastTransactionId);
+            long lastTransactionTimestamp = Optional.ofNullable(txn).map(Tx::getTxnCommitTime).orElse(0L);
+            log.info("starting lastTransactionId: {} timestamp: {}", lastTransactionId, lastTransactionTimestamp);
 
 
             long nextTransactionId = lastTransactionId + 1;
-
-
-            long queryMaxTxnId = trackerStrategy.getLimit() != null
-                    ? trackerStrategy.getLimit()
-                    : alfClient.getTransactions(0L,0L,null,null,1).getMaxTxnId();
-
-            //to include queryMaxTxnId in result (look at toIdExclusive in alfresco ibatis template "select_Txns")
-            queryMaxTxnId = queryMaxTxnId+1;
-
-            Transactions transactions = alfClient.getTransactions(nextTransactionId, queryMaxTxnId, null, null, numberOfTransactions);
+            Transactions transactions;
+            if(lastTransactionTimestamp > 0) {
+                transactions = alfClient.getTransactions(null, null, lastTransactionTimestamp + 1, null, numberOfTransactions);
+            } else {
+                log.warn("no last transaction timestamp, need to fallback to id mode, txnId {}", nextTransactionId);
+                transactions = alfClient.getTransactions(nextTransactionId, null, null, null, numberOfTransactions);
+            }
 
             long maxTrackerTxnId = transactions.getMaxTxnId();
 
@@ -111,8 +110,10 @@ public abstract class TransactionTrackerBase implements TransactionTracker {
             trackNodes(nodes);
 
             //remember processed transaction
-            Long last = transactionIds.get(transactionIds.size() - 1);
-            commit(transactionStateService, last);
+            Transaction last = transactions.getTransactions().stream().max((a, b) -> Long.compare(
+                    a.getCommitTimeMs(), b.getCommitTimeMs()
+            )).get();
+            commit(transactionStateService, new Tx(last.getId(), last.getCommitTimeMs()));
 
             // log progress
             DecimalFormat df = new DecimalFormat("0.00");
@@ -130,9 +131,9 @@ public abstract class TransactionTrackerBase implements TransactionTracker {
         }
     }
 
-    private void commit(StatusIndexService<Tx> transactionStateService, long txId) throws IOException {
-        log.info("safe transactionId {}", txId);
-        transactionStateService.setState(new Tx(txId, 0L));
+    private void commit(StatusIndexService<Tx> transactionStateService, Tx tx) throws IOException {
+        log.info("safe transactionId {}", tx.getTxnId());
+        transactionStateService.setState(tx);
     }
 
     private Double calcProgress(Transactions transactions, List<Long> transactionIds) {
