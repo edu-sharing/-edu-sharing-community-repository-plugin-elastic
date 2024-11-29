@@ -1,7 +1,9 @@
 package org.edu_sharing.elasticsearch.edu_sharing.client;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import lombok.Data;
 
+@Data
 public class About {
 
     String themesUrl;
@@ -12,6 +14,9 @@ public class About {
 
     @JsonIgnore
     Object services;
+
+    @JsonIgnore
+    Object renderingService2;
 
     @JsonIgnore
     Object plugins;
