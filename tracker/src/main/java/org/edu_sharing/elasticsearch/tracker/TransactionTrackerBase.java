@@ -117,8 +117,9 @@ public abstract class TransactionTrackerBase implements TransactionTracker {
 
             // log progress
             DecimalFormat df = new DecimalFormat("0.00");
-            log.info("finished {}%, lastTransactionId: {} transactions: {} nodes: {} Stack size: {}",
+            log.info("finished {}% ({} hours behind), lastTransactionId: {} transactions: {} nodes: {} Stack size: {}",
                     df.format(calcProgress(transactions, transactionIds)),
+                    df.format((System.currentTimeMillis() - lastTransactionTimestamp) / 1000.0 / 60 / 24),
                     last,
                     Arrays.toString(transactionIds.toArray()),
                     nodes.size(),
