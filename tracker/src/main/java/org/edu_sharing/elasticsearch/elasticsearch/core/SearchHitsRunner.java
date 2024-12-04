@@ -39,6 +39,8 @@ public final class SearchHitsRunner {
                 logger.warn("max result size has been reached: found {} of {} allowed", searchHits.total().value(), maxResultsSize);
                 return;
             }
+            logger.debug("result is smaller than limit, will continue: found {} of {} allowed", searchHits.total().value(), maxResultsSize);
+
             for(Hit<Map> searchHit : searchHits.hits()){
                 hitConsumer.accept(searchHit);
             }

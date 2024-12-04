@@ -180,7 +180,7 @@ public class WorkspaceService {
             logger.info("start refresh index");
             this.refreshWorkspace();
             try {
-                logger.info("start RefreshCollectionReplicas");
+                logger.info("start RefreshCollectionReplicas (" + bulkResponse.items().size() + ")");
                 for (BulkResponseItem item : bulkResponse.items()) {
                     if (item.error() != null) {
                         logger.error("Failed indexing of " + item.id());
