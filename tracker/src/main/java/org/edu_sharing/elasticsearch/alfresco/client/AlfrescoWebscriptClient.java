@@ -232,6 +232,9 @@ public class AlfrescoWebscriptClient {
 
 
     public List<NodeData> getNodeData(List<NodeMetadata> nodes) {
+        return getNodeData(nodes, FetchParameters.ALL);
+    }
+    public List<NodeData> getNodeData(List<NodeMetadata> nodes, FetchParameters parameters) {
         if (nodes == null || nodes.isEmpty()) {
             return new ArrayList<>();
         }
@@ -305,7 +308,7 @@ public class AlfrescoWebscriptClient {
 
 
         for (NodeData nodeData : result) {
-            if (trackContent) {
+            if (parameters.content && trackContent) {
                 String fullText = null;
                 try {
                     fullText = getTextContent(nodeData.getNodeMetadata().getId());
@@ -315,40 +318,40 @@ public class AlfrescoWebscriptClient {
                 if (fullText != null) nodeData.setFullText(fullText);
             }
 
-
-            List<String> allowedChildTypes = new ArrayList<>();
-            if ("ccm:io".equals(nodeData.getNodeMetadata().getType())) {
-                // io/file -> we allow everything
-                allowedChildTypes.add("ALL");
-            } else if ("ccm:map".equals(nodeData.getNodeMetadata().getType())
-                    && nodeData.getNodeMetadata().getAspects().contains("ccm:collection")) {
-                // map/folder -> we only allow specific elements relvant for maps
-                allowedChildTypes.add("ccm:collection_proposal");
-            }
-
-            List<Node> children = new ArrayList<>();
-            if (nodeData.getNodeMetadata().getChildIds() != null) {
-                for (Long dbid : nodeData.getNodeMetadata().getChildIds()) {
-                    Node childNode = new Node();
-                    childNode.setId(dbid);
-                    children.add(childNode);
+            if(parameters.children) {
+                List<String> allowedChildTypes = new ArrayList<>();
+                if ("ccm:io".equals(nodeData.getNodeMetadata().getType())) {
+                    // io/file -> we allow everything
+                    allowedChildTypes.add("ALL");
+                } else if ("ccm:map".equals(nodeData.getNodeMetadata().getType())
+                        && nodeData.getNodeMetadata().getAspects().contains("ccm:collection")) {
+                    // map/folder -> we only allow specific elements relvant for maps
+                    allowedChildTypes.add("ccm:collection_proposal");
                 }
 
-                if (!children.isEmpty() && !allowedChildTypes.isEmpty()) {
-                    List<NodeMetadata> nodeMetadata;
-                    if (allowedChildTypes.contains("ALL")) {
-                        nodeMetadata = this.getNodeMetadata(children);
-                    } else {
-                        nodeMetadata = this.getNodeMetadataByAllowedTypes(children, allowedChildTypes);
+                List<Node> children = new ArrayList<>();
+                if (nodeData.getNodeMetadata().getChildIds() != null) {
+                    for (Long dbid : nodeData.getNodeMetadata().getChildIds()) {
+                        Node childNode = new Node();
+                        childNode.setId(dbid);
+                        children.add(childNode);
                     }
 
-                    List<NodeData> childrenFiltered = getNodeData(nodeMetadata);
-                    if (!childrenFiltered.isEmpty()) {
-                        nodeData.getChildren().addAll(childrenFiltered);
+                    if (!children.isEmpty() && !allowedChildTypes.isEmpty()) {
+                        List<NodeMetadata> nodeMetadata;
+                        if (allowedChildTypes.contains("ALL")) {
+                            nodeMetadata = this.getNodeMetadata(children);
+                        } else {
+                            nodeMetadata = this.getNodeMetadataByAllowedTypes(children, allowedChildTypes);
+                        }
+
+                        List<NodeData> childrenFiltered = getNodeData(nodeMetadata);
+                        if (!childrenFiltered.isEmpty()) {
+                            nodeData.getChildren().addAll(childrenFiltered);
+                        }
                     }
                 }
             }
-
         }
 
         return result;

@@ -1,5 +1,11 @@
 package org.edu_sharing.elasticsearch.alfresco.client;
 
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.NoArgsConstructor;
+
+@NoArgsConstructor
+@AllArgsConstructor
 public class NodeDataProposal extends NodeData{
     NodeData collection;
     NodeData original;
