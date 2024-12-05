@@ -669,9 +669,7 @@ public class WorkspaceService {
              * for the future: maybe it's better to react on collection_ref object index actions than usage index actions
              * for perfromance reasons, we only fetch the relation for proposals, since they're not relevant for usages
              */
-            if(usageOrProposal.getType().equals("ccm:collection_proposal")) {
-                fillData(alfrescoClient.getNodeData(Collections.singletonList(usageOrProposal), FetchParameters.MINIMAL).get(0), builder, "relation");
-            }
+            addUsageRelation(usageOrProposal, builder);
 
             builder.endObject();
             builder.endArray();
@@ -896,9 +894,7 @@ public class WorkspaceService {
                                 if (entry.getKey().equals("children")) continue;
                                 builder.field(entry.getKey(), entry.getValue());
                             }
-                            if(usage.getType().equals("ccm:collection_proposal")) {
-                                fillData(alfrescoClient.getNodeData(Collections.singletonList(usage), FetchParameters.MINIMAL).get(0), builder, "relation");
-                            }
+                            addUsageRelation(usage, builder);
                             builder.endObject();
                         }
                     }
@@ -917,6 +913,14 @@ public class WorkspaceService {
         this.refreshWorkspace();
         if(node.getNodeRef() != null) {
             logger.info("Index Collections done " + Tools.getUUID(node.getNodeRef()) + " (" + ((System.currentTimeMillis() - startTimeMs)) + "ms)");
+        }
+    }
+
+    private void addUsageRelation(NodeMetadata usage, DataBuilder builder) throws IOException {
+        if(usage.getType().equals("ccm:collection_proposal")) {
+            fillData(alfrescoClient.getNodeData(Collections.singletonList(usage), FetchParameters.MINIMAL).get(0), builder, "relation");
+        } else {
+            fillData(NodeData.builder().nodeMetadata(usage).build(), builder, "relation");
         }
     }
 
