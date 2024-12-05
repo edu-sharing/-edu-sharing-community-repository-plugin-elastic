@@ -219,25 +219,24 @@ public class WorkspaceService {
         } else {
             builder.startObject();
         }
-
-
         {
             builder.field("aclId", node.getAclId());
             builder.field("txnId", node.getTxnId());
             builder.field("dbid", node.getId());
-                List<String> parentUuids = Arrays.asList(node.getPaths().get(0).getApath().split("/"));
-                parentUuids.stream().skip(parentUuids.size() - 1).findFirst()
-                        .flatMap(parentUuid -> node.getAncestors().stream().filter(s -> s.contains(parentUuid)).findAny())
-                        .ifPresent(primaryParentRef -> {
-                            //getAncestors() is not sorted
-                            builder.startObject("parentRef")
-                                    .startObject("storeRef")
-                                    .field("protocol", Tools.getProtocol(primaryParentRef))
-                                    .field("identifier", Tools.getIdentifier(primaryParentRef))
-                                    .endObject()
-                                    .field("id", Tools.getUUID(primaryParentRef))
-                                    .endObject();
-                        });
+
+            List<String> parentUuids = Arrays.asList(node.getPaths().get(0).getApath().split("/"));
+            parentUuids.stream().skip(parentUuids.size() - 1).findFirst()
+                    .flatMap(parentUuid -> node.getAncestors().stream().filter(s -> s.contains(parentUuid)).findAny())
+                    .ifPresent(primaryParentRef -> {
+                        //getAncestors() is not sorted
+                        builder.startObject("parentRef")
+                                .startObject("storeRef")
+                                .field("protocol", Tools.getProtocol(primaryParentRef))
+                                .field("identifier", Tools.getIdentifier(primaryParentRef))
+                                .endObject()
+                                .field("id", Tools.getUUID(primaryParentRef))
+                                .endObject();
+                    });
 
             String id = node.getNodeRef().split("://")[1].split("/")[1];
             builder.startObject("nodeRef")
@@ -286,228 +285,228 @@ public class WorkspaceService {
                 }
                 builder.endObject();
             }
-                //content
-                /**
-                 *     "{http://www.alfresco.org/model/content/1.0}content": {
-                 *    "contentId": "279",
-                 *    "encoding": "UTF-8",
-                 *    "locale": "de_DE_",
-                 *    "mimetype": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                 *    "size": "8385"
-                 * },
-                 */
-                @SuppressWarnings("unchecked")
-                Map<String, Object> content = (Map<String, Object>) node.getProperties().get("{http://www.alfresco.org/model/content/1.0}content");
-                if (content != null) {
+            //content
+            /**
+             *     "{http://www.alfresco.org/model/content/1.0}content": {
+             *    "contentId": "279",
+             *    "encoding": "UTF-8",
+             *    "locale": "de_DE_",
+             *    "mimetype": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+             *    "size": "8385"
+             * },
+             */
+            @SuppressWarnings("unchecked")
+            Map<String, Object> content = (Map<String, Object>) node.getProperties().get("{http://www.alfresco.org/model/content/1.0}content");
+            if (content != null) {
 
-                    builder.startObject("content");
-                    builder.field("contentId", content.get("contentId"));
-                    builder.field("encoding", content.get("encoding"));
-                    builder.field("locale", content.get("locale"));
-                    builder.field("mimetype", content.get("mimetype"));
-                    builder.field("size", content.get("size"));
-                    if (nodeData.getFullText() != null) {
-                        if (maxContentLength > 0 && nodeData.getFullText().length() > maxContentLength) {
-                            logger.info("Node " + node.getNodeRef() + " has too large fulltext: " + nodeData.getFullText().length() + ". Will be truncated to " + maxContentLength);
-                            builder.field("fulltext", nodeData.getFullText().substring(0, maxContentLength));
-                        } else {
-                            builder.field("fulltext", nodeData.getFullText());
-                        }
-                    }
-                    builder.endObject();
-                }
-
-
-                Map<String, Serializable> contributorProperties = new HashMap<>();
-                builder.startObject("properties");
-                for (Map.Entry<String, Serializable> prop : node.getProperties().entrySet()) {
-
-                    String key = CCConstants.getValidLocalName(prop.getKey());
-                    if (key == null) {
-                        logger.warn("unknown namespace: " + prop.getKey());
-                        continue;
-                    }
-
-                    Serializable value = prop.getValue();
-                    if (key.matches(CONTRIBUTOR_REGEX)) {
-                        if (value != null) {
-                            contributorProperties.put(key, value);
-                        }
-                    }
-
-                    if (prop.getValue() instanceof List) {
-                        List listvalue = (List) prop.getValue();
-
-                        //i.e. cm:title
-                        if (!listvalue.isEmpty() && listvalue.get(0) instanceof Map) {
-                            value = getMultilangValue(listvalue);
-                        }
-
-                        //i.e. cclom:general_keyword
-                        if (!listvalue.isEmpty() && listvalue.get(0) instanceof List) {
-                            List<String> mvValue = new ArrayList<>();
-                            for (Object l : listvalue) {
-                                String mlv = getMultilangValue((List) l);
-                                if (mlv != null) {
-                                    mvValue.add(mlv);
-                                }
-                            }
-                            if (!mvValue.isEmpty()) {
-                                value = (Serializable) mvValue;
-                            }//fix: mapper_parsing_exception Preview of field's value: '{locale=de_}']] (empty keyword)
-                            else {
-                                logger.info("fallback to \\”\\” for prop " + key + " v:" + value);
-                                value = "";
-                            }
-                        }
-                    }
-                    if ("cm:modified".equals(key) || "cm:created".equals(key)) {
-
-                        if (prop.getValue() != null) {
-                            value = Date.from(Instant.parse((String) prop.getValue())).getTime();
-                        }
-                    }
-
-                    //prevent Elasticsearch exception failed to parse field's value: '1-01-07T01:00:00.000+01:00'
-                    if ("ccm:replicationmodified".equals(key)) {
-                        if (prop.getValue() != null) {
-                            value = prop.getValue().toString();
-                        }
-                    }
-
-                    //elastic maps this on date field, it gets a  failed to parse field exception when it's empty
-                    if ("ccm:replicationsourcetimestamp".equals(key)) {
-                        if (value != null && value.toString().trim().isEmpty()) {
-                            value = null;
-                        }
-                    }
-
-                    if ("ccm:mediacenter".equals(key)) {
-                        ArrayList<Map<String, Object>> mediacenters = null;
-                        if (value != null && !value.toString().trim().isEmpty()) {
-                            JsonParser jp = new BasicJsonParser();
-                            @SuppressWarnings("unchecked")
-                            List<String> mzStatusList = (List<String>) value;
-                            ArrayList<Map<String, Object>> result = new ArrayList<>();
-                            for (String mzStatus : mzStatusList) {
-                                try {
-                                    result.add(jp.parseMap(mzStatus));
-                                } catch (JsonParseException e) {
-                                    logger.warn(e.getMessage());
-                                }
-                            }
-                            if (!result.isEmpty()) {
-                                value = result;
-                                mediacenters = result;
-                            }
-                        }
-
-                        if (mediacenters != null) {
-                            builder.startObject("ccm:mediacenter_sort");
-                            for (Map<String, Object> mediacenter : mediacenters) {
-                                builder.startObject((String) mediacenter.get("name"));
-                                builder.field("activated", mediacenter.get("activated"));
-                                builder.endObject();
-                            }
-                            builder.endObject();
-                        }
-
-                    }
-                    if ("ccm:wf_protocol".equals(key)) {
-                        mapWorkflowProtocol(value, builder);
-                    }
-
-                    if (value != null) {
-
-                        try {
-                            builder.field(key, value);
-                        } catch (Exception e) {
-                            logger.warn("error parsing value field:" + key + "v" + value, e);
-                        }
+                builder.startObject("content");
+                builder.field("contentId", content.get("contentId"));
+                builder.field("encoding", content.get("encoding"));
+                builder.field("locale", content.get("locale"));
+                builder.field("mimetype", content.get("mimetype"));
+                builder.field("size", content.get("size"));
+                if (nodeData.getFullText() != null) {
+                    if (maxContentLength > 0 && nodeData.getFullText().length() > maxContentLength) {
+                        logger.info("Node " + node.getNodeRef() + " has too large fulltext: " + nodeData.getFullText().length() + ". Will be truncated to " + maxContentLength);
+                        builder.field("fulltext", nodeData.getFullText().substring(0, maxContentLength));
+                    } else {
+                        builder.field("fulltext", nodeData.getFullText());
                     }
                 }
                 builder.endObject();
-
-                builder.field("aspects", node.getAspects());
-
-                if (!contributorProperties.isEmpty()) {
-                    VCardEngine vcardEngine = new VCardEngine();
-                    builder.startArray("contributor");
-                    for (Map.Entry<String, Serializable> entry : contributorProperties.entrySet()) {
-                        if (entry.getValue() instanceof List) {
-                            @SuppressWarnings("unchecked")
-                            List<String> val = (List<String>) entry.getValue();
-                            for (String v : val) {
-                                try {
-                                    if (v == null) continue;
-                                    VCard vcard = vcardEngine.parse(v);
-                                    if (vcard != null) {
-
-                                        builder.startObject();
-                                        builder.field("property", entry.getKey());
-                                        if (vcard.getN() != null) {
-                                            NType n = vcard.getN();
-                                            builder.field("firstname", n.getGivenName());
-                                            builder.field("lastname", n.getFamilyName());
-                                        }
-
-                                        if (vcard.getEmails() != null && !vcard.getEmails().isEmpty()) {
-                                            builder.field("email", vcard.getEmails().get(0).getEmail());
-                                        }
-                                        if (vcard.getUid() != null) {
-                                            builder.field("uuid", vcard.getUid().getUid());
-                                        }
-                                        if (vcard.getUrls() != null && !vcard.getUrls().isEmpty()) {
-                                            builder.field("url", vcard.getUrls().get(0).getRawUrl());
-                                        }
-                                        if (vcard.getOrg() != null) {
-                                            builder.field("org", vcard.getOrg().getOrgName());
-                                        }
-
-                                        if (vcard.getN() != null) {
-                                            NType n = vcard.getN();
-                                            builder.field("displayname", (
-                                                    (vcard.getTitle() != null && vcard.getTitle().getTitle() != null ? vcard.getTitle().getTitle() : "") + " " +
-                                                            (n.getGivenName() != null ? n.getGivenName() : "") + " " +
-                                                            (n.getFamilyName() != null ? n.getFamilyName() : "")
-                                            ).trim());
-                                        } else if (vcard.getOrg() != null) {
-                                            builder.field("displayname", vcard.getOrg().getOrgName() != null ? vcard.getOrg().getOrgName().trim() : "");
-                                        }
-
-                                        List<ExtendedType> extendedTypes = vcard.getExtendedTypes();
-                                        if (extendedTypes != null) {
-                                            for (ExtendedType et : extendedTypes) {
-                                                if (et.getExtendedValue() != null && !et.getExtendedValue().trim().isEmpty()) {
-                                                    builder.field(et.getExtendedName(), et.getExtendedValue());
-                                                }
-                                            }
-                                        }
+            }
 
 
-                                        builder.field("vcard", v);
-                                        builder.endObject();
-                                    }
-                                } catch (VCardParseException e) {
-                                    logger.warn(e.getMessage(), e);
-                                } catch (NullPointerException e) {
-                                    logger.warn("node: " + id + " " + e.getMessage(), e);
-                                }
+            Map<String, Serializable> contributorProperties = new HashMap<>();
+            builder.startObject("properties");
+            for (Map.Entry<String, Serializable> prop : node.getProperties().entrySet()) {
+
+                String key = CCConstants.getValidLocalName(prop.getKey());
+                if (key == null) {
+                    logger.warn("unknown namespace: " + prop.getKey());
+                    continue;
+                }
+
+                Serializable value = prop.getValue();
+                if (key.matches(CONTRIBUTOR_REGEX)) {
+                    if (value != null) {
+                        contributorProperties.put(key, value);
+                    }
+                }
+
+                if (prop.getValue() instanceof List) {
+                    List listvalue = (List) prop.getValue();
+
+                    //i.e. cm:title
+                    if (!listvalue.isEmpty() && listvalue.get(0) instanceof Map) {
+                        value = getMultilangValue(listvalue);
+                    }
+
+                    //i.e. cclom:general_keyword
+                    if (!listvalue.isEmpty() && listvalue.get(0) instanceof List) {
+                        List<String> mvValue = new ArrayList<>();
+                        for (Object l : listvalue) {
+                            String mlv = getMultilangValue((List) l);
+                            if (mlv != null) {
+                                mvValue.add(mlv);
                             }
-
+                        }
+                        if (!mvValue.isEmpty()) {
+                            value = (Serializable) mvValue;
+                        }//fix: mapper_parsing_exception Preview of field's value: '{locale=de_}']] (empty keyword)
+                        else {
+                            logger.info("fallback to \\”\\” for prop " + key + " v:" + value);
+                            value = "";
                         }
                     }
-                    builder.endArray();
                 }
-                if (nodeData.getNodePreview() != null) {
-                    builder.startObject("preview").
-                            field("mimetype", nodeData.getNodePreview().getMimetype()).
-                            field("type", nodeData.getNodePreview().getType()).
-                            field("icon", nodeData.getNodePreview().isIcon()).
-                            field("small", nodeData.getNodePreview().getSmall()).
-                            //field("large", nodeData.getNodePreview().getLarge()).
-                                    endObject();
+                if ("cm:modified".equals(key) || "cm:created".equals(key)) {
+
+                    if (prop.getValue() != null) {
+                        value = Date.from(Instant.parse((String) prop.getValue())).getTime();
+                    }
                 }
+
+                //prevent Elasticsearch exception failed to parse field's value: '1-01-07T01:00:00.000+01:00'
+                if ("ccm:replicationmodified".equals(key)) {
+                    if (prop.getValue() != null) {
+                        value = prop.getValue().toString();
+                    }
+                }
+
+                //elastic maps this on date field, it gets a  failed to parse field exception when it's empty
+                if ("ccm:replicationsourcetimestamp".equals(key)) {
+                    if (value != null && value.toString().trim().isEmpty()) {
+                        value = null;
+                    }
+                }
+
+                if ("ccm:mediacenter".equals(key)) {
+                    ArrayList<Map<String, Object>> mediacenters = null;
+                    if (value != null && !value.toString().trim().isEmpty()) {
+                        JsonParser jp = new BasicJsonParser();
+                        @SuppressWarnings("unchecked")
+                        List<String> mzStatusList = (List<String>) value;
+                        ArrayList<Map<String, Object>> result = new ArrayList<>();
+                        for (String mzStatus : mzStatusList) {
+                            try {
+                                result.add(jp.parseMap(mzStatus));
+                            } catch (JsonParseException e) {
+                                logger.warn(e.getMessage());
+                            }
+                        }
+                        if (!result.isEmpty()) {
+                            value = result;
+                            mediacenters = result;
+                        }
+                    }
+
+                    if (mediacenters != null) {
+                        builder.startObject("ccm:mediacenter_sort");
+                        for (Map<String, Object> mediacenter : mediacenters) {
+                            builder.startObject((String) mediacenter.get("name"));
+                            builder.field("activated", mediacenter.get("activated"));
+                            builder.endObject();
+                        }
+                        builder.endObject();
+                    }
+
+                }
+                if ("ccm:wf_protocol".equals(key)) {
+                    mapWorkflowProtocol(value, builder);
+                }
+
+                if (value != null) {
+
+                    try {
+                        builder.field(key, value);
+                    } catch (Exception e) {
+                        logger.warn("error parsing value field:" + key + "v" + value, e);
+                    }
+                }
+            }
+            builder.endObject();
+
+            builder.field("aspects", node.getAspects());
+
+            if (!contributorProperties.isEmpty()) {
+                VCardEngine vcardEngine = new VCardEngine();
+                builder.startArray("contributor");
+                for (Map.Entry<String, Serializable> entry : contributorProperties.entrySet()) {
+                    if (entry.getValue() instanceof List) {
+                        @SuppressWarnings("unchecked")
+                        List<String> val = (List<String>) entry.getValue();
+                        for (String v : val) {
+                            try {
+                                if (v == null) continue;
+                                VCard vcard = vcardEngine.parse(v);
+                                if (vcard != null) {
+
+                                    builder.startObject();
+                                    builder.field("property", entry.getKey());
+                                    if (vcard.getN() != null) {
+                                        NType n = vcard.getN();
+                                        builder.field("firstname", n.getGivenName());
+                                        builder.field("lastname", n.getFamilyName());
+                                    }
+
+                                    if (vcard.getEmails() != null && !vcard.getEmails().isEmpty()) {
+                                        builder.field("email", vcard.getEmails().get(0).getEmail());
+                                    }
+                                    if (vcard.getUid() != null) {
+                                        builder.field("uuid", vcard.getUid().getUid());
+                                    }
+                                    if (vcard.getUrls() != null && !vcard.getUrls().isEmpty()) {
+                                        builder.field("url", vcard.getUrls().get(0).getRawUrl());
+                                    }
+                                    if (vcard.getOrg() != null) {
+                                        builder.field("org", vcard.getOrg().getOrgName());
+                                    }
+
+                                    if (vcard.getN() != null) {
+                                        NType n = vcard.getN();
+                                        builder.field("displayname", (
+                                                (vcard.getTitle() != null && vcard.getTitle().getTitle() != null ? vcard.getTitle().getTitle() : "") + " " +
+                                                        (n.getGivenName() != null ? n.getGivenName() : "") + " " +
+                                                        (n.getFamilyName() != null ? n.getFamilyName() : "")
+                                        ).trim());
+                                    } else if (vcard.getOrg() != null) {
+                                        builder.field("displayname", vcard.getOrg().getOrgName() != null ? vcard.getOrg().getOrgName().trim() : "");
+                                    }
+
+                                    List<ExtendedType> extendedTypes = vcard.getExtendedTypes();
+                                    if (extendedTypes != null) {
+                                        for (ExtendedType et : extendedTypes) {
+                                            if (et.getExtendedValue() != null && !et.getExtendedValue().trim().isEmpty()) {
+                                                builder.field(et.getExtendedName(), et.getExtendedValue());
+                                            }
+                                        }
+                                    }
+
+
+                                    builder.field("vcard", v);
+                                    builder.endObject();
+                                }
+                            } catch (VCardParseException e) {
+                                logger.warn(e.getMessage(), e);
+                            } catch (NullPointerException e) {
+                                logger.warn("node: " + id + " " + e.getMessage(), e);
+                            }
+                        }
+
+                    }
+                }
+                builder.endArray();
+            }
+            if (nodeData.getNodePreview() != null) {
+                builder.startObject("preview").
+                        field("mimetype", nodeData.getNodePreview().getMimetype()).
+                        field("type", nodeData.getNodePreview().getType()).
+                        field("icon", nodeData.getNodePreview().isIcon()).
+                        field("small", nodeData.getNodePreview().getSmall()).
+                        //field("large", nodeData.getNodePreview().getLarge()).
+                                endObject();
+            }
 
             if (nodeData.getChildren() != null && !nodeData.getChildren().isEmpty()) {
                 builder.startArray("children");
@@ -677,14 +676,17 @@ public class WorkspaceService {
                     Map<String, Object> relation = (Map<String, Object>) collection.get("relation");
                     if (relation != null && relation.get("dbid") != null) {
                         long dbidRelation = ((Number) (relation.get("dbid"))).longValue();
-                        if (!colIsTheSame || dbidRelation != usageOrProposal.getId()) {
-                            builder.startObject();
-                            for (Map.Entry<String, Object> entry : collection.entrySet()) {
-                                if (entry.getKey().equals("children")) continue;
-                                builder.field(entry.getKey(), entry.getValue());
-                            }
-                            builder.endObject();
+                        if (dbidRelation != usageOrProposal.getId()) {
+                            colIsTheSame = false;
                         }
+                    }
+                    if(!colIsTheSame) {
+                        builder.startObject();
+                        for (Map.Entry<String, Object> entry : collection.entrySet()) {
+                            if (entry.getKey().equals("children")) continue;
+                            builder.field(entry.getKey(), entry.getValue());
+                        }
+                        builder.endObject();
                     }
                 }
             }
@@ -700,8 +702,11 @@ public class WorkspaceService {
              * for usages: we could resolve the collection_ref object to have alternate metadata and store it in relation field
              * but it would be another call and could make the indexing process slower.
              * for the future: maybe it's better to react on collection_ref object index actions than usage index actions
+             * for perfromance reasons, we only fetch the relation for proposals, since they're not relevant for usages
              */
-            fillData(NodeData.builder().nodeMetadata(usageOrProposal).build(), builder, "relation");
+            if(usageOrProposal.getType().equals("ccm:collection_proposal")) {
+                fillData(alfrescoClient.getNodeData(Collections.singletonList(usageOrProposal), FetchParameters.MINIMAL).get(0), builder, "relation");
+            }
 
             builder.endObject();
             builder.endArray();
@@ -859,7 +864,7 @@ public class WorkspaceService {
         };
         searchHitsRunner.run(queryUsages, 5, update ? maxCollectionChildItemsUpdateSize : null, action);
         searchHitsRunner.run(queryProposals, 5, update ? maxCollectionChildItemsUpdateSize : null, action);
-        logger.info("Done: " + (System.currentTimeMillis() - start) / 1000.);
+        logger.info("Done: " + (System.currentTimeMillis() - start) / 1000.);        //
     }
 
     private String getMultilangValue(List<?> values) {
