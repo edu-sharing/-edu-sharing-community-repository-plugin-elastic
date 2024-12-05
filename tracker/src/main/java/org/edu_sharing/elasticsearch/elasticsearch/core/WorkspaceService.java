@@ -840,7 +840,7 @@ public class WorkspaceService {
                 : Query.of(q -> q.term(t -> t.field(queryProposal).value(Tools.getUUID(node.getNodeRef()))));
 
         Query queryProposals = Query.of(q -> q.bool(b -> b.must(queryProposalBase).must(m -> m.term(t -> t.field("type").value("ccm:collection_proposal")))));
-        long start = System.currentTimeMillis();
+        long startTimeMs = System.currentTimeMillis();
         Consumer<Hit<Map>> action = hit -> {
             long dbId = ((Number) hit.source().get("dbid")).longValue();
             GetNodeMetadataParam param = new GetNodeMetadataParam();
@@ -864,7 +864,9 @@ public class WorkspaceService {
         };
         searchHitsRunner.run(queryUsages, 5, update ? maxCollectionChildItemsUpdateSize : null, action);
         searchHitsRunner.run(queryProposals, 5, update ? maxCollectionChildItemsUpdateSize : null, action);
-        logger.info("Done: " + (System.currentTimeMillis() - start) / 1000.);        //
+        if(node.getNodeRef() != null) {
+            logger.info("Index Collections done " + Tools.getUUID(node.getNodeRef()) + " (" + ((System.currentTimeMillis() - startTimeMs) / 1000.) + ")");
+        }
     }
 
     private String getMultilangValue(List<?> values) {
