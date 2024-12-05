@@ -15,6 +15,8 @@ import co.elastic.clients.json.JsonData;
 import co.elastic.clients.util.ObjectBuilder;
 import com.google.gson.GsonBuilder;
 import com.google.gson.ToNumberPolicy;
+import lombok.AllArgsConstructor;
+import lombok.Data;
 import lombok.NonNull;
 import net.sourceforge.cardme.engine.VCardEngine;
 import net.sourceforge.cardme.vcard.VCard;
@@ -606,53 +608,16 @@ public class WorkspaceService {
 
     public DataBuilder indexCollections(NodeMetadata usageOrProposal) throws IOException {
 
-        String nodeIdCollection = null;
-        String nodeIdIO = null;
+        UsageDetails result = getGetUsageDetails(usageOrProposal);
+        if (result == null) return null;
+        Query ioQuery = Query.of(q -> q.term(t -> t.field("properties.sys:node-uuid").value(result.nodeIdIO)));
 
-        if (!(usageOrProposal.getType().equals("ccm:usage") || usageOrProposal.getType().equals("ccm:collection_proposal"))) {
-            throw new IOException("wrong type:" + usageOrProposal.getType());
-        }
-
-        if (usageOrProposal.getType().equals("ccm:usage")) {
-            String propertyUsageAppId = "{http://www.campuscontent.de/model/1.0}usageappid";
-            String propertyUsageCourseId = "{http://www.campuscontent.de/model/1.0}usagecourseid";
-            String propertyUsageParentNodeId = "{http://www.campuscontent.de/model/1.0}usageparentnodeid";
-
-            nodeIdCollection = (String) usageOrProposal.getProperties().get(propertyUsageCourseId);
-            nodeIdIO = (String) usageOrProposal.getProperties().get(propertyUsageParentNodeId);
-            String usageAppId = (String) usageOrProposal.getProperties().get(propertyUsageAppId);
-
-            //check if it is an collection usage
-            if (!homeRepoId.equals(usageAppId)) {
-                return null;
-            }
-        }
-        if (usageOrProposal.getType().equals("ccm:collection_proposal")) {
-            List<String> parentUuids = Arrays.asList(usageOrProposal.getPaths().get(0).getApath().split("/"));
-            nodeIdCollection = parentUuids.stream().skip(parentUuids.size() - 1).findFirst().get();
-            Serializable ioNodeRef = usageOrProposal.getProperties().get("{http://www.campuscontent.de/model/1.0}collection_proposal_target");
-            if (ioNodeRef == null) {
-                logger.warn("no proposal target found for: " + usageOrProposal.getNodeRef());
-                return null;
-            }
-            nodeIdIO = Tools.getUUID(ioNodeRef.toString());
-        }
-
-        final String finalNodeIdCollection = nodeIdCollection;
-        final String finalnodeIdIO = nodeIdIO;
-        Query collectionQuery = Query.of(q -> q.term(t -> t.field("properties.sys:node-uuid").value(finalNodeIdCollection)));
-        Query ioQuery = Query.of(q -> q.term(t -> t.field("properties.sys:node-uuid").value(finalnodeIdIO)));
-
-        HitsMetadata<Map> searchHitsCollection = this.search(collectionQuery, 0, 1);
-        if (searchHitsCollection == null || searchHitsCollection.total().value() == 0) {
-            logger.warn("no collection found for: " + nodeIdCollection);
-            return null;
-        }
-        Hit<Map> searchHitCollection = searchHitsCollection.hits().get(0);
+        Hit<Map> searchHitCollection = getCollectionForUsage(result);
+        if (searchHitCollection == null) return null;
 
         HitsMetadata<Map> ioSearchHits = this.search(ioQuery, 0, 1);
         if (ioSearchHits == null || ioSearchHits.total().value() == 0) {
-            logger.warn("no io found for: " + nodeIdIO);
+            logger.warn("no io found for: " + result.nodeIdIO);
             return null;
         }
 
@@ -716,6 +681,62 @@ public class WorkspaceService {
         this.update(dbid, builder.build());
         this.refreshWorkspace();
         return builder;
+    }
+
+    private Hit<Map> getCollectionForUsage(UsageDetails result) throws IOException {
+        Query collectionQuery = Query.of(q -> q.term(t -> t.field("properties.sys:node-uuid").value(result.nodeIdCollection)));
+        HitsMetadata<Map> searchHitsCollection = this.search(collectionQuery, 0, 1);
+        if (searchHitsCollection == null || searchHitsCollection.total().value() == 0) {
+            logger.warn("no collection found for: " + result.nodeIdCollection);
+            return null;
+        }
+        Hit<Map> searchHitCollection = searchHitsCollection.hits().get(0);
+        return searchHitCollection;
+    }
+
+    private UsageDetails getGetUsageDetails(NodeMetadata usageOrProposal) throws IOException {
+        String nodeIdCollection = null;
+        String nodeIdIO = null;
+
+        if (!(usageOrProposal.getType().equals("ccm:usage") || usageOrProposal.getType().equals("ccm:collection_proposal"))) {
+            logger.warn("wrong type:" + usageOrProposal.getType());
+            return null;
+        }
+
+        if (usageOrProposal.getType().equals("ccm:usage")) {
+            String propertyUsageAppId = "{http://www.campuscontent.de/model/1.0}usageappid";
+            String propertyUsageCourseId = "{http://www.campuscontent.de/model/1.0}usagecourseid";
+            String propertyUsageParentNodeId = "{http://www.campuscontent.de/model/1.0}usageparentnodeid";
+
+            nodeIdCollection = (String) usageOrProposal.getProperties().get(propertyUsageCourseId);
+            nodeIdIO = (String) usageOrProposal.getProperties().get(propertyUsageParentNodeId);
+            String usageAppId = (String) usageOrProposal.getProperties().get(propertyUsageAppId);
+
+            //check if it is an collection usage
+            if (!homeRepoId.equals(usageAppId)) {
+                return null;
+            }
+        }
+        if (usageOrProposal.getType().equals("ccm:collection_proposal")) {
+            List<String> parentUuids = Arrays.asList(usageOrProposal.getPaths().get(0).getApath().split("/"));
+            nodeIdCollection = parentUuids.stream().skip(parentUuids.size() - 1).findFirst().get();
+            Serializable ioNodeRef = usageOrProposal.getProperties().get("{http://www.campuscontent.de/model/1.0}collection_proposal_target");
+            if (ioNodeRef == null) {
+                logger.warn("no proposal target found for: " + usageOrProposal.getNodeRef());
+                return null;
+            }
+            nodeIdIO = Tools.getUUID(ioNodeRef.toString());
+        }
+
+        UsageDetails result = new UsageDetails(nodeIdCollection, nodeIdIO);
+        return result;
+    }
+
+    @Data
+    @AllArgsConstructor
+    private static class UsageDetails {
+        public final String nodeIdCollection;
+        public final String nodeIdIO;
     }
 
     /**
@@ -817,6 +838,8 @@ public class WorkspaceService {
 
         final String query;
         final String queryProposal;
+        // collect already written collections
+        Set<String> collections = new HashSet<>();
         if ("ccm:map".equals(node.getType())) {
             query = "properties.ccm:usagecourseid.keyword";
             queryProposal = "parentRef.id";
@@ -828,7 +851,10 @@ public class WorkspaceService {
             return;
         }
 
-        logger.info("updateing collections for " + node.getType() + " " + node.getId());
+        logger.info("updating collections for " + node.getType() + " " + node.getId());
+        DataBuilder builder = new DataBuilder();
+        builder.startObject();
+        builder.startArray("collections");
 
         //find usages for collection
         Query queryUsages = Query.of(q -> q.bool(b -> b
@@ -855,17 +881,42 @@ public class WorkspaceService {
             logger.debug("Is update: {}", update);
 
             logger.info("running indexCollections for usage: " + dbId);
-
             try {
-                indexCollections(usage);
+                UsageDetails result = getGetUsageDetails(usage);
+                if (result == null) {
+                    return;
+                }
+                synchronized (collections) {
+                    if(!collections.contains(result.nodeIdCollection)) {
+                        collections.add(result.nodeIdCollection);
+                        Hit<Map> collection = getCollectionForUsage(result);
+                        if(collection != null) {
+                            builder.startObject();
+                            for (Map.Entry<String, Object> entry : ((Map<String, Object>) collection.source()).entrySet()) {
+                                if (entry.getKey().equals("children")) continue;
+                                builder.field(entry.getKey(), entry.getValue());
+                            }
+                            if(usage.getType().equals("ccm:collection_proposal")) {
+                                fillData(alfrescoClient.getNodeData(Collections.singletonList(usage), FetchParameters.MINIMAL).get(0), builder, "relation");
+                            }
+                            builder.endObject();
+                        }
+                    }
+                }
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }
         };
+        // run queries and apply action above
         searchHitsRunner.run(queryUsages, 5, update ? maxCollectionChildItemsUpdateSize : null, action);
         searchHitsRunner.run(queryProposals, 5, update ? maxCollectionChildItemsUpdateSize : null, action);
+        builder.endArray();
+        builder.endObject();
+        // apply changes
+        this.update(node.getId(), builder.build());
+        this.refreshWorkspace();
         if(node.getNodeRef() != null) {
-            logger.info("Index Collections done " + Tools.getUUID(node.getNodeRef()) + " (" + ((System.currentTimeMillis() - startTimeMs) / 1000.) + ")");
+            logger.info("Index Collections done " + Tools.getUUID(node.getNodeRef()) + " (" + ((System.currentTimeMillis() - startTimeMs)) + "ms)");
         }
     }
 
