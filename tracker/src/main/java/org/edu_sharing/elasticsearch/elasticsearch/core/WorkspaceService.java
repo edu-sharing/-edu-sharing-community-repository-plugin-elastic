@@ -726,8 +726,7 @@ public class WorkspaceService {
             nodeIdIO = Tools.getUUID(ioNodeRef.toString());
         }
 
-        UsageDetails result = new UsageDetails(nodeIdCollection, nodeIdIO);
-        return result;
+        return new UsageDetails(nodeIdCollection, nodeIdIO);
     }
 
     @Data
@@ -755,7 +754,7 @@ public class WorkspaceService {
             /**
              * try it is a usage or proposal
              */
-            Query queryUsage = Query.of(q -> q.term(t -> t.field("collections.relation.dbid").value(node.getId())));
+            Query queryUsage = Query.of(q -> q.nested(n -> n.path("collections").query(Query.of(qi -> qi.term(t -> t.field("collections.relation.dbid").value(node.getId()))))));
             HitsMetadata<Map> searchHitsIO = this.search(queryUsage, 0, 1);
             if (searchHitsIO.total().value() > 0) {
                 collectionCheckQuery = queryUsage;
@@ -764,7 +763,7 @@ public class WorkspaceService {
             /**
              * try it is an collection
              */
-            Query queryCollection = Query.of(q -> q.term(t -> t.field("collections.dbid").value(node.getId())));
+            Query queryCollection = Query.of(q -> q.nested(n -> n.path("collections").query(Query.of(qi -> qi.term(t -> t.field("collections.dbid").value(node.getId()))))));
             if (collectionCheckQuery == null) {
                 searchHitsIO = this.search(queryCollection, 0, 1);
                 if (!searchHitsIO.hits().isEmpty()) {
@@ -885,7 +884,8 @@ public class WorkspaceService {
                     return;
                 }
                 synchronized (collections) {
-                    if(!collections.contains(result.nodeIdCollection)) {
+                    // we need to track all because for each relation there needs to be kept track regarding the usage for later deletion
+                    //if(!collections.contains(result.nodeIdCollection)) {
                         collections.add(result.nodeIdCollection);
                         Hit<Map> collection = getCollectionForUsage(result);
                         if(collection != null) {
@@ -897,7 +897,7 @@ public class WorkspaceService {
                             addUsageRelation(usage, builder);
                             builder.endObject();
                         }
-                    }
+                    // }
                 }
             } catch (IOException e) {
                 throw new RuntimeException(e);
