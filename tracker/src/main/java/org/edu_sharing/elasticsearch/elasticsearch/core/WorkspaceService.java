@@ -610,7 +610,7 @@ public class WorkspaceService {
 
         UsageDetails result = getGetUsageDetails(usageOrProposal);
         if (result == null) return null;
-        Query ioQuery = Query.of(q -> q.term(t -> t.field("properties.sys:node-uuid").value(result.nodeIdIO)));
+        Query ioQuery = InternalQueries.queryByUUID("properties.sys:node-uuid", result.nodeIdIO);
 
         Hit<Map> searchHitCollection = getCollectionForUsage(result);
         if (searchHitCollection == null) return null;
@@ -682,7 +682,7 @@ public class WorkspaceService {
     }
 
     private Hit<Map> getCollectionForUsage(UsageDetails result) throws IOException {
-        Query collectionQuery = Query.of(q -> q.term(t -> t.field("properties.sys:node-uuid").value(result.nodeIdCollection)));
+        Query collectionQuery = InternalQueries.queryByUUID("properties.sys:node-uuid", result.nodeIdCollection);
         HitsMetadata<Map> searchHitsCollection = this.search(collectionQuery, 0, 1);
         if (searchHitsCollection == null || searchHitsCollection.total().value() == 0) {
             logger.warn("no collection found for: " + result.nodeIdCollection);
@@ -754,7 +754,7 @@ public class WorkspaceService {
             /**
              * try it is a usage or proposal
              */
-            Query queryUsage = Query.of(q -> q.nested(n -> n.path("collections").query(Query.of(qi -> qi.term(t -> t.field("collections.relation.dbid").value(node.getId()))))));
+            Query queryUsage = InternalQueries.queryCollectionNodesViaUsage(node);
             HitsMetadata<Map> searchHitsIO = this.search(queryUsage, 0, 1);
             if (searchHitsIO.total().value() > 0) {
                 collectionCheckQuery = queryUsage;
@@ -763,7 +763,7 @@ public class WorkspaceService {
             /**
              * try it is an collection
              */
-            Query queryCollection = Query.of(q -> q.nested(n -> n.path("collections").query(Query.of(qi -> qi.term(t -> t.field("collections.dbid").value(node.getId()))))));
+            Query queryCollection = InternalQueries.queryCollectionNodes(node);
             if (collectionCheckQuery == null) {
                 searchHitsIO = this.search(queryCollection, 0, 1);
                 if (!searchHitsIO.hits().isEmpty()) {
@@ -854,15 +854,9 @@ public class WorkspaceService {
         builder.startArray("collections");
 
         //find usages for collection
-        Query queryUsages = Query.of(q -> q.bool(b -> b
-                .must(m -> m.term(t -> t.field(query).value(Tools.getUUID(node.getNodeRef()))))
-                .must(m -> m.term(t -> t.field("type").value("ccm:usage")))));
+        Query queryUsages = InternalQueries.queryUsages(node, query);
 
-        final Query queryProposalBase = ("ccm:io".equals(node.getType()))
-                ? Query.of(q -> q.term(t -> t.field(queryProposal).value(node.getNodeRef())))
-                : Query.of(q -> q.term(t -> t.field(queryProposal).value(Tools.getUUID(node.getNodeRef()))));
-
-        Query queryProposals = Query.of(q -> q.bool(b -> b.must(queryProposalBase).must(m -> m.term(t -> t.field("type").value("ccm:collection_proposal")))));
+        Query queryProposals = InternalQueries.queryProposals(node, queryProposal);
         long startTimeMs = System.currentTimeMillis();
         Consumer<Hit<Map>> action = hit -> {
             long dbId = ((Number) hit.source().get("dbid")).longValue();
@@ -1020,10 +1014,7 @@ public class WorkspaceService {
         String uuid = Tools.getUUID(nodeRef);
         String protocol = Tools.getProtocol(nodeRef);
         String identifier = Tools.getIdentifier(nodeRef);
-        Query query = Query.of(q -> q.bool(b -> b
-                .must(must -> must.term(t -> t.field("nodeRef.id").value(uuid)))
-                .must(must -> must.term(t -> t.field("nodeRef.storeRef.protocol").value(protocol)))
-                .must(must -> must.term(t -> t.field("nodeRef.storeRef.identifier").value(identifier)))));
+        Query query = InternalQueries.queryByUUID(uuid, protocol, identifier);
 
         HitsMetadata<Map> sh = this.search(query, 0, 1, excludes);
         if (sh == null || sh.total().value() == 0) {
