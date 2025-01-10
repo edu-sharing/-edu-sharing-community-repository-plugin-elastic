@@ -204,7 +204,7 @@ public class WorkspaceService {
         logger.info("returning");
     }
 
-    private void fillData(NodeData nodeData, @NonNull DataBuilder builder) throws IOException {
+    public void fillData(NodeData nodeData, @NonNull DataBuilder builder) throws IOException {
         fillData(nodeData, builder, null);
     }
 

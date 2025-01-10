@@ -96,6 +96,17 @@ public class AutoConfigurationTracker {
     }
 
     @Bean
+    @ConditionalOnMissingBean(name = "authorities")
+    public IndexConfiguration authorities() {
+        return new IndexConfiguration(req -> req
+                .index("authorities_" + version)
+                .settings(s -> s.index(id -> id
+                        .numberOfShards(Integer.toString(indexNumberOfShards))
+                        .numberOfReplicas(Integer.toString(indexNumberOfReplicas)))));
+    }
+
+
+    @Bean
     @ConditionalOnMissingBean(name = "migrations")
     public IndexConfiguration migrations() {
         return new IndexConfiguration(req -> req
