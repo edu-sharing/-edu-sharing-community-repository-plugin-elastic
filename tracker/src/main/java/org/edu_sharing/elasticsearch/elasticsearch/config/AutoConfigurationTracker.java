@@ -100,9 +100,8 @@ public class AutoConfigurationTracker {
     public IndexConfiguration authorities() {
         return new IndexConfiguration(req -> req
                 .index("authorities_" + version)
-                .settings(s -> s.index(id -> id
-                        .numberOfShards(Integer.toString(indexNumberOfShards))
-                        .numberOfReplicas(Integer.toString(indexNumberOfReplicas)))));
+                .settings(this::getWorkspaceIndexSettings)
+                .mappings(this::getWorkspaceMappings));
     }
 
 
