@@ -183,6 +183,12 @@ public class AutoConfigurationTracker {
                                 .pathMatch("^(?:\\w+\\.)*fullpath$")
                                 .mapping(mp -> mp.keyword(v -> v)))),
 
+                        Map.of("fullpaths_type", DynamicTemplate.of(dt -> dt
+                                .matchMappingType("*")
+                                .matchPattern(MatchType.Regex)
+                                .pathMatch("^(?:\\w+\\.)*fullpaths$")
+                                .mapping(mp -> mp.keyword(v -> v)))),
+
                         Map.of("aspects_type", DynamicTemplate.of(dt -> dt
                                 .matchMappingType("*")
                                 .matchPattern(MatchType.Regex)

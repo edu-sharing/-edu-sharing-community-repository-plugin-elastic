@@ -595,9 +595,19 @@ public class WorkspaceService {
     }
 
     private void addNodePath(DataBuilder builder, NodeMetadata node) {
-        String[] pathEle = node.getPaths().get(0).getApath().split("/");
-        builder.field("path", Arrays.copyOfRange(pathEle, 1, pathEle.length));
-        builder.field("fullpath", StringUtils.join(Arrays.asList(Arrays.copyOfRange(pathEle, 1, pathEle.length)), '/'));
+        {
+            String[] pathEle = node.getPaths().get(0).getApath().split("/");
+            builder.field("path", Arrays.copyOfRange(pathEle, 1, pathEle.length));
+            builder.field("fullpath", StringUtils.join(Arrays.asList(Arrays.copyOfRange(pathEle, 1, pathEle.length)), '/'));
+        }
+        {
+            List<String> fullPathAll = new ArrayList<>();
+            for (Path path : node.getPaths()) {
+                String[] pathEle = path.getApath().split("/");
+                fullPathAll.add(StringUtils.join(Arrays.asList(Arrays.copyOfRange(pathEle, 1, pathEle.length)), '/'));
+            }
+            builder.field("fullpaths", fullPathAll);
+        }
     }
 
     public void refreshWorkspace() throws IOException {
