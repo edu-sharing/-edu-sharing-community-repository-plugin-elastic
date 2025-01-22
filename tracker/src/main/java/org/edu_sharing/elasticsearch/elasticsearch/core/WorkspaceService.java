@@ -608,6 +608,19 @@ public class WorkspaceService {
             }
             builder.field("fullpaths", fullPathAll);
         }
+        {
+           /*
+            /{http://www.alfresco.org/model/application/1.0}company_home/{http://www.campuscontent.de/model/1.0}eeee/{http://www.campuscontent.de/model/1.0}Mercedes_x0020_Glk_x0020_-_x0020_1406.mp4/{http://www.alfresco.org/model/content/1.0}imgpreview
+            */
+            String shortPath = List.of(node.getPaths().get(0).getPath().split("/\\{")).stream()
+                    .skip(1)
+                    // add previously removed "{"
+                    .map(s -> "{"+s)
+                    // get local name
+                    .map(m ->CCConstants.getValidLocalName(m))
+                    .collect(Collectors.joining("/"));
+            builder.field("fulldisplaypath",shortPath);
+        }
     }
 
     public void refreshWorkspace() throws IOException {
