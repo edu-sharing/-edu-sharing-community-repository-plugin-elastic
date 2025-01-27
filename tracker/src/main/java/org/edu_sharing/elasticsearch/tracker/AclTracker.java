@@ -65,20 +65,17 @@ public class AclTracker {
 
             logger.info("starting lastACLChangeSetId:" + nextACLChangeSetId + " lastFromCommitTime:" + lastFromCommitTime + " " + new Date(lastFromCommitTime));
 
+            AclChangeSets aclChangeSets;
+            if(lastFromCommitTime > 0){
+                aclChangeSets = alfClient.getAclChangeSets(null,lastFromCommitTime + 1, AclTracker.maxResults);
+            }else {
+                logger.warn("no last lastFromCommitTime timestamp, need to fallback to id mode, aCLChangeSetId {}", nextACLChangeSetId);
+                aclChangeSets = alfClient.getAclChangeSets(nextACLChangeSetId,null, AclTracker.maxResults);
+            }
 
-            AclChangeSets aclChangeSets = alfClient.getAclChangeSets(nextACLChangeSetId, AclTracker.maxResults);
 
             if (aclChangeSets.getAclChangeSets().isEmpty()) {
-
-                if (aclChangeSets.getMaxChangeSetId() <= nextACLChangeSetId) {
-                    logger.info("index is up to date:" + nextACLChangeSetId + " lastFromCommitTime:" + lastFromCommitTime);
-                    //+1 to prevent repeating the last transaction over and over
-                    //not longer necessary when we remember last transaction id in idx
-                    lastFromCommitTime = aclChangeSets.getMaxChangeSetId() + 1;
-                } else {
-                    //should not happen
-                    logger.info("did not found new aclchangesets in last aclchangeset block from:" + (nextACLChangeSetId ) + " MaxChangeSetId:" + aclChangeSets.getMaxChangeSetId());
-                }
+                logger.info("index is up to date:" + nextACLChangeSetId + " lastFromCommitTime:" + lastFromCommitTime);
                 return false;
             }
 
@@ -139,7 +136,11 @@ public class AclTracker {
                 permissionsAlf = new TreeMap<>(permissionsAlf);
                 workspaceService.updateNodesWithAcl(acl.getId(), permissionsAlf);
             }
-            AclChangeSet lastAclChangeSet = aclChangeSets.getAclChangeSets().get(aclChangeSets.getAclChangeSets().size() - 1);
+
+            AclChangeSet lastAclChangeSet = aclChangeSets.getAclChangeSets().stream().max((a, b) -> Long.compare(
+                    a.getCommitTimeMs(), b.getCommitTimeMs()
+            )).get();
+
             aclStateService.setState(new AclTx(lastAclChangeSet.getId(), lastAclChangeSet.getCommitTimeMs()));
 
 
