@@ -75,9 +75,6 @@ public class AclTracker {
 
                 if (aclChangeSets.getMaxChangeSetId() <= nextACLChangeSetId) {
                     logger.info("index is up to date:" + nextACLChangeSetId + " lastFromCommitTime:" + lastFromCommitTime);
-                    //+1 to prevent repeating the last transaction over and over
-                    //not longer necessary when we remember last transaction id in idx
-                    lastFromCommitTime = aclChangeSets.getMaxChangeSetId() + 1;
                     MetricContextHolder.getAclContext().getProgress().set(100 * PROGRESS_FACTOR);
                     MetricContextHolder.getAclContext().getTimestamp().set(lastFromCommitTime);
                 } else {
