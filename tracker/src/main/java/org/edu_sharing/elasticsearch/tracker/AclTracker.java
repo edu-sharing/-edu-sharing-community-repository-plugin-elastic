@@ -76,7 +76,7 @@ public class AclTracker {
                 if (aclChangeSets.getMaxChangeSetId() <= nextACLChangeSetId) {
                     logger.info("index is up to date:" + nextACLChangeSetId + " lastFromCommitTime:" + lastFromCommitTime);
                     MetricContextHolder.getAclContext().getProgress().set(100 * PROGRESS_FACTOR);
-                    MetricContextHolder.getAclContext().getTimestamp().set(lastFromCommitTime);
+                    MetricContextHolder.getAclContext().getTimestamp().set(System.currentTimeMillis());
                 } else {
                     //should not happen
                     logger.info("did not found new aclchangesets in last aclchangeset block from:" + (nextACLChangeSetId ) + " MaxChangeSetId:" + aclChangeSets.getMaxChangeSetId());

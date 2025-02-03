@@ -87,6 +87,8 @@ public abstract class TransactionTrackerBase implements TransactionTracker {
             long maxTrackerTxnId = transactions.getMaxTxnId();
 
             if (transactions.getTransactions().isEmpty()) {
+                MetricContextHolder.getTransactionContext().getProgress().set((long) (100 * PROGRESS_FACTOR));
+                MetricContextHolder.getTransactionContext().getTimestamp().set(System.currentTimeMillis());
                 if (trackerStrategy.getLimit() != null) {
                     log.info("max transaction limit by strategy reached: {} / {}", maxTrackerTxnId, trackerStrategy.getLimit());
                     return false;
