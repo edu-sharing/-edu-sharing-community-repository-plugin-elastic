@@ -16,7 +16,7 @@ public class MetricContextHolder {
 
     @Getter
     public static class MetricContext {
-        public static final long PROGRESS_FACTOR = 10000;
+        public static final long PROGRESS_FACTOR = 1000000;
         AtomicLong progress = new AtomicLong();
         AtomicLong timestamp = new AtomicLong(System.currentTimeMillis());
     }
