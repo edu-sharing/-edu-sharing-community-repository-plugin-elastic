@@ -155,6 +155,8 @@ public class AlfrescoWebscriptClient {
                 logger.warn("getNodeMetadata received an null node, total list size: " + nodes.size());
                 continue;
             }
+            logger.debug("fetching node: " + node.getId());
+
             dbnodeids.add(node.getId());
         }
 
