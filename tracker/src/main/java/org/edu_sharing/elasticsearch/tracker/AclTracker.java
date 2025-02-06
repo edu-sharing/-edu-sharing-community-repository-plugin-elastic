@@ -5,6 +5,7 @@ import org.edu_sharing.elasticsearch.alfresco.client.*;
 import org.edu_sharing.elasticsearch.elasticsearch.core.StatusIndexService;
 import org.edu_sharing.elasticsearch.elasticsearch.core.WorkspaceService;
 import org.edu_sharing.elasticsearch.elasticsearch.core.state.AclTx;
+import org.edu_sharing.elasticsearch.metric.MetricContextHolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -14,6 +15,8 @@ import java.io.IOException;
 import java.text.DecimalFormat;
 import java.util.*;
 import java.util.stream.Collectors;
+
+import static org.edu_sharing.elasticsearch.metric.MetricContextHolder.MetricContext.PROGRESS_FACTOR;
 
 
 @Component
@@ -72,9 +75,8 @@ public class AclTracker {
 
                 if (aclChangeSets.getMaxChangeSetId() <= nextACLChangeSetId) {
                     logger.info("index is up to date:" + nextACLChangeSetId + " lastFromCommitTime:" + lastFromCommitTime);
-                    //+1 to prevent repeating the last transaction over and over
-                    //not longer necessary when we remember last transaction id in idx
-                    lastFromCommitTime = aclChangeSets.getMaxChangeSetId() + 1;
+                    MetricContextHolder.getAclContext().getProgress().set(100 * PROGRESS_FACTOR);
+                    MetricContextHolder.getAclContext().getTimestamp().set(System.currentTimeMillis());
                 } else {
                     //should not happen
                     logger.info("did not found new aclchangesets in last aclchangeset block from:" + (nextACLChangeSetId ) + " MaxChangeSetId:" + aclChangeSets.getMaxChangeSetId());
@@ -144,6 +146,8 @@ public class AclTracker {
 
 
             double percentage = ((double) lastAclChangeSet.getId() - 1) / (double) aclChangeSets.getMaxChangeSetId() * 100.0d;
+            MetricContextHolder.getAclContext().getProgress().set((long) (percentage * PROGRESS_FACTOR));
+            MetricContextHolder.getAclContext().getTimestamp().set(lastFromCommitTime);
             DecimalFormat df = new DecimalFormat("0.00");
             logger.info("finished " + df.format(percentage) + "% lastACLChangeSetId:" + lastAclChangeSet.getId() +" maxChangeSetId:" + aclChangeSets.getMaxChangeSetId());
             return false;
