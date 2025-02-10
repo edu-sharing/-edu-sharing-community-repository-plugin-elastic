@@ -15,6 +15,8 @@ import co.elastic.clients.json.JsonData;
 import co.elastic.clients.util.ObjectBuilder;
 import com.google.gson.GsonBuilder;
 import com.google.gson.ToNumberPolicy;
+import lombok.AllArgsConstructor;
+import lombok.Data;
 import lombok.NonNull;
 import net.sourceforge.cardme.engine.VCardEngine;
 import net.sourceforge.cardme.vcard.VCard;
@@ -97,8 +99,8 @@ public class WorkspaceService {
                 .conflicts(Conflicts.Proceed)
                 .refresh(true)
                 .script(scr -> scr
-                                .source("ctx._source.permissions=params")
-                                .params(permissions.entrySet().stream().collect(Collectors.toMap(Map.Entry::getKey, x -> JsonData.of(x.getValue())))))
+                        .source("ctx._source.permissions=params")
+                        .params(permissions.entrySet().stream().collect(Collectors.toMap(Map.Entry::getKey, x -> JsonData.of(x.getValue())))))
         );
 
         logger.debug("updated: {}", bulkByScrollResponse.updated());
@@ -180,7 +182,7 @@ public class WorkspaceService {
             logger.info("start refresh index");
             this.refreshWorkspace();
             try {
-                logger.info("start RefreshCollectionReplicas");
+                logger.info("start RefreshCollectionReplicas (" + bulkResponse.items().size() + ")");
                 for (BulkResponseItem item : bulkResponse.items()) {
                     if (item.error() != null) {
                         logger.error("Failed indexing of " + item.id());
@@ -209,7 +211,6 @@ public class WorkspaceService {
     }
 
     void fillData(NodeData nodeData, @NonNull final DataBuilder builder, String objectName) throws IOException {
-
         NodeMetadata node = nodeData.getNodeMetadata();
         String storeRefProtocol = Tools.getProtocol(node.getNodeRef());
         String storeRefIdentifier = Tools.getIdentifier(node.getNodeRef());
@@ -220,8 +221,6 @@ public class WorkspaceService {
         } else {
             builder.startObject();
         }
-
-
         {
             builder.field("aclId", node.getAclId());
             builder.field("txnId", node.getTxnId());
@@ -252,11 +251,11 @@ public class WorkspaceService {
 
             builder.field("owner", node.getOwner());
             builder.field("type", node.getType());
-
-            scriptExecutor.addCustomPropertiesByScript(builder, nodeData);
-
+            if(!Objects.equals(objectName, "relation")) {
+                scriptExecutor.addCustomPropertiesByScript(builder, nodeData);
+            }
             //valuespaces
-            if (!nodeData.getValueSpaces().isEmpty()) {
+            if (nodeData.getValueSpaces() != null && !nodeData.getValueSpaces().isEmpty()) {
                 builder.startObject("i18n");
                 for (Map.Entry<String, Map<String, List<String>>> entry : nodeData.getValueSpaces().entrySet()) {
                     String language = entry.getKey().split("-")[0];
@@ -280,13 +279,14 @@ public class WorkspaceService {
                 addNodePath(builder, node);
             }
 
-            builder.startObject("permissions");
-            builder.field("read", nodeData.getReader().getReaders());
-            for (Map.Entry<String, List<String>> entry : nodeData.getPermissions().entrySet()) {
-                builder.field(entry.getKey(), entry.getValue());
+            if(nodeData.getReader() != null) {
+                builder.startObject("permissions");
+                builder.field("read", nodeData.getReader().getReaders());
+                for (Map.Entry<String, List<String>> entry : nodeData.getPermissions().entrySet()) {
+                    builder.field(entry.getKey(), entry.getValue());
+                }
+                builder.endObject();
             }
-            builder.endObject();
-
             //content
             /**
              *     "{http://www.alfresco.org/model/content/1.0}content": {
@@ -308,7 +308,7 @@ public class WorkspaceService {
                 builder.field("mimetype", content.get("mimetype"));
                 builder.field("size", content.get("size"));
                 if (nodeData.getFullText() != null) {
-                    if(maxContentLength > 0 && nodeData.getFullText().length() > maxContentLength) {
+                    if (maxContentLength > 0 && nodeData.getFullText().length() > maxContentLength) {
                         logger.info("Node " + node.getNodeRef() + " has too large fulltext: " + nodeData.getFullText().length() + ". Will be truncated to " + maxContentLength);
                         builder.field("fulltext", nodeData.getFullText().substring(0, maxContentLength));
                     } else {
@@ -510,7 +510,7 @@ public class WorkspaceService {
                                 endObject();
             }
 
-            if (!nodeData.getChildren().isEmpty()) {
+            if (nodeData.getChildren() != null && !nodeData.getChildren().isEmpty()) {
                 builder.startArray("children");
                 for (NodeData child : nodeData.getChildren()) {
                     fillData(child, builder);
@@ -631,11 +631,97 @@ public class WorkspaceService {
 
     public DataBuilder indexCollections(NodeMetadata usageOrProposal) throws IOException {
 
+        UsageDetails result = getGetUsageDetails(usageOrProposal);
+        if (result == null) return null;
+        Query ioQuery = InternalQueries.queryByUUID("properties.sys:node-uuid", result.nodeIdIO);
+
+        Hit<Map> searchHitCollection = getCollectionForUsage(result);
+        if (searchHitCollection == null) return null;
+
+        HitsMetadata<Map> ioSearchHits = this.search(ioQuery, 0, 1);
+        if (ioSearchHits == null || ioSearchHits.total().value() == 0) {
+            logger.warn("no io found for: " + result.nodeIdIO);
+            return null;
+        }
+
+        Hit<Map> hitIO = ioSearchHits.hits().get(0);
+
+        Map propsIo = (Map) hitIO.source().get("properties");
+        Map propsCollection = (Map) searchHitCollection.source().get("properties");
+
+
+        logger.info("adding collection data: " + propsCollection.get("cm:name") + " " + propsCollection.get("sys:node-dbid") + " IO: " + propsIo.get("cm:name") + " " + propsIo.get("sys:node-dbid"));
+
+        List<Map<String, Object>> collections = (List<Map<String, Object>>) hitIO.source().get("collections");
+        DataBuilder builder = new DataBuilder();
+        builder.startObject();
+        {
+            builder.startArray("collections");
+            if (collections != null && collections.size() > 0) {
+                for (Map<String, Object> collection : collections) {
+                    boolean colIsTheSame = searchHitCollection.source().get("dbid").equals(collection.get("dbid"));
+
+                    Map<String, Object> relation = (Map<String, Object>) collection.get("relation");
+                    if (relation != null && relation.get("dbid") != null) {
+                        long dbidRelation = ((Number) (relation.get("dbid"))).longValue();
+                        if (dbidRelation != usageOrProposal.getId()) {
+                            colIsTheSame = false;
+                        }
+                    }
+                    if(!colIsTheSame) {
+                        builder.startObject();
+                        for (Map.Entry<String, Object> entry : collection.entrySet()) {
+                            if (entry.getKey().equals("children")) continue;
+                            builder.field(entry.getKey(), entry.getValue());
+                        }
+                        builder.endObject();
+                    }
+                }
+            }
+
+            builder.startObject();
+            for (Map.Entry<String, Object> entry : ((Map<String, Object>) searchHitCollection.source()).entrySet()) {
+                if (entry.getKey().equals("children")) continue;
+                builder.field(entry.getKey(), entry.getValue());
+            }
+
+            /**
+             * check performance, if this call is to slow we could build the metadata structure by hand (instead using get)
+             * for usages: we could resolve the collection_ref object to have alternate metadata and store it in relation field
+             * but it would be another call and could make the indexing process slower.
+             * for the future: maybe it's better to react on collection_ref object index actions than usage index actions
+             * for perfromance reasons, we only fetch the relation for proposals, since they're not relevant for usages
+             */
+            addUsageRelation(usageOrProposal, builder);
+
+            builder.endObject();
+            builder.endArray();
+        }
+        builder.endObject();
+        int dbid = Integer.parseInt(hitIO.id());
+        this.update(dbid, builder.build());
+        this.refreshWorkspace();
+        return builder;
+    }
+
+    private Hit<Map> getCollectionForUsage(UsageDetails result) throws IOException {
+        Query collectionQuery = InternalQueries.queryByUUID("properties.sys:node-uuid", result.nodeIdCollection);
+        HitsMetadata<Map> searchHitsCollection = this.search(collectionQuery, 0, 1);
+        if (searchHitsCollection == null || searchHitsCollection.total().value() == 0) {
+            logger.warn("no collection found for: " + result.nodeIdCollection);
+            return null;
+        }
+        Hit<Map> searchHitCollection = searchHitsCollection.hits().get(0);
+        return searchHitCollection;
+    }
+
+    private UsageDetails getGetUsageDetails(NodeMetadata usageOrProposal) throws IOException {
         String nodeIdCollection = null;
         String nodeIdIO = null;
 
         if (!(usageOrProposal.getType().equals("ccm:usage") || usageOrProposal.getType().equals("ccm:collection_proposal"))) {
-            throw new IOException("wrong type:" + usageOrProposal.getType());
+            logger.warn("wrong type:" + usageOrProposal.getType());
+            return null;
         }
 
         if (usageOrProposal.getType().equals("ccm:usage")) {
@@ -663,78 +749,14 @@ public class WorkspaceService {
             nodeIdIO = Tools.getUUID(ioNodeRef.toString());
         }
 
-        final String finalNodeIdCollection = nodeIdCollection;
-        final String finalnodeIdIO = nodeIdIO;
-        Query collectionQuery = Query.of(q -> q.term(t -> t.field("properties.sys:node-uuid").value(finalNodeIdCollection)));
-        Query ioQuery = Query.of(q -> q.term(t -> t.field("properties.sys:node-uuid").value(finalnodeIdIO)));
+        return new UsageDetails(nodeIdCollection, nodeIdIO);
+    }
 
-        HitsMetadata<Map> searchHitsCollection = this.search(collectionQuery, 0, 1);
-        if (searchHitsCollection == null || searchHitsCollection.total().value() == 0) {
-            logger.warn("no collection found for: " + nodeIdCollection);
-            return null;
-        }
-        Hit<Map> searchHitCollection = searchHitsCollection.hits().get(0);
-
-        HitsMetadata<Map> ioSearchHits = this.search(ioQuery, 0, 1);
-        if (ioSearchHits == null || ioSearchHits.total().value() == 0) {
-            logger.warn("no io found for: " + nodeIdIO);
-            return null;
-        }
-
-        Hit<Map> hitIO = ioSearchHits.hits().get(0);
-
-        Map propsIo = (Map) hitIO.source().get("properties");
-        Map propsCollection = (Map) searchHitCollection.source().get("properties");
-
-
-        logger.info("adding collection data: " + propsCollection.get("cm:name") + " " + propsCollection.get("sys:node-dbid") + " IO: " + propsIo.get("cm:name") + " " + propsIo.get("sys:node-dbid"));
-
-        List<Map<String, Object>> collections = (List<Map<String, Object>>) hitIO.source().get("collections");
-        DataBuilder builder = new DataBuilder();
-        builder.startObject();
-        {
-            builder.startArray("collections");
-            if (collections != null && collections.size() > 0) {
-                for (Map<String, Object> collection : collections) {
-                    boolean colIsTheSame = searchHitCollection.source().get("dbid").equals(collection.get("dbid"));
-
-                    Map<String, Object> relation = (Map<String, Object>) collection.get("relation");
-                    if (relation != null) {
-                        long dbidRelation = ((Number) (relation.get("dbid"))).longValue();
-                        if (!colIsTheSame || dbidRelation != usageOrProposal.getId()) {
-                            builder.startObject();
-                            for (Map.Entry<String, Object> entry : collection.entrySet()) {
-                                if (entry.getKey().equals("children")) continue;
-                                builder.field(entry.getKey(), entry.getValue());
-                            }
-                            builder.endObject();
-                        }
-                    }
-                }
-            }
-
-            builder.startObject();
-            for (Map.Entry<String, Object> entry : ((Map<String, Object>) searchHitCollection.source()).entrySet()) {
-                if (entry.getKey().equals("children")) continue;
-                builder.field(entry.getKey(), entry.getValue());
-            }
-
-            /**
-             * check performance, if this call is to slow we could build the metadata structure by hand (instead using get)
-             * for usages: we could resolve the collection_ref object to have alternate metadata and store it in relation field
-             * but it would be another call and could make the indexing process slower.
-             * for the future: maybe it's better to react on collection_ref object index actions than usage index actions
-             */
-            fillData(alfrescoClient.getNodeData(List.of(usageOrProposal)).get(0), builder, "relation");
-
-            builder.endObject();
-            builder.endArray();
-        }
-        builder.endObject();
-        int dbid = Integer.parseInt(hitIO.id());
-        this.update(dbid, builder.build());
-        this.refreshWorkspace();
-        return builder;
+    @Data
+    @AllArgsConstructor
+    private static class UsageDetails {
+        public final String nodeIdCollection;
+        public final String nodeIdIO;
     }
 
     /**
@@ -755,7 +777,7 @@ public class WorkspaceService {
             /**
              * try it is a usage or proposal
              */
-            Query queryUsage = Query.of(q -> q.term(t -> t.field("collections.relation.dbid").value(node.getId())));
+            Query queryUsage = InternalQueries.queryCollectionNodesViaUsage(node);
             HitsMetadata<Map> searchHitsIO = this.search(queryUsage, 0, 1);
             if (searchHitsIO.total().value() > 0) {
                 collectionCheckQuery = queryUsage;
@@ -764,7 +786,7 @@ public class WorkspaceService {
             /**
              * try it is an collection
              */
-            Query queryCollection = Query.of(q -> q.term(t -> t.field("collections.dbid").value(node.getId())));
+            Query queryCollection = InternalQueries.queryCollectionNodes(node);
             if (collectionCheckQuery == null) {
                 searchHitsIO = this.search(queryCollection, 0, 1);
                 if (!searchHitsIO.hits().isEmpty()) {
@@ -836,6 +858,8 @@ public class WorkspaceService {
 
         final String query;
         final String queryProposal;
+        // collect already written collections
+        Set<String> collections = new HashSet<>();
         if ("ccm:map".equals(node.getType())) {
             query = "properties.ccm:usagecourseid.keyword";
             queryProposal = "parentRef.id";
@@ -847,19 +871,16 @@ public class WorkspaceService {
             return;
         }
 
-        logger.info("updateing collections for " + node.getType() + " " + node.getId());
+        logger.info("updating collections for " + node.getType() + " " + node.getId());
+        DataBuilder builder = new DataBuilder();
+        builder.startObject();
+        builder.startArray("collections");
 
         //find usages for collection
-        Query queryUsages = Query.of(q -> q.bool(b -> b
-                .must(m -> m.term(t -> t.field(query).value(Tools.getUUID(node.getNodeRef()))))
-                .must(m -> m.term(t -> t.field("type").value("ccm:usage")))));
+        Query queryUsages = InternalQueries.queryUsages(node, query);
 
-        final Query queryProposalBase = ("ccm:io".equals(node.getType()))
-                ? Query.of(q -> q.term(t -> t.field(queryProposal).value(node.getNodeRef())))
-                : Query.of(q -> q.term(t -> t.field(queryProposal).value(Tools.getUUID(node.getNodeRef()))));
-
-        Query queryProposals = Query.of(q -> q.bool(b -> b.must(queryProposalBase).must(m -> m.term(t -> t.field("type").value("ccm:collection_proposal")))));
-
+        Query queryProposals = InternalQueries.queryProposals(node, queryProposal);
+        long startTimeMs = System.currentTimeMillis();
         Consumer<Hit<Map>> action = hit -> {
             long dbId = ((Number) hit.source().get("dbid")).longValue();
             GetNodeMetadataParam param = new GetNodeMetadataParam();
@@ -871,17 +892,53 @@ public class WorkspaceService {
             }
 
             NodeMetadata usage = nodeMetadataByIds.get(0);
-            logger.info("Is update: {}", update);
+            logger.debug("Is update: {}", update);
 
             logger.info("running indexCollections for usage: " + dbId);
             try {
-                indexCollections(usage);
+                UsageDetails result = getGetUsageDetails(usage);
+                if (result == null) {
+                    return;
+                }
+                synchronized (collections) {
+                    // we need to track all because for each relation there needs to be kept track regarding the usage for later deletion
+                    //if(!collections.contains(result.nodeIdCollection)) {
+                        collections.add(result.nodeIdCollection);
+                        Hit<Map> collection = getCollectionForUsage(result);
+                        if(collection != null) {
+                            builder.startObject();
+                            for (Map.Entry<String, Object> entry : ((Map<String, Object>) collection.source()).entrySet()) {
+                                if (entry.getKey().equals("children")) continue;
+                                builder.field(entry.getKey(), entry.getValue());
+                            }
+                            addUsageRelation(usage, builder);
+                            builder.endObject();
+                        }
+                    // }
+                }
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }
         };
+        // run queries and apply action above
         searchHitsRunner.run(queryUsages, 5, update ? maxCollectionChildItemsUpdateSize : null, action);
         searchHitsRunner.run(queryProposals, 5, update ? maxCollectionChildItemsUpdateSize : null, action);
+        builder.endArray();
+        builder.endObject();
+        // apply changes
+        this.update(node.getId(), builder.build());
+        this.refreshWorkspace();
+        if(node.getNodeRef() != null) {
+            logger.info("Index Collections done " + Tools.getUUID(node.getNodeRef()) + " (" + ((System.currentTimeMillis() - startTimeMs)) + "ms)");
+        }
+    }
+
+    private void addUsageRelation(NodeMetadata usage, DataBuilder builder) throws IOException {
+        if(usage.getType().equals("ccm:collection_proposal")) {
+            fillData(alfrescoClient.getNodeData(Collections.singletonList(usage), FetchParameters.MINIMAL).get(0), builder, "relation");
+        } else {
+            fillData(NodeData.builder().nodeMetadata(usage).build(), builder, "relation");
+        }
     }
 
     private String getMultilangValue(List<?> values) {
@@ -928,9 +985,9 @@ public class WorkspaceService {
                     .index(index)
                     .operations(
                             nodes.stream().map(n -> BulkOperation.of(
-                                    b -> b.delete(d -> d.index(index).id(Long.toString(n.getId())))
-                            )
-                    ).collect(Collectors.toList())));
+                                            b -> b.delete(d -> d.index(index).id(Long.toString(n.getId())))
+                                    )
+                            ).collect(Collectors.toList())));
             if(response.items().size() != nodes.size()) {
                 logger.error("Errors occured while deleting nodes: Actual Deleted count " + response.items().size() + " does not match actual count: " + nodes.size());
             }
@@ -980,10 +1037,7 @@ public class WorkspaceService {
         String uuid = Tools.getUUID(nodeRef);
         String protocol = Tools.getProtocol(nodeRef);
         String identifier = Tools.getIdentifier(nodeRef);
-        Query query = Query.of(q -> q.bool(b -> b
-                .must(must -> must.term(t -> t.field("nodeRef.id").value(uuid)))
-                .must(must -> must.term(t -> t.field("nodeRef.storeRef.protocol").value(protocol)))
-                .must(must -> must.term(t -> t.field("nodeRef.storeRef.identifier").value(identifier)))));
+        Query query = InternalQueries.queryByUUID(uuid, protocol, identifier);
 
         HitsMetadata<Map> sh = this.search(query, 0, 1, excludes);
         if (sh == null || sh.total().value() == 0) {
@@ -1134,9 +1188,9 @@ public class WorkspaceService {
                             .index(index)
                             .id(id)
                             .script(scr -> scr
-                                            .lang("painless")
-                                            .source("for(String prop : params.propsToRemove){ctx._source.remove(prop)}")
-                                            .params("propsToRemove", JsonData.of(propsToRemove))),
+                                    .lang("painless")
+                                    .source("for(String prop : params.propsToRemove){ctx._source.remove(prop)}")
+                                    .params("propsToRemove", JsonData.of(propsToRemove))),
                     Map.class);
         }
     }
